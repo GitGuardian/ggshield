@@ -4,14 +4,13 @@ from typing import Any, List, Optional, Tuple
 import click
 import requests
 from pygitguardian import GGClient
-from pygitguardian.models import APITokensResponse
 
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import (
     create_client,
     create_client_from_config,
-    safe_api_tokens,
+    granted_scopes,
     safe_response_json,
 )
 from ggshield.core.config import Config
@@ -21,28 +20,51 @@ from ggshield.core.url_utils import clean_url
 from ggshield.verticals.auth import DEFAULT_SCOPES, OAuthClient
 
 
-def _warn_missing_scopes(client: GGClient) -> None:
-    try:
-        token_info = safe_api_tokens(client)
-    except (UnexpectedError, requests.exceptions.RequestException):
-        # Best-effort warning: never fail an already-successful login if the
-        # token-info fetch errors out (non-JSON body, network blip, timeout...).
+def _expected_scopes(extra_scopes: Optional[List[str]]) -> List[str]:
+    """The scopes this login asked for: the defaults plus anything from ``--scopes``.
+
+    The backend grants the subset the member is eligible for and drops the rest, so
+    what the user asked for is what we have to report against. Comparing against
+    ``DEFAULT_SCOPES`` alone leaves a refused ``--scopes`` entirely unmentioned. This is
+    also the set sent in the authorize URL.
+    """
+    return list(dict.fromkeys([*DEFAULT_SCOPES, *(extra_scopes or [])]))
+
+
+def _warn_missing_scopes(
+    client: GGClient, expected_scopes: List[str], *, reused_token: bool = False
+) -> None:
+    """Report the expected scopes the token does not carry.
+
+    ``reused_token`` distinguishes the two ways a scope can be absent, which need
+    different words and a different next step: after a login the server refused it,
+    while a kept token was simply never asked for it.
+    """
+    # Best-effort warning: never fail an already-successful login when the scopes cannot
+    # be read (non-JSON body, network blip, an error Detail that says nothing about them).
+    granted = granted_scopes(client)
+    if granted is None:
         return
-    if not isinstance(token_info, APITokensResponse):
-        # An error Detail (e.g. 401/500) tells us nothing about scopes; don't
-        # warn that scopes are "missing" when we never managed to read them.
+    missing = [s for s in expected_scopes if s not in granted]
+    if not missing:
         return
-    granted = token_info.scopes or []
-    missing = [s for s in DEFAULT_SCOPES if s not in granted]
-    if missing:
+    if reused_token:
         click.echo(
-            "Warning: the following scopes were not granted: "
+            "Warning: the current token does not have the following scopes: "
             + ", ".join(missing)
             + ".\n"
-            "Some features may require additional permissions at runtime.\n"
-            "Contact your workspace administrator if you need access.",
+            'Run "ggshield auth login --scopes '
+            + " ".join(missing)
+            + '" to get a token that does.',
             err=True,
         )
+        return
+    click.echo(
+        "Warning: the following scopes were not granted: " + ", ".join(missing) + ".\n"
+        "Some features may require additional permissions at runtime.\n"
+        "Contact your workspace administrator if you need access.",
+        err=True,
+    )
 
 
 def validate_login_path(
@@ -122,7 +144,9 @@ def print_default_instance_message(config: Config) -> None:
     type=str,
     help=(
         "Space-separated list of extra scopes to request in addition to the default"
-        " scopes (scan, honeytokens:check, endpoints:send, ai-discover:send)."
+        " scopes (scan, honeytokens:check, endpoints:send, ai-discover:send). If the"
+        " current token lacks one of them, ggshield authenticates again instead of"
+        " reusing it."
     ),
     metavar="SCOPES",
 )
@@ -182,7 +206,9 @@ def login_cmd(
     available scopes in [GitGuardian API documentation][1].
 
     If a valid personal access token is already configured, this command simply displays
-    a success message indicating that ggshield is already ready to use.
+    a success message indicating that ggshield is already ready to use — unless
+    `--scopes` asks for a scope that token does not carry, in which case ggshield
+    authenticates again to get one that does.
 
     [1]: https://docs.gitguardian.com/api-docs/authentication#scopes
     """
@@ -264,7 +290,7 @@ def token_login(config: Config, instance: Optional[str]) -> None:
     click.echo("Authentication was successful.")
     print_default_instance_message(config)
 
-    _warn_missing_scopes(client)
+    _warn_missing_scopes(client, list(DEFAULT_SCOPES))
 
 
 def web_login(
@@ -285,8 +311,15 @@ def web_login(
 
     client = OAuthClient(config, defined_instance)
 
-    if client.check_existing_token():
-        # skip the process if a valid token is already saved
+    if client.check_existing_token(required_scopes=extra_scopes):
+        # skip the process if a valid token is already saved. Report what it lacks: a
+        # kept token is never re-checked otherwise, so one minted before a scope joined
+        # the defaults stays silently short until it expires.
+        _warn_missing_scopes(
+            create_client_from_config(config),
+            _expected_scopes(extra_scopes),
+            reused_token=True,
+        )
         return
 
     client.oauth_process(
@@ -296,5 +329,7 @@ def web_login(
         extra_scopes=extra_scopes,
         no_browser=no_browser,
     )
-    _warn_missing_scopes(create_client_from_config(config))
+    _warn_missing_scopes(
+        create_client_from_config(config), _expected_scopes(extra_scopes)
+    )
     print_default_instance_message(config)
