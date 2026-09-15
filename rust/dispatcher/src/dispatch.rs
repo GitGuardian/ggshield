@@ -42,6 +42,12 @@ pub fn is_native_hook(args: &[OsString]) -> bool {
     args == NATIVE_HOOK_ARGS
 }
 
+/// True for the `secret <verb>` and `run`/`activate`/`trust` forms the secrets
+/// crate answers.
+pub fn is_native_secret(args: &[OsString]) -> bool {
+    ggshield_secrets_cli::is_native(args)
+}
+
 /// True only for the exact `secret scan ai-hook --warm-notifier` form.
 pub fn is_warm_notifier(args: &[OsString]) -> bool {
     args == WARM_NOTIFIER_ARGS

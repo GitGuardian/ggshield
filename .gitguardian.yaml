@@ -2,6 +2,10 @@ version: 2
 
 secret:
   ignored_matches:
+    - match: 8ffee698dca25f63e9e0937d842a1b0ea1699a1c72438ac0b1720d1f7aba589a
+      name: zsh array name (chpwd_functions) asserted in the activate hook tests
+    - match: 87a4ca384e5ded884e378695f5c5b9575adf831545af45d53a551bed6a7034bf
+      name: zsh array name (precmd_functions) asserted in the activate hook tests
     - match: a288e2a549678ef0b9aa0f9446be30388918f2a4647d7327bea8802ba9c3ac89
       name: fake secret partially censored
     - match: 56e55937e918b984e285a94ac96de439813a6316c8e184ce7773ee47d700b019
