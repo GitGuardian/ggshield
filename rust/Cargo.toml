@@ -1,5 +1,5 @@
 [workspace]
-members = ["common", "config", "hook", "dispatcher"]
+members = ["common", "config", "hook", "dispatcher", "secrets"]
 resolver = "2"
 
 [workspace.package]
@@ -76,6 +76,7 @@ tempfile = "3"
 
 ggshield-common = { path = "common" }
 ggshield-config = { path = "config" }
+ggshield-secrets = { path = "secrets" }
 
 [workspace.lints.clippy]
 unwrap_used = "warn"
