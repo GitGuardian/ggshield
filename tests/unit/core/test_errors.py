@@ -2,8 +2,13 @@ import logging
 from unittest.mock import MagicMock
 
 import pytest
+from pygitguardian.models import Detail
 
-from ggshield.core.errors import UnexpectedError, handle_api_error
+from ggshield.core.errors import (
+    ServiceUnavailableError,
+    UnexpectedError,
+    handle_api_error,
+)
 
 
 def test_handle_api_error_logs_detail_at_debug(caplog):
@@ -42,3 +47,29 @@ def test_handle_api_error_unknown_status_raises_unexpected_error():
 
     with pytest.raises(UnexpectedError):
         handle_api_error(detail)
+
+
+def test_handle_api_error_429_raises_service_unavailable():
+    """
+    GIVEN a Detail with status_code=429 (the server throttled the scan and
+    py-gitguardian gave up because Retry-After was missing or unparseable)
+    WHEN handle_api_error() is called
+    THEN it raises ServiceUnavailableError, so a throttled scan is reported as
+    "the server did not scan this" rather than counted as a clean chunk.
+    """
+    detail = Detail("Too many requests", 429)
+
+    with pytest.raises(ServiceUnavailableError):
+        handle_api_error(detail)
+
+
+def test_handle_api_error_non_transient_status_is_not_skippable():
+    """
+    GIVEN a 403 that is not the quota message (a token missing the scan scope,
+    an instance refusing the caller's IP)
+    WHEN handle_api_error() is called
+    THEN it raises UnexpectedError, not ServiceUnavailableError: retrying will
+    not fix it, so `--no-fail-on-server-error` must not wave it through.
+    """
+    with pytest.raises(UnexpectedError):
+        handle_api_error(Detail("Insufficient scope", 403))
