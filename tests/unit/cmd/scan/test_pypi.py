@@ -70,6 +70,22 @@ class TestSavePackageToTmp:
 
         assert (tmp_path / "pkg-1.0.tar.gz").read_bytes() == b"chunk1chunk2"
 
+    def test_ignores_interpreter_compatibility(
+        self, finder_cls: MagicMock, tmp_path: Path
+    ) -> None:
+        """The package is scanned, never installed, so a Requires-Python or wheel
+        tag the running interpreter does not satisfy must not filter it out
+        (#458)."""
+        finder = finder_cls.return_value
+        finder.find_best_match.return_value.best = _mock_best_match(
+            "pkg-1.0.tar.gz", "https://index.test/pkg-1.0.tar.gz"
+        )
+        _set_stream_response(finder, [b"chunk"])
+
+        save_package_to_tmp(temp_dir=tmp_path, package_name=self.package_name)
+
+        assert finder_cls.call_args.kwargs["ignore_compatibility"] is True
+
     def test_raises_when_package_not_found(
         self, finder_cls: MagicMock, tmp_path: Path
     ) -> None:
