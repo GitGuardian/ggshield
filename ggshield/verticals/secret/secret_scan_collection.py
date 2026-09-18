@@ -83,7 +83,7 @@ class Secret:
     incident_url: Optional[str]
     matches: List[ExtendedMatch]
     ignore_reason: Optional[IgnoreReason]
-    diff_kind: Optional[DiffKind]
+    diff_kind: Optional[Union[DiffKind, str]]
     is_vaulted: bool
     vault_type: Optional[str]
     vault_name: Optional[str]
