@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 import click
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, Timeout
 
 import ggshield.verticals.hmsl.utils as hmsl_utils
 from ggshield.cmd.utils.common_options import add_common_options
@@ -110,7 +110,9 @@ def revoke_token(config: Config, instance_url: str) -> None:
     )
     try:
         response = client.post(endpoint="token/revoke")
-    except ConnectionError:
+    except (ConnectionError, Timeout):
+        # A read timeout no longer reaches us as a ConnectionError now that
+        # POST read timeouts are not retried.
         raise UnexpectedError(CONNECTION_ERROR_MESSAGE)
 
     if response.status_code != 204:
