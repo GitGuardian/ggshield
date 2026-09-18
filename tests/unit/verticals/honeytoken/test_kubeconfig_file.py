@@ -82,7 +82,9 @@ def test_write_creates_kubeconfig_with_our_context(tmp_path):
     doc = _load(path)
     assert _names(doc, "contexts") == {"kubernetes-admin@abc123"}
     assert doc["users"][0]["user"]["token"] == "s3cret"
-    assert doc["current-context"] == "kubernetes-admin@abc123"
+    # We never claim current-context — hijacking the active context would make the user's
+    # next bare `kubectl` trip our own decoy (self-trip).
+    assert "current-context" not in doc
 
 
 def test_write_is_idempotent(tmp_path):
@@ -223,3 +225,162 @@ def test_remove_keeps_a_user_still_referenced_by_a_real_context(tmp_path):
     # Our context is gone, but the shared user (still referenced) is kept.
     assert _names(doc, "contexts") == {"real@abc123"}
     assert _USER in _names(doc, "users")
+
+
+# --- regression: kubectl's canonical empty config (null lists / empty current) -----
+
+
+def test_write_into_kubectl_empty_null_lists(tmp_path):
+    # kubectl serialises empty lists as `null` and current-context as "".
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": None,
+                "users": None,
+                "contexts": None,
+                "current-context": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    outcome = write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+    assert outcome is WriteOutcome.WROTE
+    doc = _load(path)
+    assert _names(doc, "contexts") == {"kubernetes-admin@abc123"}
+    # An empty current-context is not hijacked (no self-trip).
+    assert not doc.get("current-context")
+
+
+def test_remove_on_kubectl_empty_null_lists_is_already_absent(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump({"apiVersion": "v1", "kind": "Config", "contexts": None}),
+        encoding="utf-8",
+    )
+
+    outcome = remove_kubeconfig(path, _token("abc123", "s3cret"))
+
+    assert outcome is RemoveOutcome.ALREADY_ABSENT
+
+
+def test_write_rejects_non_list_clusters(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump({"apiVersion": "v1", "kind": "Config", "clusters": "oops"}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PlacementError):
+        write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+
+@pytest.mark.parametrize("op", ["write", "remove"])
+def test_malformed_yaml_raises_placement_error(tmp_path, op):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text("clusters: [unclosed", encoding="utf-8")
+    token = _token("abc123", "s3cret")
+
+    with pytest.raises(PlacementError):
+        if op == "write":
+            write_kubeconfig(path, token, force=False)
+        else:
+            remove_kubeconfig(path, token)
+
+
+def test_write_does_not_claim_current_context_on_a_fresh_file(tmp_path):
+    path = tmp_path / ".kube" / "config"
+
+    write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+    assert "current-context" not in _load(path)
+
+
+# --- remove leaves a foreign context that only shares our name ---------------------
+
+
+def test_remove_keeps_a_context_sharing_our_name_but_not_ours(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    # A real context named exactly like ours, pointing at a different cluster/user.
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [{"name": "real", "cluster": {"server": "https://real"}}],
+                "users": [{"name": "real-user", "user": {"token": "real"}}],
+                "contexts": [
+                    {
+                        "name": "kubernetes-admin@abc123",
+                        "context": {"cluster": "real", "user": "real-user"},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    outcome = remove_kubeconfig(path, _token("abc123", "planted"))
+
+    assert outcome is RemoveOutcome.FOREIGN_KEPT
+    doc = _load(path)
+    assert _names(doc, "contexts") == {"kubernetes-admin@abc123"}
+    assert _names(doc, "users") == {"real-user"}
+
+
+def test_remove_tolerates_a_non_dict_context(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "contexts": [{"name": "kubernetes-admin@abc123", "context": "oops"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    # A non-dict context sharing our name is not ours → FOREIGN_KEPT, no crash.
+    outcome = remove_kubeconfig(path, _token("abc123", "s3cret"))
+
+    assert outcome is RemoveOutcome.FOREIGN_KEPT
+
+
+# --- --force must not destroy a real credential referenced by a foreign context ----
+
+
+def test_force_refuses_a_user_referenced_by_a_real_context(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    # Our user name collides with a real user that a real context still references.
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [{"name": "prod", "cluster": {"server": "https://real"}}],
+                "users": [{"name": _USER, "user": {"token": "real-admin-token"}}],
+                "contexts": [
+                    {"name": "real@prod", "context": {"cluster": "prod", "user": _USER}}
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PlacementError):
+        write_kubeconfig(path, _token("abc123", "s3cret"), force=True)
+
+    # The real credential is left intact.
+    assert _load(path)["users"][0]["user"]["token"] == "real-admin-token"

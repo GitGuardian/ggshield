@@ -8,11 +8,13 @@ context name; the client merges those three named entries into ``~/.kube/<filena
 Merge/remove is by entry *name*, orphan-aware, and verify-before-remove:
 
 - write: upsert our cluster/user/context. If any of those names already exists with
-  different content (e.g. a real ``kubernetes-admin`` user), refuse without ``--force``
-  rather than clobber it. All three already present and identical → no-op.
-- remove: drop our context; drop the cluster/user it referenced only if no *other*
-  context still uses them; and only if the on-disk user still carries *our* bearer
-  (a rotated/foreign token is left untouched).
+  different content, refuse without ``--force`` rather than clobber it; a cluster/user
+  that a *foreign* context still references is refused even with ``--force`` (it is a
+  real principal). We never claim ``current-context`` — hijacking the active context
+  would trip the decoy on the owner's own ``kubectl``. All three identical → no-op.
+- remove: drop our context only when it is actually ours (same cluster+user) and the
+  on-disk user still carries *our* bearer (a rotated/foreign token is left untouched);
+  then drop the cluster/user it referenced only if no *other* context still uses them.
 
 Reuses the shared no-follow, fd-anchored I/O (``secure_file``) so the root fan-out gets
 the same TOCTOU hardening as the AWS placement. ``WriteOutcome``/``RemoveOutcome`` and
@@ -66,10 +68,12 @@ class _Identity:
     def __init__(self, token: KubeconfigToken) -> None:
         doc = _load_doc(token.kubeconfig, Path("<generated kubeconfig>"))
         contexts = _named_list(doc, "contexts")
-        ctx = _find(contexts, token.context_name) or (contexts[0] if contexts else None)
+        ctx = _find(contexts, token.context_name)
         if ctx is None:
-            raise PlacementError("generated kubeconfig has no context")
-        inner = ctx.get("context") or {}
+            raise PlacementError(
+                f"generated kubeconfig has no context named {token.context_name!r}"
+            )
+        inner = _mapping(ctx.get("context"))
         context_name = ctx.get("name")
         cluster_name = inner.get("cluster")
         user_name = inner.get("user")
@@ -93,7 +97,7 @@ class _Identity:
         self.cluster_entry = cluster
         self.user_entry = user
         self.context_entry = ctx
-        self.bearer: Optional[str] = (user.get("user") or {}).get("token")
+        self.bearer: Optional[str] = _mapping(user.get("user")).get("token")
 
 
 def kube_path(home: Path, filename: str) -> Path:
@@ -142,6 +146,12 @@ def _find(items: List[Dict[str, Any]], name: Optional[str]) -> Optional[Dict[str
     return None
 
 
+def _mapping(value: Any) -> Dict[str, Any]:
+    """A nested sub-mapping, tolerating a malformed file where it is ``None`` or a scalar
+    (kubectl always writes dicts, but a hand-edited config may not)."""
+    return value if isinstance(value, dict) else {}
+
+
 def _upsert(items: List[Dict[str, Any]], entry: Dict[str, Any]) -> None:
     for index, item in enumerate(items):
         if isinstance(item, dict) and item.get("name") == entry.get("name"):
@@ -153,19 +163,38 @@ def _upsert(items: List[Dict[str, Any]], entry: Dict[str, Any]) -> None:
 # --- decisions (shared by both I/O backends) --------------------------------------
 
 
+def _referenced_by_foreign_context(
+    doc: Dict[str, Any], field: str, name: str, our_context_name: str
+) -> bool:
+    """True if any context *other than ours* references cluster/user ``name`` — i.e. the
+    entry belongs to a real principal, not a stale copy of our own decoy."""
+    for ctx in _named_list(doc, "contexts"):
+        if not isinstance(ctx, dict) or ctx.get("name") == our_context_name:
+            continue
+        if _mapping(ctx.get("context")).get(field) == name:
+            return True
+    return False
+
+
 def _decide_write(
     doc: Dict[str, Any], ident: _Identity, force: bool, path: Path
 ) -> WriteOutcome:
     """Mutate ``doc`` to hold our three entries and return the outcome.
 
     - all three present and identical → ``ALREADY_CURRENT``
-    - any of our names present with different content → refuse unless ``force``
-    - else upsert; claim ``current-context`` only when the file had none (low-disruption)
+    - a cluster/user name that collides with a real principal (still referenced by a
+      foreign context) → refuse even with ``force``: overwriting destroys the real
+      credential, and reusing it would funnel that user's token to our capture edge
+    - any other of our names present with different content → refuse unless ``force``
+    - never claim ``current-context``: the decoy is reachable by name, and hijacking the
+      active context would make the legitimate user's next ``kubectl`` trip our own decoy
     """
     doc.setdefault("apiVersion", "v1")
     doc.setdefault("kind", "Config")
+    # Normalise the three lists in place: kubectl serialises empty lists as `null` (which
+    # `setdefault` leaves untouched), and a hand-edited file may hold a non-list (rejected).
     for key in _LIST_KEYS:
-        doc.setdefault(key, [])
+        doc[key] = _named_list(doc, key)
 
     existing = {
         "clusters": (_find(doc["clusters"], ident.cluster_name), ident.cluster_entry),
@@ -176,15 +205,28 @@ def _decide_write(
         found == ours for found, ours in existing.values()
     ):
         return WriteOutcome.ALREADY_CURRENT
-    if any(found is not None and found != ours for found, ours in existing.values()):
-        if not force:
-            raise ForceRefusal(ident.context_name, path)
+
+    collisions = [
+        (kind, found)
+        for kind, (found, ours) in existing.items()
+        if found is not None and found != ours
+    ]
+    for kind, found in collisions:
+        if kind == "clusters" or kind == "users":
+            field = "cluster" if kind == "clusters" else "user"
+            name = ident.cluster_name if kind == "clusters" else ident.user_name
+            if _referenced_by_foreign_context(doc, field, name, ident.context_name):
+                raise PlacementError(
+                    f"kubeconfig {kind[:-1]} [{name}] in {path} belongs to a real "
+                    "cluster/user referenced by another context — refusing to touch it "
+                    "even with --force"
+                )
+    if collisions and not force:
+        raise ForceRefusal(collisions[0][1].get("name") or ident.context_name, path)
 
     _upsert(doc["clusters"], ident.cluster_entry)
     _upsert(doc["users"], ident.user_entry)
     _upsert(doc["contexts"], ident.context_entry)
-    if not doc.get("current-context"):
-        doc["current-context"] = ident.context_name
     return WriteOutcome.WROTE
 
 
@@ -193,12 +235,22 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
     carries our bearer. Returns the outcome; ``REMOVED`` means the caller must persist.
     """
     contexts = _named_list(doc, "contexts")
-    if _find(contexts, ident.context_name) is None:
+    ours = _find(contexts, ident.context_name)
+    if ours is None:
         return RemoveOutcome.ALREADY_ABSENT
+
+    # The context sharing our name must actually be ours (same cluster + user) — a real
+    # context that merely reuses the name is left untouched.
+    inner = _mapping(ours.get("context"))
+    if (
+        inner.get("cluster") != ident.cluster_name
+        or inner.get("user") != ident.user_name
+    ):
+        return RemoveOutcome.FOREIGN_KEPT
 
     existing_user = _find(_named_list(doc, "users"), ident.user_name)
     on_disk_bearer = (
-        (existing_user.get("user") or {}).get("token") if existing_user else None
+        _mapping(existing_user.get("user")).get("token") if existing_user else None
     )
     if (
         ident.bearer is not None
@@ -207,20 +259,17 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
     ):
         return RemoveOutcome.FOREIGN_KEPT
 
-    doc["contexts"] = [
-        ctx
-        for ctx in contexts
-        if not (isinstance(ctx, dict) and ctx.get("name") == ident.context_name)
-    ]
+    # Drop exactly the context object we matched (not every same-named entry).
+    doc["contexts"] = [ctx for ctx in contexts if ctx is not ours]
     # Drop the cluster/user only if no remaining context still references them (a real
     # context may legitimately share the name, e.g. the common `kubernetes-admin` user).
     still_used_clusters = {
-        (ctx.get("context") or {}).get("cluster")
+        _mapping(ctx.get("context")).get("cluster")
         for ctx in doc["contexts"]
         if isinstance(ctx, dict)
     }
     still_used_users = {
-        (ctx.get("context") or {}).get("user")
+        _mapping(ctx.get("context")).get("user")
         for ctx in doc["contexts"]
         if isinstance(ctx, dict)
     }
