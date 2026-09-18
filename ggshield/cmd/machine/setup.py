@@ -17,6 +17,15 @@ from ggshield.cmd.install import (
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.core.client import create_client_from_config
+from ggshield.core.config.enterprise_config import EnterpriseConfig
+from ggshield.core.plugin.client import (
+    PluginAPIClient,
+    PluginInfo,
+    PluginsNotEnabledError,
+)
+from ggshield.core.plugin.downloader import PluginDownloader
+from ggshield.core.plugin.installer import install_plugin_from_platform
 from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
@@ -44,6 +53,11 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
     "--no-honeytokens",
     is_flag=True,
     help="Do not plant a honeytoken on this machine.",
+)
+@click.option(
+    "--no-plugins",
+    is_flag=True,
+    help="Do not install the plugins available to this account.",
 )
 @click.option(
     "--agent",
@@ -76,6 +90,7 @@ def setup_cmd(
     no_ai_hooks: bool,
     no_git_hooks: bool,
     no_honeytokens: bool,
+    no_plugins: bool,
     agents: Tuple[str, ...],
     exclude_agents: Tuple[str, ...],
     system: bool,
@@ -86,13 +101,18 @@ def setup_cmd(
 
     Configures every protection in one idempotent run: the ggshield AI hook for
     each detected AI coding assistant, the global git pre-commit/pre-push hooks,
-    and a honeytoken to detect endpoint intrusion. Safe to re-run — it adds what
-    is missing and leaves existing entries untouched.
+    the plugins this account is entitled to (e.g. `machine_scan`, which provides
+    `ggshield machine scan`), and a honeytoken to detect endpoint intrusion. Safe
+    to re-run — it adds what is missing and leaves existing entries untouched.
 
     Each protection is on by default; drop one with `--no-ai-hooks`,
-    `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
-    narrow which assistants get the AI hook. When run as root (or with
-    `--system`), the git hooks are installed machine-wide for every user.
+    `--no-git-hooks`, `--no-plugins`, or `--no-honeytokens`. `--agent` /
+    `--exclude-agent` narrow which assistants get the AI hook. When run as root
+    (or with `--system`), the git hooks and the plugins are installed
+    machine-wide for every user.
+
+    Plugins are gated by the GitGuardian plan: an account with none available
+    simply skips that step, it is not a setup failure.
     """
     if agents and exclude_agents:
         raise click.UsageError("--agent and --exclude-agent cannot be used together.")
@@ -105,6 +125,10 @@ def setup_cmd(
 
     if not no_git_hooks:
         if not _setup_git_hooks(system):
+            failed = True
+
+    if not no_plugins:
+        if not _setup_plugins(ctx):
             failed = True
 
     if not no_honeytokens:
@@ -207,6 +231,84 @@ def _setup_git_hooks(system: bool) -> bool:
             "this per repo)."
         )
     return ok
+
+
+def _setup_plugins(ctx: click.Context) -> bool:
+    """Install every plugin this account is entitled to. Returns False on failure.
+
+    Entitlement is the platform's answer, not a guess: the catalog marks each
+    plugin `available`, with a `reason` when it is not. So there is nothing to
+    hardcode about plans here — install what comes back available.
+
+    Having no plugins available (free plan, or the plugin system off for the
+    workspace) is a normal outcome and must not fail the setup, no more than
+    having no AI assistant installed does. Only a plugin the account *is*
+    entitled to failing to install counts as a failure.
+
+    Under root this installs machine-wide, like the git hooks: `PluginDownloader`
+    lands the wheel in the system plugin dir so every user on the machine gets it.
+    """
+    click.echo(click.style("Plugins", bold=True))
+    config = ContextObj.get(ctx).config
+
+    try:
+        client = create_client_from_config(config)
+        plugin_api_client = PluginAPIClient(client)
+        catalog = plugin_api_client.get_available_plugins()
+    except PluginsNotEnabledError:
+        click.echo("  the plugin system is not enabled on this workspace; skipped")
+        return True
+    except Exception as exc:  # noqa: BLE001 - an unreachable catalog is not a failure
+        ui.display_warning(f"  could not fetch the plugin catalog: {exc}; skipped")
+        return True
+
+    available = [plugin for plugin in catalog.plugins if plugin.available]
+    if not available:
+        click.echo("  no plugins available for this account")
+        for plugin in catalog.plugins:
+            if plugin.reason:
+                click.echo(f"    {plugin.name}: {plugin.reason}")
+        return True
+
+    downloader = PluginDownloader()
+    enterprise_config = EnterpriseConfig.load()
+
+    ok = True
+    for plugin in available:
+        installed_version = downloader.get_installed_version(plugin.name)
+        if installed_version is not None:
+            click.echo(
+                f"  {plugin.name} already installed{_update_hint(plugin, installed_version)}"
+            )
+            continue
+        try:
+            installed = install_plugin_from_platform(
+                plugin_api_client,
+                plugin.name,
+                downloader=downloader,
+                enterprise_config=enterprise_config,
+            )
+        except Exception as exc:  # noqa: BLE001 - one plugin must not abort the rest
+            ui.display_warning(f"  could not install {plugin.name}: {exc}")
+            ok = False
+            continue
+        click.echo(f"  installed {installed.name} v{installed.version}")
+    return ok
+
+
+def _update_hint(plugin: PluginInfo, installed_version: str) -> str:
+    """Report the installed version, and point at `plugin update` if it is behind.
+
+    `setup` deliberately does not upgrade: it adds what is missing and leaves
+    what is there alone, so a re-run never swaps a working plugin out from under
+    a machine. Upgrading stays an explicit `ggshield plugin update`.
+    """
+    if plugin.latest_version and plugin.latest_version != installed_version:
+        return (
+            f" v{installed_version} (v{plugin.latest_version} available, "
+            "run `ggshield plugin update`)"
+        )
+    return f" v{installed_version}"
 
 
 def _setup_honeytokens(ctx: click.Context) -> bool:
