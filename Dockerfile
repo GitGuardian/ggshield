@@ -64,7 +64,7 @@ RUN \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# this avoid compiling the stdlib at runtime, which can be slow (~0.2s on my dev machine)
+# this avoid compiling the stdlib at runtime
 RUN python -m compileall -q -j0 "$(python -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
 
 # The environment only. ggshield is installed inside it, so the sources are
