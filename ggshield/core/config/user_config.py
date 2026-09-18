@@ -39,6 +39,7 @@ class SecretConfig(FilteredConfig):
     show_secrets: bool = False
     ignored_detectors: Set[str] = field(default_factory=set)
     ignored_matches: List[IgnoredMatch] = field(default_factory=list)
+    ignored_match_patterns: Set[str] = field(default_factory=set)
     ignored_paths: Set[str] = field(default_factory=set)
     ignore_known_secrets: bool = False
     with_incident_details: bool = False
@@ -73,6 +74,7 @@ class SecretConfig(FilteredConfig):
                 "show_secrets": self.show_secrets,
                 "ignored_detectors_count": len(self.ignored_detectors),
                 "ignored_matches_count": len(self.ignored_matches),
+                "ignored_match_patterns_count": len(self.ignored_match_patterns),
                 "ignored_paths_count": len(self.ignored_paths),
                 "ignore_known_secrets": self.ignore_known_secrets,
                 "with_incident_details": self.with_incident_details,

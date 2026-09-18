@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -160,3 +161,25 @@ def test_scan_path_works_if_git_not_found(monkeypatch, tmp_path: Path) -> None:
     # WHEN ggshield scans the test file
     # THEN it does not fail
     run_ggshield_scan("path", "--debug", str(test_file), cwd=tmp_path, expected_code=0)
+
+
+def test_scan_path_ignore_match_pattern(tmp_path: Path) -> None:
+    # GIVEN a secret
+    test_file = tmp_path / "config.py"
+    test_file.write_text(f"SECRET='{GG_VALID_TOKEN}'")
+
+    # WHEN ggshield scans it, ignoring matches looking like the secret
+    result = run_ggshield_scan(
+        "--json",
+        "--ignore-match-pattern",
+        re.escape(GG_VALID_TOKEN),
+        "path",
+        str(test_file),
+        cwd=tmp_path,
+        expected_code=0,
+    )
+
+    # THEN no incident is reported
+    parsed_result = json.loads(result.stdout)
+    assert parsed_result["total_incidents"] == 0
+    assert parsed_result["total_occurrences"] == 0

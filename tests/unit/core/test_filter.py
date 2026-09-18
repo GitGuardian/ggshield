@@ -1,11 +1,25 @@
 import copy
 import random
+import re
 from typing import List, Set
 
 import pytest
+from click import UsageError
 from pygitguardian.models import Match, PolicyBreak
 
-from ggshield.core.filter import censor_match, censor_string, get_ignore_sha
+from ggshield.core.filter import (
+    censor_match,
+    censor_string,
+    get_ignore_sha,
+    is_in_ignored_match_patterns,
+    validate_ignored_match_patterns,
+)
+from tests.factories import build_policy_break
+from tests.factory_constants import (
+    INVALID_REGEX_PATTERN,
+    SOPS_ENCRYPTED_VALUE,
+    SOPS_PATTERN,
+)
 from tests.unit.conftest import (
     _MULTILINE_SECRET,
     _MULTIPLE_SECRETS_SCAN_RESULT,
@@ -129,3 +143,96 @@ def test_censor_match(input_match: Match, expected_value: str) -> None:
 def test_censor_string(text: str, expected: str) -> None:
     censored = censor_string(text)
     assert censored == expected
+
+
+class TestIsInIgnoredMatchPatterns:
+    def test_without_pattern(self) -> None:
+        """
+        GIVEN a policy break and no ignore pattern
+        WHEN checking whether it is ignored
+        THEN it should not be
+        """
+        policy_break = build_policy_break(SOPS_ENCRYPTED_VALUE)
+
+        assert is_in_ignored_match_patterns(policy_break, []) is False
+
+    def test_matching_pattern(self) -> None:
+        """
+        GIVEN a policy break whose match is a sops-encrypted value
+        WHEN checking it against a pattern for sops-encrypted values
+        THEN it should be ignored
+        """
+        policy_break = build_policy_break(SOPS_ENCRYPTED_VALUE)
+
+        assert is_in_ignored_match_patterns(policy_break, [SOPS_PATTERN]) is True
+
+    def test_non_matching_pattern(self) -> None:
+        """
+        GIVEN a policy break whose match is a plaintext secret
+        WHEN checking it against a pattern for sops-encrypted values
+        THEN it should not be ignored
+        """
+        policy_break = build_policy_break("hunter2")
+
+        assert is_in_ignored_match_patterns(policy_break, [SOPS_PATTERN]) is False
+
+    def test_one_matching_pattern_among_several(self) -> None:
+        """
+        GIVEN a policy break whose match is a sops-encrypted value
+        WHEN checking it against several patterns, one of which matches
+        THEN it should be ignored
+        """
+        policy_break = build_policy_break(SOPS_ENCRYPTED_VALUE)
+
+        assert (
+            is_in_ignored_match_patterns(policy_break, ["^vault:", SOPS_PATTERN])
+            is True
+        )
+
+    def test_one_matching_match_among_several(self) -> None:
+        """
+        GIVEN a policy break carrying several matches, one of which is sops-encrypted
+        WHEN checking it against a pattern for sops-encrypted values
+        THEN it should be ignored
+        """
+        policy_break = build_policy_break("admin", SOPS_ENCRYPTED_VALUE)
+
+        assert is_in_ignored_match_patterns(policy_break, [SOPS_PATTERN]) is True
+
+    def test_unanchored_pattern(self) -> None:
+        """
+        GIVEN a policy break whose match contains a sops algorithm name
+        WHEN checking it against an unanchored pattern
+        THEN it should be ignored, the pattern being searched anywhere in the match
+        """
+        policy_break = build_policy_break(SOPS_ENCRYPTED_VALUE)
+
+        assert is_in_ignored_match_patterns(policy_break, ["AES256_GCM"]) is True
+
+
+class TestValidateIgnoredMatchPatterns:
+    def test_valid_patterns(self) -> None:
+        """
+        GIVEN patterns which are valid regexes
+        WHEN validating them
+        THEN it should be accepted
+        """
+        validate_ignored_match_patterns([SOPS_PATTERN, "^vault:"])
+
+    def test_invalid_pattern(self) -> None:
+        """
+        GIVEN a pattern which is not a valid regex
+        WHEN validating it
+        THEN it should raise a usage error naming the pattern
+        """
+        with pytest.raises(UsageError, match=re.escape(INVALID_REGEX_PATTERN)):
+            validate_ignored_match_patterns([INVALID_REGEX_PATTERN])
+
+    def test_empty_pattern(self) -> None:
+        """
+        GIVEN an empty pattern, which would match every secret
+        WHEN validating it
+        THEN it should raise a usage error instead of silencing all detection
+        """
+        with pytest.raises(UsageError, match="should not be empty"):
+            validate_ignored_match_patterns([SOPS_PATTERN, ""])
