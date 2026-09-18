@@ -76,14 +76,17 @@ jobs:
         include:
           - os: ubuntu-22.04
             # When building on Linux we use a container to build using an old enough version
-            container: rockylinux/rockylinux:8.10
+            # Pinned by digest rather than the floating `8`: this container
+            # compiles the released binaries, so a repushed tag would change
+            # what we ship. Bumped by Dependabot, behind the 3-day cooldown.
+            container: rockylinux/rockylinux:8.10@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
             arch: x86_64
             nfpm_arch: x86_64
             sha256sum:
               python: d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb
               nfpm: 9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
           - os: ubuntu-24.04-arm
-            container: rockylinux/rockylinux:8.10
+            container: rockylinux/rockylinux:8.10@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
             arch: aarch64
             nfpm_arch: arm64
             sha256sum:
@@ -327,11 +330,17 @@ jobs:
         runner:
           - ubuntu-22.04
           - ubuntu-24.04-arm
+        # Deliberately unpinned, and tracking the major rather than a point
+        # release: enterprise distros only patch the newest point release, so
+        # `8.8` was a frozen 2023 snapshot that stopped getting updates when
+        # 8.9 shipped. These smoke tests check our packages against the distros
+        # users actually run and receive patches for, so following the tags is
+        # the signal.
         image:
           - debian:stable-20260824
           - ubuntu:26.04
-          - rockylinux/rockylinux:8.8
-          - rockylinux/rockylinux:9.8
+          - rockylinux/rockylinux:8
+          - rockylinux/rockylinux:9
           - opensuse/leap:16.0
     steps:
       - name: Install requirements
