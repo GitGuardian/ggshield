@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import click
 
@@ -8,8 +8,9 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import ExitCode
+from ggshield.verticals.honeytoken.aws_profile import ForceRefusal as AwsForceRefusal
 from ggshield.verticals.honeytoken.aws_profile import (
-    ForceRefusal,
+    PlacementError,
     RemoveOutcome,
     WriteOutcome,
     remove_aws_profile,
@@ -20,8 +21,19 @@ from ggshield.verticals.honeytoken.endpoint_deployments import (
     ConfirmStatus,
     Deployment,
     DeploymentAction,
+    DeploymentMethod,
     EndpointDeploymentsClient,
     EndpointDeploymentsError,
+    HoneytokenCreds,
+    KubeconfigToken,
+)
+from ggshield.verticals.honeytoken.kubeconfig_file import (
+    ForceRefusal as KubeForceRefusal,
+)
+from ggshield.verticals.honeytoken.kubeconfig_file import (
+    kube_path,
+    remove_kubeconfig,
+    write_kubeconfig,
 )
 from ggshield.verticals.honeytoken.targets import (
     Target,
@@ -42,11 +54,58 @@ class _Outcome:
     fs_failure: bool = False
 
 
+_AWS_METHODS = (
+    DeploymentMethod.AWS_CREDENTIALS,
+    DeploymentMethod.AWS_CONFIG_PROFILE,
+)
+
+# Both placement backends raise a force-refusal on a genuine foreign collision; the
+# write loop treats either the same way.
+ForceRefusal = (AwsForceRefusal, KubeForceRefusal)
+
+
+def _apply_write(
+    item: Deployment, home: Path, force: bool
+) -> Tuple[Path, WriteOutcome]:
+    """Materialize a ``write`` on disk, dispatching on the placement method. Returns the
+    written path (for ownership fix-up) and the outcome."""
+    if item.method in _AWS_METHODS:
+        if not isinstance(item.token, HoneytokenCreds):
+            raise PlacementError("aws deployment is missing its credentials")
+        path, section = resolve_placement(item.method, item.config, home)
+        return path, write_aws_profile(path, section, item.token, force)
+    if item.method is DeploymentMethod.KUBECONFIG:
+        if not isinstance(item.token, KubeconfigToken):
+            raise PlacementError("kubeconfig deployment is missing its kubeconfig")
+        path = kube_path(home, item.config.filename)
+        return path, write_kubeconfig(path, item.token, force)
+    raise PlacementError("unsupported deployment method — client may be out of date")
+
+
+def _apply_remove(item: Deployment, home: Path) -> Tuple[Path, RemoveOutcome]:
+    """Remove a deployment from disk, dispatching on the placement method. Returns the
+    path (for ownership fix-up when the file was rewritten) and the outcome."""
+    if item.method in _AWS_METHODS:
+        path, section = resolve_placement(item.method, item.config, home)
+        expected = (
+            item.token.access_token_id
+            if isinstance(item.token, HoneytokenCreds)
+            else None
+        )
+        return path, remove_aws_profile(path, section, expected)
+    if item.method is DeploymentMethod.KUBECONFIG:
+        if not isinstance(item.token, KubeconfigToken):
+            raise PlacementError("kubeconfig delete is missing its kubeconfig identity")
+        path = kube_path(home, item.config.filename)
+        return path, remove_kubeconfig(path, item.token)
+    raise PlacementError("unsupported deployment method — client may be out of date")
+
+
 @click.command()
 @click.option("--type", "token_type", default="aws", help="Honeytoken type to plant.")
 @click.option(
     "--method",
-    type=click.Choice(["aws_credentials", "aws_config_profile"]),
+    type=click.Choice(["aws_credentials", "aws_config_profile", "kubeconfig"]),
     default=None,
     help="Placement method (steers creation of a new deployment only).",
 )
@@ -109,10 +168,11 @@ def plant_cmd(
     Detect endpoint intrusion by planting a honeytoken on this machine.
 
     Honeytokens deployed are fully synchronized with the GitGuardian platform.
-    Apply the desired on-disk state: write/refresh the decoy AWS credentials
-    profile for `write` entries, remove it for `delete` (revoked) entries —
-    preserving any other profiles. ggshield never revokes a honeytoken; it only
-    reports placement status.
+    Apply the desired on-disk state: write/refresh the decoy for `write` entries
+    (an AWS credentials profile under `~/.aws/`, or a kubeconfig context under
+    `~/.kube/`), remove it for `delete` (revoked) entries — preserving any other
+    profiles/contexts the user already has. ggshield never revokes a honeytoken;
+    it only reports placement status.
 
     Authorize with the `honeytokens:write` scope.
     """
@@ -213,13 +273,11 @@ def _reconcile_for_user(
     # frees the profile slot before the write runs.
     for item in (d for d in deployments if d.action is DeploymentAction.DELETE):
         try:
-            path, section = resolve_placement(item.method, item.config, target.home)
-            expected = item.token.access_token_id if item.token else None
-            result = remove_aws_profile(path, section, expected)
+            path, result = _apply_remove(item, target.home)
             if result is RemoveOutcome.FOREIGN_KEPT:
                 click.echo(
-                    f"[{target.username}] deployment {item.id}: profile holds a "
-                    "different key, left untouched",
+                    f"[{target.username}] deployment {item.id}: entry holds a "
+                    "different token, left untouched",
                     err=True,
                 )
             elif result is RemoveOutcome.REMOVED and path.exists():
@@ -249,8 +307,7 @@ def _reconcile_for_user(
             other_failed += 1
             continue
         try:
-            path, section = resolve_placement(item.method, item.config, target.home)
-            result = write_aws_profile(path, section, item.token, force)
+            path, result = _apply_write(item, target.home, force)
             if result is WriteOutcome.WROTE:
                 apply_perms_and_owner(path, target, running_as_root)
                 _confirm(client, item, ConfirmStatus.PLANTED, target)
