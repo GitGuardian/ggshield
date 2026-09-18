@@ -400,6 +400,40 @@ class TestPreReceive:
         assert_invoke_ok(result)
         assert "Deletion event or nothing to scan.\n" in result.output
 
+    @patch("ggshield.__main__._check_for_updates")
+    def test_no_update_check_by_default(
+        self, check_for_updates_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a pre-receive run without --check-for-updates
+        WHEN the command finishes
+        THEN the update check is skipped
+        """
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "pre-receive"],
+            input=f"{'a' * 40} {EMPTY_SHA} main",
+        )
+        assert_invoke_ok(result)
+        check_for_updates_mock.assert_called_once_with(False)
+
+    @patch("ggshield.__main__._check_for_updates")
+    def test_update_check_opt_in(
+        self, check_for_updates_mock: Mock, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN a pre-receive run with --check-for-updates
+        WHEN the command finishes
+        THEN the update check runs
+        """
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "pre-receive", "--check-for-updates"],
+            input=f"{'a' * 40} {EMPTY_SHA} main",
+        )
+        assert_invoke_ok(result)
+        check_for_updates_mock.assert_called_once_with(True)
+
     @patch(
         "pygitguardian.client.GGClient.read_metadata",
         return_value=Detail("Service is unavailable", 503),

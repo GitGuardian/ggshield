@@ -70,6 +70,7 @@ def cli(
     *,
     allow_self_signed: Optional[bool],
     insecure: Optional[bool],
+    check_for_updates: Optional[bool],
     config_path: Optional[Path],
     instance: Optional[str],
     **kwargs: Any,
@@ -99,6 +100,9 @@ def cli(
     # Apply instance from command line
     if instance:
         ctx_obj.config.cmdline_instance_name = instance
+
+    if check_for_updates is not None:
+        ctx_obj.check_for_updates = check_for_updates
 
     # Deliberately no plugin loading here: ContextObj.plugin_registry and
     # PluginAwareLazyGroup each load on demand.
