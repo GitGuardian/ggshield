@@ -1,4 +1,5 @@
-//! `ggshield`: `secret scan ai-hook` natively, everything else to Python.
+//! `ggshield`: `secret scan ai-hook` and the `secret` store verbs natively,
+//! everything else to Python.
 //!
 //! This is the `ggshield` the standalone bundle puts on the PATH, so a bug in
 //! `dispatch` breaks every ggshield command, not just the hook. See
@@ -16,7 +17,23 @@ fn main() {
     if dispatch::is_warm_notifier(&args) {
         std::process::exit(ggshield_hook::warm_notifier());
     }
+    if dispatch::is_native_secret(&args) {
+        std::process::exit(run_secret_verb(&args));
+    }
     dispatch::delegate(&args);
+}
+
+/// One of the `secret` store verbs. Unlike the hook there is no fallback: these
+/// commands exist only here, so an error is reported and owned rather than
+/// handed to a Python implementation that does not have them.
+fn run_secret_verb(args: &[std::ffi::OsString]) -> i32 {
+    match ggshield_secrets_cli::run(args) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("Error: {error:?}");
+            1
+        }
+    }
 }
 
 /// The native hook, handing over to `ggshield-py` for the configurations it does
