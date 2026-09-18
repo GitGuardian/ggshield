@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from pygitguardian.models import MultiScanResult
+from pygitguardian.models import Detail, MultiScanResult
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
@@ -250,6 +250,41 @@ secret:
             cli_fs_runner.invoke(cli, cmd)
             _, kwargs = client_mock.call_args
             assert kwargs["session"].verify is False
+
+
+@pytest.mark.parametrize(
+    "status_code, detail",
+    (
+        # Throttled: py-gitguardian only hands a 429 back when Retry-After is
+        # missing or unparseable, which a proxy or gateway can easily produce.
+        (429, "Too many requests"),
+        # A 403 that is not the quota message: a token missing the scan scope,
+        # or an instance refusing the caller's IP.
+        (403, "Insufficient scope"),
+    ),
+)
+@patch("ggshield.verticals.secret.secret_scanner.check_client_api_key")
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_unscanned_chunk_does_not_exit_zero(
+    scan_mock: Mock,
+    _api_key_mock: Mock,
+    status_code: int,
+    detail: str,
+    cli_fs_runner: CliRunner,
+) -> None:
+    """
+    GIVEN a server that refuses to scan with a status handle_api_error() does
+    not recognise
+    WHEN `secret scan path` runs
+    THEN the command must not exit 0: nothing was scanned, so the file cannot
+    be reported as clean.
+    """
+    write_text(Path("file_secret"), "SOME_SECRET_VALUE")
+    scan_mock.return_value = Detail(detail, status_code)
+
+    result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file_secret"])
+
+    assert result.exit_code != ExitCode.SUCCESS, result.output
 
 
 class TestScanDirectory:
