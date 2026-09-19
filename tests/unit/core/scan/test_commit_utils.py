@@ -1,9 +1,11 @@
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
+from unittest.mock import patch
 
 import pytest
 
+from ggshield.core.scan import Commit
 from ggshield.core.scan.commit_utils import (
     PatchFileInfo,
     convert_multi_parent_diff,
@@ -157,3 +159,41 @@ def test_get_file_sha_in_ref():
 
         except Exception as e:
             assert False, f"get_file_sha_in_ref crashed with error: {e}"
+
+
+PATCH_WITH_BINARY_FILE = (
+    """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
+Author: Testificate Jose <test@test.test>
+Date:   Fri Oct 18 13:20:00 2012 +0100
+"""
+    + ":000000 100644 0000000 19465ef A\0notes.txt\0"
+    + ":100644 100644 6546aef b41653f M\0credentials.txt\0"
+    + """\0diff --git a/notes.txt b/notes.txt
+new file mode 100644
+index 0000000..19465ef
+--- /dev/null
++++ b/notes.txt
+@@ -0,0 +1 @@
++nothing to see
+
+diff --git a/credentials.txt b/credentials.txt
+index 6546aef..b41653f 100644
+Binary files a/credentials.txt and b/credentials.txt differ
+"""
+)
+
+
+@patch("ggshield.core.ui.display_warning")
+def test_binary_file_in_patch_is_reported(display_warning):
+    """
+    GIVEN a patch where git considered one file binary
+    WHEN Commit.get_files() is called
+    THEN the file is not scanned, and that is said out loud
+    """
+    commit = Commit.from_patch(PATCH_WITH_BINARY_FILE)
+
+    paths = [file.path for file in commit.get_files()]
+
+    assert paths == [Path("notes.txt")]
+    display_warning.assert_called_once()
+    assert "credentials.txt" in display_warning.call_args[0][0]
