@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Optional, Pattern, Set, Tuple
 
+from ggshield.core import ui
 from ggshield.utils.files import is_path_excluded
 from ggshield.utils.git_shell import Filemode, git
 from ggshield.utils.itertools import batched
@@ -33,6 +34,13 @@ PATCH_COMMON_ARGS = [
 DIFF_EMPTY_COMMIT_INFO_BLOCK = """Author:   <>\nDate:  \n:"""
 
 _RX_HEADER_FILE_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
+
+# Match the line git emits instead of a diff when it decides a file is binary
+BINARY_DIFF_RX = re.compile(r"^(Binary files .* differ|GIT binary patch)$", flags=re.MULTILINE)
+
+# Match the path in the "diff --git a/file_path b/file_path" line. A binary diff has no
+# "---" or "+++" lines, so this is the only place its path appears.
+GIT_DIFF_NAME_RX = re.compile(r"^--git a/.* b/(.*)$", flags=re.MULTILINE)
 
 # Match the path in a "---a/file_path" or a "+++ b/file_path".
 # Note that for some reason, git sometimes append an \t at the end (happens with the
@@ -281,21 +289,20 @@ def parse_patch(
                 # + 1 because we match the "\n" in "\n@@"
                 content_start = diff.index("\n@@") + 1
             except ValueError:
-                # No content
+                # No content. git also produces no hunks when it decided the file is
+                # binary, and in that case the file is left unscanned, so say so
+                # instead of dropping it in silence.
+                if BINARY_DIFF_RX.search(diff):
+                    name_match = GIT_DIFF_NAME_RX.search(diff)
+                    name = name_match.group(1) if name_match else "a file"
+                    ui.display_warning(
+                        f"Not scanning {name}: git considers it binary."
+                    )
                 continue
             diff_header = diff[:content_start]
             content = diff[content_start:]
 
-            # Find diff path in diff header
-            match = NEW_NAME_RX.search(diff_header)
-            if not match:
-                # Must have been deleted. find the old path in this case
-                match = OLD_NAME_RX.search(diff_header)
-                if not match:
-                    raise PatchParseError(
-                        f"Could not find old path in {repr(diff_header)}"
-                    )
-            path = Path(match.group(1))
+            path = _find_diff_path(diff_header)
             if is_path_excluded(path, exclusion_regexes):
                 continue
 
@@ -311,6 +318,18 @@ def parse_patch(
         else:
             msg = f"Could not parse patch: {exc}"
         raise PatchParseError(msg)
+
+
+def _find_diff_path(diff_header: str) -> Path:
+    """Return the path a diff applies to, taken from its "+++" or, for a deleted file,
+    its "---" line."""
+    match = NEW_NAME_RX.search(diff_header)
+    if not match:
+        # Must have been deleted. find the old path in this case
+        match = OLD_NAME_RX.search(diff_header)
+        if not match:
+            raise PatchParseError(f"Could not find old path in {repr(diff_header)}")
+    return Path(match.group(1))
 
 
 def convert_multi_parent_diff(content: str) -> str:
