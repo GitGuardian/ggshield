@@ -12,9 +12,13 @@ from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
 from ggshield.cmd.install import (
+    GGSHIELD_HOOK_VERSION,
     LOCAL_HOOK_SNIPPET,
+    create_hook,
     get_default_global_hook_dir_path,
+    hook_is_outdated,
     install_local,
+    upgrade_hook,
 )
 from ggshield.core.errors import ExitCode, MissingTokenError
 from ggshield.verticals.ai.installation import (
@@ -25,11 +29,15 @@ from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
 
-SAMPLE_PRE_COMMIT = """#!/bin/sh
+SAMPLE_PRE_COMMIT = f"""#!/bin/sh
+
+# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}
 ggshield secret scan pre-commit "$@"
 """
 
-SAMPLE_PRE_PUSH = """#!/bin/sh
+SAMPLE_PRE_PUSH = f"""#!/bin/sh
+
+# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}
 ggshield secret scan pre-push "$@"
 """
 
@@ -853,3 +861,150 @@ class TestHooksPathShadow:
         # caller — `errors="ignore"` only covers decoding, not the read itself.
         with patch.object(Path, "read_text", side_effect=OSError("denied")):
             assert hook_invokes_ggshield(ours) is False
+
+
+class TestStaleHookRepair:
+    """A hook carrying the ggshield marker is not necessarily current: everything
+    installed before the version stamp existed runs the pre-worktree-fix template."""
+
+    LEGACY_BASH = """#!/bin/sh
+
+
+if [[ -f .git/hooks/pre-commit ]]; then
+    if ! .git/hooks/pre-commit $@; then
+        echo 'Local pre-commit hook failed, please see output above'
+        exit 1
+    fi
+fi
+
+ggshield secret scan pre-commit "$@"
+"""
+
+    # The generated block on its own, to append after content that has no final
+    # newline -- the shape that made the separator load-bearing.
+    LEGACY_SH_BLOCK = """
+if [ -f .git/hooks/pre-commit ]; then
+    if ! .git/hooks/pre-commit "$@"; then
+        echo 'Local pre-commit hook failed, please see output above'
+        exit 1
+    fi
+fi
+
+ggshield secret scan pre-commit "$@"
+"""
+
+    @staticmethod
+    def _assert_parses(hook: Path) -> None:
+        """The repaired script must still be valid shell."""
+        if sys.platform == "win32":
+            return  # no POSIX sh to parse with; the text assertions still ran
+        result = subprocess.run(["sh", "-n", str(hook)], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+    LEGACY_SH = """#!/bin/sh
+
+if [ -f .git/hooks/pre-commit ]; then
+    if ! .git/hooks/pre-commit "$@"; then
+        echo 'Local pre-commit hook failed, please see output above'
+        exit 1
+    fi
+fi
+
+ggshield secret scan pre-commit "$@"
+"""
+
+    @pytest.mark.parametrize("content", [LEGACY_BASH, LEGACY_SH])
+    def test_legacy_hook_is_outdated_and_repaired(self, tmp_path, content):
+        hook = tmp_path / "pre-commit"
+        hook.write_text(content)
+
+        assert hook_is_outdated(hook) is True
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        repaired = hook.read_text()
+        assert f"# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}" in repaired
+        assert "git rev-parse --git-common-dir" in repaired
+        assert ".git/hooks/pre-commit" not in repaired
+        assert hook_is_outdated(hook) is False
+
+    def test_current_snippet_without_stamp_is_repaired(self, tmp_path):
+        """1.53.x hooks already resolve worktrees but predate the stamp."""
+        hook = tmp_path / "pre-commit"
+        hook.write_text(
+            "#!/bin/sh\n"
+            + LOCAL_HOOK_SNIPPET.format(hook_type="pre-commit")
+            + '\nggshield secret scan pre-commit "$@"\n'
+        )
+
+        assert hook_is_outdated(hook) is True
+        assert upgrade_hook(hook, "pre-commit") is True
+        assert hook_is_outdated(hook) is False
+
+    def test_appended_user_lines_survive_the_repair(self, tmp_path):
+        hook = tmp_path / "pre-commit"
+        hook.write_text(
+            "#!/bin/sh\nmy-own-linter\n"
+            + self.LEGACY_SH[len("#!/bin/sh") :]
+            + "trailing-tool\n"
+        )
+
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        repaired = hook.read_text()
+        assert "my-own-linter\n" in repaired
+        assert "trailing-tool\n" in repaired
+
+    def test_repair_keeps_the_line_before_the_block_intact(self, tmp_path):
+        """The block it replaces opened on a newline that doubled as the separator.
+        Dropping it welds the stamp onto whatever command came before, and under
+        `set -e` the hook then dies before it ever scans."""
+        hook = tmp_path / "pre-commit"
+        hook.write_text("#!/bin/sh\nset -e\nrun-my-linter" + self.LEGACY_SH_BLOCK)
+
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        assert "run-my-linter\n" in hook.read_text()
+        assert "run-my-linter#" not in hook.read_text()
+        self._assert_parses(hook)
+
+    def test_hand_edited_hook_is_left_untouched(self, tmp_path):
+        hook = tmp_path / "pre-commit"
+        hook.write_text(
+            "#!/bin/sh\nggshield secret scan pre-commit --banlist-detector foo\n"
+        )
+
+        assert hook_is_outdated(hook) is True
+        assert upgrade_hook(hook, "pre-commit") is False
+        assert hook.read_text().endswith("--banlist-detector foo\n")
+
+    def test_freshly_installed_hook_is_current(self, cli_fs_runner, tmp_path):
+        with patch(
+            "ggshield.cmd.install.get_global_hook_dir_path", return_value=tmp_path
+        ):
+            assert_invoke_ok(cli_fs_runner.invoke(cli, ["install", "-m", "global"]))
+        assert hook_is_outdated(tmp_path / "pre-commit") is False
+
+
+class TestAppendSeparator:
+    def test_append_install_keeps_the_last_line_intact(self, tmp_path):
+        """`install --append` onto a file with no final newline must not weld the
+        generated block onto the last command."""
+        hook_dir = tmp_path / "hooks"
+        hook_dir.mkdir()
+        (hook_dir / "pre-commit").write_text("#!/bin/sh\nset -e\nrun-my-linter")
+
+        assert (
+            create_hook(
+                hook_dir_path=hook_dir,
+                force=False,
+                local_hook_support=True,
+                hook_type="pre-commit",
+                append=True,
+            )
+            == 0
+        )
+
+        content = (hook_dir / "pre-commit").read_text()
+        assert "run-my-linter\n" in content
+        assert "run-my-linter#" not in content
+        TestStaleHookRepair._assert_parses(hook_dir / "pre-commit")
