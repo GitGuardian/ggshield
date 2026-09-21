@@ -19,6 +19,7 @@ from ggshield.cmd.install import (
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
+from ggshield.utils.git_shell import git
 from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
@@ -175,14 +176,29 @@ def _setup_git_hooks(system: bool) -> bool:
     use_system = system or is_root()
     if use_system:
         scope = "system"
-        hook_dir = get_system_hook_dir_path() or get_default_system_hook_dir_path()
+        configured = get_system_hook_dir_path()
+        hook_dir = configured or get_default_system_hook_dir_path()
         installer = install_system
     else:
         scope = "global"
-        hook_dir = get_global_hook_dir_path() or get_default_global_hook_dir_path()
+        configured = get_global_hook_dir_path()
+        hook_dir = configured or get_default_global_hook_dir_path()
         installer = install_global
 
     ok = True
+    if configured is None:
+        # A hook file protects nothing until core.hooksPath names its directory, and
+        # the installer is the only other thing that sets it — which it never reaches
+        # when a leftover hook is already sitting there.
+        try:
+            git(
+                ["config", f"--{scope}", "core.hooksPath", str(hook_dir)],
+                ignore_git_config=False,
+            )
+        except Exception as exc:
+            ui.display_warning(f"  could not point git at {hook_dir}: {exc}")
+            ok = False
+
     for hook_type in _GIT_HOOK_TYPES:
         hook_path = hook_dir / hook_type
         if hook_path.is_file():

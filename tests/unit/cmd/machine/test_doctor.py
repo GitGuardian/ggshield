@@ -142,87 +142,110 @@ class TestCheckAiHooks:
 
 
 class TestCheckGitHooks:
+    """Only a configured ``core.hooksPath`` counts. Git runs exactly one hooks
+    directory, so the scope that is not configured -- and the directory ggshield
+    *would* install into when nothing points git at it -- must not sway the verdict.
+    """
+
     def _patch_dirs(self, global_dir, system_dir):
+        """None means that scope has no core.hooksPath configured."""
         return patch.multiple(
             BASE,
-            get_global_hook_dir_path=MagicMock(return_value=None),
-            get_default_global_hook_dir_path=MagicMock(return_value=global_dir),
-            get_system_hook_dir_path=MagicMock(return_value=None),
-            get_default_system_hook_dir_path=MagicMock(return_value=system_dir),
+            get_global_hook_dir_path=MagicMock(return_value=global_dir),
+            get_system_hook_dir_path=MagicMock(return_value=system_dir),
         )
 
     def test_ok_when_present_in_global(self, tmp_path):
-        global_dir = tmp_path / "g"
-        global_dir.mkdir()
-        (system_dir := tmp_path / "s").mkdir()
+        (global_dir := tmp_path / "g").mkdir()
         for hook in ("pre-commit", "pre-push"):
             (global_dir / hook).write_text(_current_hook(hook))
-        with self._patch_dirs(global_dir, system_dir):
+        with self._patch_dirs(global_dir, None):
             assert _check_git_hooks().ok is True
 
-    def test_ok_when_split_across_global_and_system(self, tmp_path):
+    def test_fail_when_no_hooks_path_is_configured(self, tmp_path):
+        """Without core.hooksPath git runs each repo's own hooks, whatever files
+        happen to sit in the directory ggshield would install into."""
+        with self._patch_dirs(None, None):
+            check = _check_git_hooks()
+        assert check.ok is False
+        assert "core.hooksPath" in check.detail
+
+    def test_fail_when_split_across_global_and_system(self, tmp_path):
+        """Git reads one directory, so a hook in the out-ranked scope never runs."""
         (global_dir := tmp_path / "g").mkdir()
         (system_dir := tmp_path / "s").mkdir()
         (global_dir / "pre-commit").write_text(_current_hook("pre-commit"))
         (system_dir / "pre-push").write_text(_current_hook("pre-push"))
         with self._patch_dirs(global_dir, system_dir):
-            assert _check_git_hooks().ok is True
+            check = _check_git_hooks()
+        assert check.ok is False
+        assert "pre-push" in check.detail and "pre-commit" not in check.detail
 
     def test_fail_when_missing(self, tmp_path):
         (global_dir := tmp_path / "g").mkdir()
-        (system_dir := tmp_path / "s").mkdir()
-        with self._patch_dirs(global_dir, system_dir):
+        with self._patch_dirs(global_dir, None):
             check = _check_git_hooks()
         assert check.ok is False
         assert "pre-commit" in check.detail and "pre-push" in check.detail
 
     def test_fail_on_foreign_hook(self, tmp_path):
         (global_dir := tmp_path / "g").mkdir()
-        (system_dir := tmp_path / "s").mkdir()
         for hook in ("pre-commit", "pre-push"):
             (global_dir / hook).write_text("#!/bin/sh\nother-tool\n")
-        with self._patch_dirs(global_dir, system_dir):
+        with self._patch_dirs(global_dir, None):
             assert _check_git_hooks().ok is False
-
-    @pytest.mark.parametrize(
-        ("global_state", "system_state", "expected_ok"),
-        [
-            # Git runs one hooks dir and a global core.hooksPath out-ranks the
-            # system one, so only the global hook decides when both exist.
-            ("current", "legacy", True),
-            ("legacy", "current", False),
-            ("legacy", None, False),
-            (None, "legacy", False),
-            (None, "current", True),
-        ],
-    )
-    def test_only_the_hook_git_would_run_decides(
-        self, tmp_path, global_state, system_state, expected_ok
-    ):
-        (global_dir := tmp_path / "g").mkdir()
-        (system_dir := tmp_path / "s").mkdir()
-        render = {"current": _current_hook, "legacy": _legacy_hook}
-        for directory, state in (
-            (global_dir, global_state),
-            (system_dir, system_state),
-        ):
-            if state is None:
-                continue
-            for hook in ("pre-commit", "pre-push"):
-                (directory / hook).write_text(render[state](hook))
-        with self._patch_dirs(global_dir, system_dir):
-            assert _check_git_hooks().ok is expected_ok
 
     def test_fail_on_stale_hook(self, tmp_path):
         """A pre-1.53 hook carries the marker but the pre-worktree-fix template."""
         (global_dir := tmp_path / "g").mkdir()
-        (system_dir := tmp_path / "s").mkdir()
         (global_dir / "pre-commit").write_text(_legacy_hook("pre-commit"))
         (global_dir / "pre-push").write_text(_current_hook("pre-push"))
-        with self._patch_dirs(global_dir, system_dir):
+        with self._patch_dirs(global_dir, None):
             check = _check_git_hooks()
         assert check.ok is False
         assert "pre-commit" in check.detail and "pre-push" not in check.detail
+
+    @pytest.mark.parametrize(
+        ("global_state", "system_state", "expected_ok"),
+        [
+            # A global core.hooksPath out-ranks the system one, so when both are
+            # configured only the global hook decides.
+            ("current", "legacy", True),
+            ("legacy", "current", False),
+            (None, "current", True),
+            (None, "legacy", False),
+        ],
+    )
+    def test_only_the_configured_scope_that_wins_decides(
+        self, tmp_path, global_state, system_state, expected_ok
+    ):
+        render = {"current": _current_hook, "legacy": _legacy_hook}
+        dirs = {}
+        for name, state in (("g", global_state), ("s", system_state)):
+            if state is None:
+                dirs[name] = None
+                continue
+            (directory := tmp_path / name).mkdir()
+            for hook in ("pre-commit", "pre-push"):
+                (directory / hook).write_text(render[state](hook))
+            dirs[name] = directory
+        with self._patch_dirs(dirs["g"], dirs["s"]):
+            assert _check_git_hooks().ok is expected_ok
+
+    def test_leftover_hooks_in_the_default_dir_are_ignored(self, tmp_path):
+        """The directory ggshield installs into is not the one git reads unless
+        core.hooksPath says so. Reading it let stale leftovers fail a healthy
+        machine, and current leftovers pass a stale one."""
+        (default_global := tmp_path / "default-global").mkdir()
+        (system_dir := tmp_path / "s").mkdir()
+        for hook in ("pre-commit", "pre-push"):
+            (default_global / hook).write_text(_legacy_hook(hook))
+            (system_dir / hook).write_text(_current_hook(hook))
+        with self._patch_dirs(None, system_dir), patch(
+            "ggshield.cmd.install.get_default_global_hook_dir_path",
+            return_value=default_global,
+        ):
+            assert _check_git_hooks().ok is True
 
 
 class TestCheckScopes:

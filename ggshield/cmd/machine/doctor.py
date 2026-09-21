@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 from importlib import import_module
-from pathlib import Path
 from typing import Any, List, Optional
 
 import click
 from pygitguardian.models import APITokensResponse, HealthCheckResponse
 
 from ggshield.cmd.install import (
-    get_default_global_hook_dir_path,
-    get_default_system_hook_dir_path,
     get_global_hook_dir_path,
     get_shadowing_hooks_path,
     get_system_hook_dir_path,
@@ -128,27 +125,34 @@ def _check_ai_hooks() -> Check:
 
 
 def _check_git_hooks() -> Check:
-    """The hooks are OK if pre-commit and pre-push are wired to ggshield in the global
-    or system scope (a machine may use either, e.g. MDM installs system-wide), and the
-    one git actually runs is on the current template."""
-    # Git's precedence order: a global core.hooksPath out-ranks the system one, so a
-    # hook further down this list is dead config and says nothing about the machine.
-    hook_dirs = [
-        get_global_hook_dir_path() or get_default_global_hook_dir_path(),
-        get_system_hook_dir_path() or get_default_system_hook_dir_path(),
-    ]
+    """The hooks are OK if the hooks directory git actually uses holds a pre-commit
+    and a pre-push wired to ggshield, both on the current template.
+
+    Only a configured ``core.hooksPath`` counts. Git runs exactly one hooks directory
+    and global out-ranks system, so a hook in the other scope -- or a leftover file in
+    the directory ggshield *would* install into, when nothing points git at it -- is
+    dead config and says nothing about the machine.
+    """
+    hook_dir = get_global_hook_dir_path() or get_system_hook_dir_path()
+    if hook_dir is None:
+        return Check(
+            "Git hooks",
+            False,
+            "no core.hooksPath is configured, so git runs each repository's own hooks",
+            fix="run `ggshield machine setup` (use `--system` / run as root for all users)",
+        )
     missing, outdated = [], []
     for hook_type in _GIT_HOOK_TYPES:
-        effective = _effective_ggshield_hook(hook_dirs, hook_type)
-        if effective is None:
+        hook_path = hook_dir / hook_type
+        if not hook_invokes_ggshield(hook_path):
             missing.append(hook_type)
-        elif hook_is_outdated(effective):
+        elif hook_is_outdated(hook_path):
             outdated.append(hook_type)
     if missing:
         return Check(
             "Git hooks",
             False,
-            f"not configured: {', '.join(missing)}",
+            f"not configured in {hook_dir}: {', '.join(missing)}",
             fix="run `ggshield machine setup` (use `--system` / run as root for all users)",
         )
     if outdated:
@@ -159,7 +163,7 @@ def _check_git_hooks() -> Check:
             "template skips the repository's own hook in linked worktrees",
             fix="run `ggshield machine setup` to repair them in place",
         )
-    return Check("Git hooks", True, "global/system pre-commit and pre-push configured")
+    return Check("Git hooks", True, f"pre-commit and pre-push configured in {hook_dir}")
 
 
 def _check_git_hooks_precedence() -> Check:
@@ -184,23 +188,6 @@ def _check_git_hooks_precedence() -> Check:
         fix="integrate ggshield into that hook manager, or unset the overriding "
         "core.hooksPath; commits are still scanned server-side by GitGuardian",
     )
-
-
-def _effective_ggshield_hook(hook_dirs: List[Any], hook_type: str) -> Optional[Path]:
-    """The ggshield hook git would actually run, or None when there is none.
-
-    ``hook_dirs`` comes in git's precedence order, and git runs exactly one hooks
-    directory, so the first match wins and any ggshield hook behind it is dead
-    config. Asking whether *some* directory holds a good hook gets this wrong in
-    both directions: a current system hook does not save a machine whose global
-    hook is stale, and a stale system hook does not condemn one whose global hook
-    is current.
-    """
-    for hook_dir in hook_dirs:
-        hook_path = hook_dir / hook_type
-        if hook_invokes_ggshield(hook_path):
-            return hook_path
-    return None
 
 
 def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[Check]:

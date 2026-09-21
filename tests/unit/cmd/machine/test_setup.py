@@ -296,10 +296,14 @@ class TestSetupGitHooks:
     BASE = "ggshield.cmd.machine.setup"
 
     @pytest.fixture(autouse=True)
-    def _no_shadow(self):
-        # Pin the core.hooksPath shadow check so these tests don't shell out to the
-        # real `git config`. Tests that exercise it override this.
-        with patch(f"{self.BASE}.get_shadowing_hooks_path", return_value=None):
+    def _no_real_git(self):
+        # Nothing in this class may reach the real `git config`: _setup_git_hooks
+        # writes core.hooksPath, and an unpinned call would edit the developer's
+        # own ~/.gitconfig. Tests that assert on either override them.
+        with patch(f"{self.BASE}.get_shadowing_hooks_path", return_value=None), patch(
+            f"{self.BASE}.git"
+        ) as git_mock:
+            self.git_mock = git_mock
             yield
 
     # ``is_root`` is pinned False so the per-user branch is deterministic even when
@@ -382,6 +386,45 @@ class TestSetupGitHooks:
         (tmp_path / "pre-push").write_text(_current_hook("pre-push"))
         assert _setup_git_hooks(system=False) is False
         assert (tmp_path / "pre-commit").read_text() == content
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_points_git_at_a_dir_holding_leftover_hooks(
+        self, mock_dir, _mock_cfg, mock_install, _mock_root, tmp_path
+    ):
+        """A leftover hook made setup skip the installer, and the installer is what
+        sets core.hooksPath -- so setup reported success on a machine where git still
+        ran no hook at all."""
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path
+        for hook_type in ("pre-commit", "pre-push"):
+            (tmp_path / hook_type).write_text(_current_hook(hook_type))
+
+        assert _setup_git_hooks(system=False) is True
+
+        mock_install.assert_not_called()
+        self.git_mock.assert_called_once_with(
+            ["config", "--global", "core.hooksPath", str(tmp_path)],
+            ignore_git_config=False,
+        )
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_does_not_touch_an_already_configured_hooks_path(
+        self, mock_dir, mock_install, _mock_root, tmp_path
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path
+        for hook_type in ("pre-commit", "pre-push"):
+            (tmp_path / hook_type).write_text(_current_hook(hook_type))
+        with patch(f"{self.BASE}.get_global_hook_dir_path", return_value=tmp_path):
+            assert _setup_git_hooks(system=False) is True
+        self.git_mock.assert_not_called()
 
     @patch(f"{BASE}.is_root", return_value=False)
     @patch(f"{BASE}.install_system")
