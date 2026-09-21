@@ -52,7 +52,7 @@ def _fetch_target_branch(remote: str, branch: str) -> None:
     """
     try:
         ui.display_verbose(f"\tFetching {branch} from {remote}")
-        git(["fetch", remote, branch])
+        git(["fetch", "--end-of-options", remote, branch])
     except (subprocess.CalledProcessError, GitCommandTimeoutExpired):
         logger.warning("Failed to fetch %s from %s", branch, remote)
 

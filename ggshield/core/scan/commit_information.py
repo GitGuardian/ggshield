@@ -75,5 +75,5 @@ class CommitInformation:
 
     @staticmethod
     def from_sha(sha: str, cwd: Optional[Path] = None) -> "CommitInformation":
-        header = git(["show", sha] + HEADER_COMMON_ARGS, cwd=cwd)
+        header = git(["show"] + HEADER_COMMON_ARGS + ["--end-of-options", sha], cwd=cwd)
         return CommitInformation.from_patch_header(header)
