@@ -1,3 +1,6 @@
+import os
+import signal
+import sys
 from typing import Dict, Optional
 from unittest.mock import Mock, patch
 
@@ -99,3 +102,27 @@ def test_load_dot_env_returns_set_vars(env_var, tmp_path, monkeypatch):
         set_variables = load_dot_env()
 
     assert set_variables == {env_var}
+
+
+@pytest.mark.skipif(os.name == "nt", reason="no FIFOs on Windows")
+def test_load_dot_env_ignores_fifo(monkeypatch, tmp_path):
+    """
+    GIVEN a .env in the current directory which is a FIFO with no writer
+    (how 1Password Environments mounts them)
+    WHEN load_dot_env() is called
+    THEN it returns instead of blocking forever on open()
+    """
+    os.mkfifo(tmp_path / ".env")
+    # PyInstaller builds make python-dotenv's own discovery start from the cwd
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+
+    def on_alarm(*_):
+        raise TimeoutError("load_dot_env() blocked on the FIFO")
+
+    signal.signal(signal.SIGALRM, on_alarm)
+    signal.alarm(5)
+    try:
+        with cd(tmp_path):
+            assert load_dot_env() == set()
+    finally:
+        signal.alarm(0)
