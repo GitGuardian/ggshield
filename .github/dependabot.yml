@@ -12,11 +12,16 @@ version: 2
 # would batch the riskiest bump in the file behind a "minor and patch" label.
 #
 # `labels` replaces the set Dependabot applies itself, so its two are repeated.
+#
+# One ecosystem per weekday. A shared slot opened all five within minutes, each
+# starting a CI run and a benchmark against the same API token; one PR a day
+# spreads that load, and the review work, across the week.
 updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'monday'
     cooldown:
       default-days: 3
     labels: ['dependencies', 'github_actions', 'skip-changelog']
@@ -33,6 +38,7 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'tuesday'
     cooldown:
       default-days: 3
     labels: ['dependencies', 'docker', 'skip-changelog']
@@ -42,6 +48,7 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'wednesday'
     cooldown:
       default-days: 3
     labels: ['dependencies', 'python:uv', 'skip-changelog']
@@ -56,6 +63,7 @@ updates:
     directory: '/rust'
     schedule:
       interval: 'weekly'
+      day: 'thursday'
     cooldown:
       default-days: 3
     labels: ['dependencies', 'rust', 'skip-changelog']
@@ -71,6 +79,7 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+      day: 'friday'
     cooldown:
       default-days: 3
     labels: ['dependencies', 'pre_commit', 'skip-changelog']
