@@ -8,6 +8,7 @@ from click.testing import CliRunner
 from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
+from ggshield.cmd.install import _hook_body, hook_is_outdated
 from ggshield.verticals.ai.installation import (
     SetupSummary,
     install_all_agent_hooks,
@@ -17,6 +18,27 @@ from tests.unit.conftest import assert_invoke_ok
 
 
 AGENTS_PATH = "ggshield.verticals.ai.installation.AGENTS"
+
+
+def _current_hook(hook_type: str) -> str:
+    """A global hook exactly as the current ggshield renders it."""
+    return "#!/bin/sh" + _hook_body(hook_type, local_hook_support=True)
+
+
+def _legacy_hook(hook_type: str) -> str:
+    """A global hook as ggshield 1.52 and earlier rendered it: no version stamp, and
+    a local-hook path that a linked worktree never matches."""
+    return f"""#!/bin/sh
+
+if [ -f .git/hooks/{hook_type} ]; then
+    if ! .git/hooks/{hook_type} "$@"; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+fi
+
+ggshield secret scan {hook_type} "$@"
+"""
 
 
 def _raise(error: Exception):
@@ -306,9 +328,7 @@ class TestSetupGitHooks:
 
         mock_dir.return_value = tmp_path
         for hook_type in ("pre-commit", "pre-push"):
-            (tmp_path / hook_type).write_text(
-                f"#!/bin/sh\nggshield secret scan {hook_type}\n"
-            )
+            (tmp_path / hook_type).write_text(_current_hook(hook_type))
         assert _setup_git_hooks(system=False) is True
         mock_install.assert_not_called()
 
@@ -323,9 +343,45 @@ class TestSetupGitHooks:
 
         mock_dir.return_value = tmp_path
         (tmp_path / "pre-commit").write_text("#!/bin/sh\nother-tool\n")
-        (tmp_path / "pre-push").write_text("#!/bin/sh\nggshield secret scan pre-push\n")
+        (tmp_path / "pre-push").write_text(_current_hook("pre-push"))
+        # A foreign hook means the machine has no ggshield pre-commit at all, so
+        # setup must not report success.
+        assert _setup_git_hooks(system=False) is False
+        mock_install.assert_not_called()
+        assert (tmp_path / "pre-commit").read_text() == "#!/bin/sh\nother-tool\n"
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_repairs_stale_hooks_in_place(
+        self, mock_dir, _mock_cfg, mock_install, _mock_root, tmp_path
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path
+        for hook_type in ("pre-commit", "pre-push"):
+            (tmp_path / hook_type).write_text(_legacy_hook(hook_type))
         assert _setup_git_hooks(system=False) is True
         mock_install.assert_not_called()
+        for hook_type in ("pre-commit", "pre-push"):
+            assert hook_is_outdated(tmp_path / hook_type) is False
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_hand_edited_stale_hook_fails_without_being_touched(
+        self, mock_dir, _mock_cfg, _mock_install, _mock_root, tmp_path
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path
+        content = "#!/bin/sh\nggshield secret scan pre-commit --exit-zero\n"
+        (tmp_path / "pre-commit").write_text(content)
+        (tmp_path / "pre-push").write_text(_current_hook("pre-push"))
+        assert _setup_git_hooks(system=False) is False
+        assert (tmp_path / "pre-commit").read_text() == content
 
     @patch(f"{BASE}.is_root", return_value=False)
     @patch(f"{BASE}.install_system")

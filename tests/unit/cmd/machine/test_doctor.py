@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 from pygitguardian.models import APITokensResponse, HealthCheckResponse
 
@@ -16,6 +17,7 @@ from ggshield.cmd.machine.doctor import (
     _is_plugin_installed,
 )
 from ggshield.verticals.ai.installation import AgentHookStatus
+from tests.unit.cmd.machine.test_setup import _current_hook, _legacy_hook
 from tests.unit.conftest import assert_invoke_ok
 
 
@@ -154,15 +156,15 @@ class TestCheckGitHooks:
         global_dir.mkdir()
         (system_dir := tmp_path / "s").mkdir()
         for hook in ("pre-commit", "pre-push"):
-            (global_dir / hook).write_text(f"#!/bin/sh\nggshield secret scan {hook}\n")
+            (global_dir / hook).write_text(_current_hook(hook))
         with self._patch_dirs(global_dir, system_dir):
             assert _check_git_hooks().ok is True
 
     def test_ok_when_split_across_global_and_system(self, tmp_path):
         (global_dir := tmp_path / "g").mkdir()
         (system_dir := tmp_path / "s").mkdir()
-        (global_dir / "pre-commit").write_text("#!/bin/sh\nggshield secret scan x\n")
-        (system_dir / "pre-push").write_text("#!/bin/sh\nggshield secret scan x\n")
+        (global_dir / "pre-commit").write_text(_current_hook("pre-commit"))
+        (system_dir / "pre-push").write_text(_current_hook("pre-push"))
         with self._patch_dirs(global_dir, system_dir):
             assert _check_git_hooks().ok is True
 
@@ -181,6 +183,46 @@ class TestCheckGitHooks:
             (global_dir / hook).write_text("#!/bin/sh\nother-tool\n")
         with self._patch_dirs(global_dir, system_dir):
             assert _check_git_hooks().ok is False
+
+    @pytest.mark.parametrize(
+        ("global_state", "system_state", "expected_ok"),
+        [
+            # Git runs one hooks dir and a global core.hooksPath out-ranks the
+            # system one, so only the global hook decides when both exist.
+            ("current", "legacy", True),
+            ("legacy", "current", False),
+            ("legacy", None, False),
+            (None, "legacy", False),
+            (None, "current", True),
+        ],
+    )
+    def test_only_the_hook_git_would_run_decides(
+        self, tmp_path, global_state, system_state, expected_ok
+    ):
+        (global_dir := tmp_path / "g").mkdir()
+        (system_dir := tmp_path / "s").mkdir()
+        render = {"current": _current_hook, "legacy": _legacy_hook}
+        for directory, state in (
+            (global_dir, global_state),
+            (system_dir, system_state),
+        ):
+            if state is None:
+                continue
+            for hook in ("pre-commit", "pre-push"):
+                (directory / hook).write_text(render[state](hook))
+        with self._patch_dirs(global_dir, system_dir):
+            assert _check_git_hooks().ok is expected_ok
+
+    def test_fail_on_stale_hook(self, tmp_path):
+        """A pre-1.53 hook carries the marker but the pre-worktree-fix template."""
+        (global_dir := tmp_path / "g").mkdir()
+        (system_dir := tmp_path / "s").mkdir()
+        (global_dir / "pre-commit").write_text(_legacy_hook("pre-commit"))
+        (global_dir / "pre-push").write_text(_current_hook("pre-push"))
+        with self._patch_dirs(global_dir, system_dir):
+            check = _check_git_hooks()
+        assert check.ok is False
+        assert "pre-commit" in check.detail and "pre-push" not in check.detail
 
 
 class TestCheckScopes:

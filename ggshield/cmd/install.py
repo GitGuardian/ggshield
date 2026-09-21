@@ -1,7 +1,8 @@
 import os
+import re
 import subprocess
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 import click
 from click import UsageError
@@ -37,6 +38,36 @@ fi
 # The line `create_hook` writes into every ggshield-managed hook script; its presence
 # is how we recognize a hook (or hooks dir) as ggshield's own.
 GGSHIELD_HOOK_MARKER = "ggshield secret scan"
+
+# Bumped whenever the generated hook body changes, so an already-installed hook can be
+# told apart from one rendered by an older ggshield. An unstamped hook is version 0.
+GGSHIELD_HOOK_VERSION = 1
+_HOOK_STAMP_RE = re.compile(r"^# ggshield-hook-version: *(\d+)", re.MULTILINE)
+
+# Local-hook snippets shipped by earlier ggshield versions, kept byte-exact so a stale
+# hook can be repaired in place without touching the user's own lines around it. The
+# last one is the current snippet, whose only defect is the missing version stamp.
+_LEGACY_LOCAL_HOOK_SNIPPETS = (
+    # up to 1.14.0: bash-only test syntax, unquoted "$@"
+    """
+if [[ -f .git/hooks/{hook_type} ]]; then
+    if ! .git/hooks/{hook_type} $@; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+fi
+""",
+    # 1.14.0 to 1.52.2: posix shell, but blind to linked worktrees
+    """
+if [ -f .git/hooks/{hook_type} ]; then
+    if ! .git/hooks/{hook_type} "$@"; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+fi
+""",
+    LOCAL_HOOK_SNIPPET,
+)
 
 
 @click.command(context_settings={"ignore_unknown_options": True})
@@ -204,6 +235,71 @@ def _get_repo_root() -> Optional[Path]:
         return None
 
 
+def _hook_body(hook_type: str, local_hook_support: bool) -> str:
+    """The lines ggshield owns in a hook script, stamp first.
+
+    Opens on a newline, which is load-bearing in both directions: appending to a file
+    whose last line has no terminator would otherwise glue the stamp onto it, and
+    every legacy body this one replaces started with the same newline, so the
+    separator survives a repair.
+    """
+    snippet = (
+        LOCAL_HOOK_SNIPPET.format(hook_type=hook_type) + "\n"
+        if local_hook_support
+        else ""
+    )
+    return (
+        f"\n# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}\n"
+        f"{snippet}"
+        f'ggshield secret scan {hook_type} "$@"\n'
+    )
+
+
+def _legacy_hook_bodies(hook_type: str) -> List[str]:
+    return [
+        snippet.format(hook_type=hook_type)
+        + "\n"
+        + f'ggshield secret scan {hook_type} "$@"\n'
+        for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS
+    ]
+
+
+def hook_is_outdated(hook_path: Path) -> bool:
+    """Whether ``hook_path`` is ggshield's own hook, rendered by an older template.
+
+    Presence of the marker is not currency: a hook installed before the stamp existed
+    carries a template that skips the repository's own hook in linked worktrees.
+    """
+    if not hook_invokes_ggshield(hook_path):
+        return False
+    try:
+        text = hook_path.read_text(errors="ignore")
+    except OSError:
+        return False
+    match = _HOOK_STAMP_RE.search(text)
+    return (int(match.group(1)) if match else 0) < GGSHIELD_HOOK_VERSION
+
+
+def upgrade_hook(hook_path: Path, hook_type: str) -> bool:
+    """Swap a known legacy ggshield block for the current one, in place.
+
+    Only the block ggshield generated is rewritten: ``install --append`` hooks hold
+    user-owned lines around it. Returns False when no known block is found (the hook
+    was hand-edited), leaving the file untouched.
+    """
+    try:
+        text = hook_path.read_text()
+    except (OSError, UnicodeDecodeError):
+        return False
+    for legacy in _legacy_hook_bodies(hook_type):
+        if legacy in text:
+            hook_path.write_text(
+                text.replace(legacy, _hook_body(hook_type, local_hook_support=True), 1)
+            )
+            return True
+    return False
+
+
 def hook_invokes_ggshield(hook_path: Path) -> bool:
     """Whether ``hook_path`` is an existing hook script that runs ggshield.
 
@@ -343,11 +439,7 @@ def create_hook(
         if not append:
             f.write("#!/bin/sh\n")
 
-        if local_hook_support:
-            f.write(LOCAL_HOOK_SNIPPET.format(hook_type=hook_type))
-            f.write("\n")
-
-        f.write(f'ggshield secret scan {hook_type} "$@"\n')
+        f.write(_hook_body(hook_type, local_hook_support))
         os.chmod(hook_path, 0o755 if world_readable else 0o700)
 
     click.echo(
