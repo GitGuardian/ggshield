@@ -58,9 +58,13 @@ def load_dot_env() -> Set[str]:
         return set()
 
     dot_env_path = _find_dot_env()
-    if dot_env_path:
-        dot_env_path = dot_env_path.absolute()
-        logger.debug("Loading environment file %s", dot_env_path)
-        load_dotenv(dot_env_path, override=True)
+    if dot_env_path is None:
+        # dotenv_values(None) would run its own discovery, which follows FIFOs and
+        # can block forever on one with no writer (1Password Environments mounts).
+        return set()
+
+    dot_env_path = dot_env_path.absolute()
+    logger.debug("Loading environment file %s", dot_env_path)
+    load_dotenv(dot_env_path, override=True)
 
     return dotenv_values(dot_env_path).keys() & TRACKED_ENV_VARS
