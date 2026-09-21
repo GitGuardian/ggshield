@@ -8,7 +8,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::payload::{Agent, EventType, Payload};
+use crate::payload::{Agent, EventType, Payload, Tool};
 
 pub struct HookResult<'a> {
     pub block: bool,
@@ -86,15 +86,115 @@ fn deny_pre_tool_use(message: &str) -> Value {
     )])
 }
 
-fn decision_block(message: &str, with_context: bool) -> Value {
-    let mut pairs = vec![
+fn decision_block(message: &str) -> Value {
+    obj(vec![
         ("decision", "block".into()),
         ("reason", Value::from(message)),
-    ];
-    if with_context {
-        pairs.push(("additionalContext", message.into()));
+    ])
+}
+
+/// Whether this agent lets the hook replace the tool's output before the model
+/// reads it, so a PostToolUse block withholds the secret rather than only
+/// warning about it after the fact.
+///
+/// Drives three things that must agree: the replacement `emission()` sends, the
+/// wording `message::from_secrets()` picks, and whether `lib.rs` raises the
+/// "already leaked" desktop notification.
+pub fn can_redact_tool_output(payload: &Payload) -> bool {
+    payload.event_type == EventType::PostToolUse
+        && match payload.agent {
+            // `updatedToolOutput` must match the tool's own output schema.
+            // Claude Code silently ignores a value that does not and shows the
+            // original, so only the shapes captured from a real payload count;
+            // `claude_updated_tool_output` builds exactly those, and
+            // `claude_capability_matches_the_shapes_it_can_build` locks the two
+            // together.
+            Agent::Claude => matches!(payload.tool, Some(Tool::Bash | Tool::Read)),
+            // Junie raises no PostToolUse event at all, so it never has an
+            // output to replace.
+            Agent::Junie => false,
+            // `decision: "block"` already replaces the tool result, whatever
+            // the tool, so Codex needs no extra field in the response. Only the
+            // model is protected: Codex also records the raw output in a
+            // rollout file of its own, which no hook can reach, so the wording
+            // says the output never reached the agent and claims nothing about
+            // what is on disk.
+            // `decision: "deny"` replaces `tool_output_text`, the field the
+            // model reads, so like Codex the reason we send is all it gets and
+            // the tool matters no more than it does there. Vibe also keeps the
+            // raw output in its own session log, out of a hook's reach.
+            Agent::Codex | Agent::Vibe => true,
+            // Cursor can replace an MCP tool's output only, and the rest cannot
+            // at all. Until each is established against a real payload they
+            // keep the leaked wording: telling someone to rotate a secret that
+            // never left is a nuisance, telling them not to rotate one that did
+            // is a breach.
+            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
+        }
+}
+
+/// The output Claude Code hands the model in place of the one that held the
+/// secret, in that tool's own shape. `None` for a tool whose shape we have not
+/// captured, which falls back to warning about a leak that did happen.
+fn claude_updated_tool_output(payload: &Payload, message: &str) -> Option<Value> {
+    match payload.tool? {
+        Tool::Bash => Some(obj(vec![
+            ("stdout", message.into()),
+            ("stderr", "".into()),
+            ("interrupted", false.into()),
+            ("isImage", false.into()),
+        ])),
+        Tool::Read => {
+            let lines = message.lines().count().max(1);
+            Some(obj(vec![
+                ("type", "text".into()),
+                (
+                    "file",
+                    obj(vec![
+                        ("filePath", read_file_path(payload).into()),
+                        ("content", message.into()),
+                        ("numLines", lines.into()),
+                        ("startLine", 1.into()),
+                        ("totalLines", lines.into()),
+                    ]),
+                ),
+            ]))
+        }
+        Tool::Mcp | Tool::Other => None,
     }
-    obj(pairs)
+}
+
+/// The path Claude sent in `tool_input`, so the replacement names the file the
+/// agent asked for. Falls back to the payload identifier, which is that path
+/// resolved against the event's cwd.
+fn read_file_path(payload: &Payload) -> &str {
+    payload
+        .raw
+        .get("tool_input")
+        .and_then(|input| input.get("file_path"))
+        .and_then(Value::as_str)
+        .unwrap_or(&payload.identifier)
+}
+
+/// Claude's PostToolUse block. Carries `updatedToolOutput` when the tool's shape
+/// is one we can rebuild, which is what keeps the secret out of both the model's
+/// context and the session transcript on disk.
+fn claude_post_tool_use(result: &HookResult) -> Value {
+    let message = result.message.as_str();
+    let Some(replacement) = claude_updated_tool_output(result.payload, message) else {
+        return decision_block(message);
+    };
+    let mut value = decision_block(message);
+    if let Value::Object(map) = &mut value {
+        map.insert(
+            "hookSpecificOutput".into(),
+            obj(vec![
+                ("hookEventName", "PostToolUse".into()),
+                ("updatedToolOutput", replacement),
+            ]),
+        );
+    }
+    value
 }
 
 fn allow_with_optional_warning(warning: &str) -> Value {
@@ -136,7 +236,8 @@ pub fn emission(result: &HookResult) -> Emission {
                 allow_with_optional_warning(&result.warning)
             } else {
                 match event {
-                    EventType::UserPrompt | EventType::PostToolUse => decision_block(message, true),
+                    EventType::PostToolUse => claude_post_tool_use(result),
+                    EventType::UserPrompt => decision_block(message),
                     EventType::PreToolUse => deny_pre_tool_use(message),
                     // Should not happen; Claude's "universal" fields.
                     EventType::Other => obj(vec![
@@ -157,7 +258,14 @@ pub fn emission(result: &HookResult) -> Emission {
                 allow_with_optional_warning(&result.warning)
             } else {
                 match event {
-                    EventType::UserPrompt => decision_block(message, true),
+                    // Junie has not been shown to ignore a top-level
+                    // `additionalContext` the way Claude Code does, so the
+                    // block carries one.
+                    EventType::UserPrompt => obj(vec![
+                        ("decision", "block".into()),
+                        ("reason", message.into()),
+                        ("additionalContext", message.into()),
+                    ]),
                     EventType::PreToolUse => deny_pre_tool_use(message),
                     // SessionStart, Stop, StopFailure, SessionEnd and
                     // PermissionRequest land here; `continue: false` is the one
@@ -178,7 +286,7 @@ pub fn emission(result: &HookResult) -> Emission {
                 match event {
                     EventType::PreToolUse => Emission::Stdout(deny_pre_tool_use(message), 0),
                     EventType::UserPrompt | EventType::PostToolUse => {
-                        Emission::Stdout(decision_block(message, false), 0)
+                        Emission::Stdout(decision_block(message), 0)
                     }
                     EventType::Other => Emission::Stderr(message.to_string(), 2),
                 }
@@ -235,9 +343,9 @@ pub fn emission(result: &HookResult) -> Emission {
             } else {
                 match event {
                     EventType::PreToolUse => deny_pre_tool_use(message),
-                    EventType::PostToolUse => decision_block(message, false),
+                    EventType::PostToolUse => decision_block(message),
                     EventType::UserPrompt if result.payload.agent == Agent::Copilot => {
-                        decision_block(message, false)
+                        decision_block(message)
                     }
                     _ => obj(vec![
                         ("continue", false.into()),
@@ -303,9 +411,13 @@ mod tests {
     use crate::payload::Tool;
 
     fn payload(agent: Agent, event_type: EventType) -> Payload {
+        payload_with_tool(agent, event_type, Some(Tool::Bash))
+    }
+
+    fn payload_with_tool(agent: Agent, event_type: EventType, tool: Option<Tool>) -> Payload {
         Payload {
             event_type,
-            tool: Some(Tool::Bash),
+            tool,
             content: String::new(),
             identifier: "id".into(),
             agent,
@@ -326,6 +438,11 @@ mod tests {
 
     fn blocked(agent: Agent, event: EventType) -> Option<String> {
         let p = payload(agent, event);
+        emitted(&HookResult::block(&p, "nope".into(), 1))
+    }
+
+    fn blocked_tool(agent: Agent, event: EventType, tool: Option<Tool>) -> Option<String> {
+        let p = payload_with_tool(agent, event, tool);
         emitted(&HookResult::block(&p, "nope".into(), 1))
     }
 
@@ -389,14 +506,20 @@ mod tests {
             blocked(Agent::Claude, EventType::PreToolUse).as_deref(),
             Some(DENY)
         );
-        // Claude is the only adapter that also sets additionalContext.
+        // A Bash output is replaced, so the model reads the block message
+        // instead of the output that held the secret.
         assert_eq!(
             blocked(Agent::Claude, EventType::PostToolUse).as_deref(),
-            Some(r#"{"decision":"block","reason":"nope","additionalContext":"nope"}"#)
+            Some(
+                r#"{"decision":"block","reason":"nope","hookSpecificOutput":{"hookEventName":"PostToolUse","updatedToolOutput":{"stdout":"nope","stderr":"","interrupted":false,"isImage":false}}}"#
+            )
         );
+        // A blocked prompt carries no additionalContext: Claude Code reads that
+        // field only under hookSpecificOutput, and a blocked prompt is erased
+        // without a model turn, so nothing could be delivered anyway.
         assert_eq!(
             blocked(Agent::Claude, EventType::UserPrompt).as_deref(),
-            Some(r#"{"decision":"block","reason":"nope","additionalContext":"nope"}"#)
+            Some(r#"{"decision":"block","reason":"nope"}"#)
         );
         assert_eq!(
             blocked(Agent::Claude, EventType::Other).as_deref(),
@@ -561,6 +684,108 @@ mod tests {
                 warned(Agent::Junie, event).as_deref(),
                 Some(r#"{"continue":true,"systemMessage":"could not scan"}"#),
                 "{event:?}"
+            );
+        }
+    }
+
+    /// GIVEN a secret in a file Claude just read
+    /// WHEN the block is emitted
+    /// THEN the replacement is the Read tool's own output shape, naming the file
+    /// the agent asked for.
+    #[test]
+    fn a_replaced_read_uses_the_read_output_shape() {
+        let mut p = payload_with_tool(Agent::Claude, EventType::PostToolUse, Some(Tool::Read));
+        p.raw = serde_json::json!({"tool_input": {"file_path": "/tmp/creds.env"}});
+        let emitted = emitted(&HookResult::block(&p, "line one\nline two".into(), 1))
+            .expect("claude emits json");
+        let value: Value = serde_json::from_str(&emitted).expect("valid json");
+        let file = &value["hookSpecificOutput"]["updatedToolOutput"]["file"];
+        assert_eq!(
+            value["hookSpecificOutput"]["updatedToolOutput"]["type"],
+            "text"
+        );
+        assert_eq!(file["filePath"], "/tmp/creds.env");
+        assert_eq!(file["content"], "line one\nline two");
+        assert_eq!(file["numLines"], 2);
+        assert_eq!(file["startLine"], 1);
+        assert_eq!(file["totalLines"], 2);
+    }
+
+    /// GIVEN a Claude tool whose output shape we cannot rebuild
+    /// WHEN the block is emitted
+    /// THEN no replacement is sent, because Claude Code silently ignores a value
+    /// that does not match the schema and would show the original output.
+    #[test]
+    fn an_unknown_claude_tool_gets_no_replacement() {
+        for tool in [Some(Tool::Mcp), Some(Tool::Other), None] {
+            assert_eq!(
+                blocked_tool(Agent::Claude, EventType::PostToolUse, tool).as_deref(),
+                Some(r#"{"decision":"block","reason":"nope"}"#),
+                "{tool:?}"
+            );
+        }
+    }
+
+    /// GIVEN every tool
+    /// WHEN Claude's capability flag and the shape builder are compared
+    /// THEN they agree. They are two matches that must not drift: claiming a
+    /// redaction we do not send would tell the user a leaked secret was safe.
+    #[test]
+    fn claude_capability_matches_the_shapes_it_can_build() {
+        for tool in [
+            Some(Tool::Bash),
+            Some(Tool::Read),
+            Some(Tool::Mcp),
+            Some(Tool::Other),
+            None,
+        ] {
+            let p = payload_with_tool(Agent::Claude, EventType::PostToolUse, tool);
+            assert_eq!(
+                can_redact_tool_output(&p),
+                claude_updated_tool_output(&p, "nope").is_some(),
+                "{tool:?}"
+            );
+        }
+    }
+
+    /// GIVEN each agent and each event
+    /// WHEN the redaction capability is read
+    /// THEN only PostToolUse can redact, only on the agents proven to replace an
+    /// output, and Codex does so whatever the tool.
+    #[test]
+    fn only_proven_agents_report_that_they_can_withhold_an_output() {
+        for event in [
+            EventType::UserPrompt,
+            EventType::PreToolUse,
+            EventType::Other,
+        ] {
+            for agent in crate::payload::AGENTS {
+                assert!(
+                    !can_redact_tool_output(&payload(agent, event)),
+                    "{agent:?}/{event:?} is not a tool output"
+                );
+            }
+        }
+        // Codex and Vibe replace the tool result whatever the tool, so neither
+        // needs a shape of its own and every tool redacts.
+        for agent in [Agent::Codex, Agent::Vibe] {
+            for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Mcp), None] {
+                assert!(
+                    can_redact_tool_output(&payload_with_tool(agent, EventType::PostToolUse, tool)),
+                    "{agent:?}/{tool:?}"
+                );
+            }
+        }
+        for agent in [
+            Agent::Copilot,
+            Agent::Cursor,
+            Agent::Junie,
+            Agent::Kiro,
+            Agent::VsCode,
+        ] {
+            assert!(
+                !can_redact_tool_output(&payload(agent, EventType::PostToolUse)),
+                "{agent:?} has no verified way to replace an output"
             );
         }
     }

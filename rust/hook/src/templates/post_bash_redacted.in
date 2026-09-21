@@ -1,0 +1,12 @@
+**🚨 Detected {count} {secrets} in the command output 🚨**  
+{secret_lines}
+
+The command ran, but its output was withheld from the agent, so the {secrets} {were} not sent to the model.
+
+> How to remediate
+
+  Since the {secrets} {were} caught before the output reached the agent:  
+  1. avoid printing the {secrets}: filter the sensitive lines, or redirect the output to a file.
+  2. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}

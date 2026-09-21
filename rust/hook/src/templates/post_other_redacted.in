@@ -1,0 +1,11 @@
+**🚨 Detected {count} {secrets} in the tool output 🚨**  
+{secret_lines}
+
+The tool call ran, but its output was withheld from the agent, so the {secrets} {were} not sent to the model.
+
+> How to remediate
+
+  Since the {secrets} {were} caught before the output reached the agent:  
+  1. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}
