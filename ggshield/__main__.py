@@ -70,6 +70,7 @@ def cli(
     *,
     allow_self_signed: Optional[bool],
     insecure: Optional[bool],
+    check_for_updates: Optional[bool],
     config_path: Optional[Path],
     instance: Optional[str],
     **kwargs: Any,
@@ -99,6 +100,9 @@ def cli(
     # Apply instance from command line
     if instance:
         ctx_obj.config.cmdline_instance_name = instance
+
+    if check_for_updates is not None:
+        ctx_obj.check_for_updates = check_for_updates
 
     # Deliberately no plugin loading here: ContextObj.plugin_registry and
     # PluginAwareLazyGroup each load on demand.
@@ -160,7 +164,7 @@ def before_exit(ctx: click.Context, exit_code: int, *args: Any, **kwargs: Any) -
     """
     ctx_obj = ContextObj.get(ctx)
     _display_deprecation_message(ctx_obj.config)
-    _check_for_updates(ctx_obj.check_for_updates)
+    _check_for_updates(ctx_obj.should_check_for_updates)
     sys.exit(exit_code)
 
 
