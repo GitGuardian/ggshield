@@ -10,7 +10,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-08-16T16:55:27.612955Z"
+exclude-newer = "2026-09-19T16:18:12.042493017Z"
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -1158,7 +1158,7 @@ requires-dist = [
     { name = "oauthlib", specifier = ">=3.2.1,<4" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", specifier = "~=1.34.0" },
+    { name = "pygitguardian", specifier = "~=1.35.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3" },
     { name = "python-dotenv", specifier = ">=0.21.0,<2" },
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
@@ -2929,7 +2929,7 @@ wheels = [
 
 [[package]]
 name = "pygitguardian"
-version = "1.34.0"
+version = "1.35.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2940,9 +2940,9 @@ dependencies = [
     { name = "setuptools" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/8f/5233d9261d1b4748343c6bd9f2514d4b0f322a70f9157e00599057bc2c47/pygitguardian-1.34.0.tar.gz", hash = "sha256:b0ea1d1ef76ed429ea16ad0f4deafe90f7d162715624b55b0e962c076baf2c57", size = 59612, upload-time = "2026-08-19T09:36:01.221Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e3/6a/2ff0e9a42bf6ef3a11bf0d9b2d53bc0bb3ca84531ef4435d856c187d10fe/pygitguardian-1.35.0.tar.gz", hash = "sha256:e9af79fe66cfd5e8063fc140cdaac95b987949ba1dc96941bb27b53ae2b8bc38", size = 64287, upload-time = "2026-09-22T14:36:34.255Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/52/47/d04eb9a381ae2ca2969409ca812179355edd995ade448380b084b9bbb60a/pygitguardian-1.34.0-py3-none-any.whl", hash = "sha256:01a47294dc20b24279bf60f3418a652d480228a250bb8d531a5a390a8b999e1c", size = 25041, upload-time = "2026-08-19T09:36:00.203Z" },
+    { url = "https://files.pythonhosted.org/packages/25/ef/ddf02561c69263558377ddf8cd607a014905588fb28d744cb1684b38b396/pygitguardian-1.35.0-py3-none-any.whl", hash = "sha256:8c9969fc9aaf0e8b5d9c9ef8289e779393ad3b9fc64ff686643eedbda3eb70b6", size = 24809, upload-time = "2026-09-22T14:36:33.175Z" },
 ]
 
 [[package]]
