@@ -202,6 +202,10 @@ def main(args: Optional[List[str]] = None) -> Any:
 
     `args` is only used by unit-tests.
     """
+    import time
+
+    time.sleep(4)  # THROWAWAY: deliberate slowdown to check the perfbench gate
+
     log_utils.disable_logs()
 
     # Required by pyinstaller when forking.
