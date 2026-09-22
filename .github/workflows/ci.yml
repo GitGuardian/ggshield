@@ -126,8 +126,9 @@ jobs:
           uv run coverage xml
 
       - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        continue-on-error: true
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
           token: ${{ secrets.CODECOV_TOKEN }}
