@@ -4,17 +4,17 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from shutil import which
 from tempfile import TemporaryDirectory
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import click
 from perfbench_utils import (
+    REPO_DIR,
     RawReport,
     RawReportEntry,
-    check_run,
     find_latest_prod_version,
     get_raw_report_path,
+    venv_bin,
     work_dir_option,
 )
 
@@ -29,17 +29,71 @@ REPO_BENCHMARK_COMMANDS = [
 DOCKER_IMAGES = ["ubuntu:22.04", "busybox:1.36.0-musl"]
 
 
+def run_uv(args: Sequence[str]) -> None:
+    """
+    Run uv with the checkout configuration disabled: `[tool.uv] exclude-newer` would
+    otherwise hide a release published in the last 3 days, and a benchmarked release
+    should be resolved the way a user gets it.
+    """
+    out = subprocess.run(
+        ["uv", "--no-config", *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if out.returncode > 0:
+        logging.error("`uv %s` failed", " ".join(args))
+        # Use print() here, otherwise the output is unreadable because logging ignores \n characters
+        print(out.stdout, file=sys.stderr)
+        sys.exit(128)
+
+
+def get_checkout_bin(name: str) -> Path:
+    """Return a command of the checkout venv, the one `uv sync` creates"""
+    path = venv_bin(REPO_DIR / ".venv", name)
+    if not path.is_file():
+        logging.error("No %s in %s, run `uv sync` first", name, path.parent)
+        sys.exit(1)
+    return path
+
+
+def install_ggshield(venv_dir: Path, version: str) -> Path:
+    """
+    Install a released version of ggshield in its own venv, return the path to the
+    ggshield command.
+
+    The venv is built from the checkout interpreter and targeted explicitly: running
+    `uv` from the checkout would otherwise resolve against the checkout venv, making
+    the benchmark compare the current tree with itself, and letting uv pick the
+    interpreter would compare two Python versions.
+    """
+    ggshield_path = venv_bin(venv_dir, "ggshield")
+    if ggshield_path.is_file():
+        logging.info("ggshield %s is already installed in %s", version, venv_dir)
+        return ggshield_path
+
+    logging.info("Installing ggshield %s in %s", version, venv_dir)
+    run_uv(["venv", "--python", str(get_checkout_bin("python")), str(venv_dir)])
+    run_uv(
+        [
+            "pip",
+            "install",
+            "--python",
+            str(venv_bin(venv_dir, "python")),
+            f"ggshield=={version}",
+        ]
+    )
+    assert ggshield_path.is_file(), ggshield_path
+    return ggshield_path
+
+
 def setup_ggshield(work_dir: Path, version: str) -> Path:
     """
-    Install a version of ggshield in the work dir, return the path to the ggshield
-    command
+    Return the path to the ggshield command for `version`, installing it in the work
+    dir if needed
     """
     if version == "current":
-        current_path = which("ggshield")
-        if current_path is None:
-            logging.error("Can't find ggshield in $PATH")
-            sys.exit(1)
-        return Path(current_path)
+        return get_checkout_bin("ggshield")
 
     if version == "prod":
         version = find_latest_prod_version()
@@ -49,34 +103,20 @@ def setup_ggshield(work_dir: Path, version: str) -> Path:
     if path.is_file():
         return path.resolve()
 
-    ggshield_base_dir = work_dir / "ggshields" / version
-    if ggshield_base_dir.exists():
-        logging.info("ggshield %s is already installed", version)
-    else:
-        ggshield_base_dir.mkdir(parents=True)
-        logging.info("Installing ggshield %s in %s", version, ggshield_base_dir)
-        out = subprocess.run(
-            ["uv", "run", "pip", "install", f"ggshield=={version}"],
-            cwd=str(ggshield_base_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        if out.returncode > 0:
-            logging.error("Failed to install ggshield %s", version)
-            # Use print() here, otherwise the output is unreadable because logging ignores \n characters
-            print(out.stdout, file=sys.stderr)
-            sys.exit(128)
+    return install_ggshield(work_dir / "ggshields" / version, version)
 
-    proc = check_run(
-        ["uv", "run", "which", "ggshield"],
-        cwd=str(ggshield_base_dir),
-        capture_output=True,
+
+def log_ggshield_version(version: str, ggshield_path: Path) -> None:
+    """Record what each leg really runs, so a mislabelled leg is visible in the log"""
+    out = subprocess.run(
+        [str(ggshield_path), "--version"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
     )
-    path = Path(proc.stdout.strip())
-    assert path.exists(), path
-    return path
+    logging.info(
+        "Benchmarking '%s' with %s (%s)", version, ggshield_path, out.stdout.strip()
+    )
 
 
 def run_benchmark_command(
@@ -205,10 +245,12 @@ def run_cmd(
     Default values for VERSION are `prod` and `current`.
 
     - `prod`: assumes $PWD is a checkout of ggshield repository. Look for the latest `vX.Y.Z` tag.
-    - `current`: uses the `ggshield` executable in $PATH.
+    - `current`: uses the `ggshield` executable from the checkout venv.
 
     The first version is the reference."""
     ggshield_paths = [(v, setup_ggshield(work_dir, v)) for v in versions]
+    for version, ggshield_path in ggshield_paths:
+        log_ggshield_version(version, ggshield_path)
 
     # Prepare repository list
     base_repo_dir = work_dir / "repositories"
