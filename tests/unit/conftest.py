@@ -2,6 +2,7 @@ import json
 import os
 import platform
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from os.path import dirname, join, realpath
 from pathlib import Path
 from typing import Any, Dict, Union
@@ -810,6 +811,21 @@ def make_fake_path_inaccessible(fs: FakeFilesystem, path: Union[str, Path]):
     # `force_unix_mode` is required for Windows.
     # See <https://pytest-pyfakefs.readthedocs.io/en/latest/usage.html#set-file-as-inaccessible-under-windows>
     fs.chmod(path, 0o0000, force_unix_mode=True)
+
+
+class SingleWorkerExecutor(ThreadPoolExecutor):
+    """
+    A ThreadPoolExecutor limited to one worker, to avoid race conditions in tests that use vcrpy.
+    See https://github.com/kevin1024/vcrpy/issues/212
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(max_workers=1)
+
+
+@pytest.fixture(autouse=True)
+def _single_worker_api_key_check(monkeypatch):
+    monkeypatch.setattr("ggshield.core.client.ThreadPoolExecutor", SingleWorkerExecutor)
 
 
 @pytest.fixture(autouse=True)
