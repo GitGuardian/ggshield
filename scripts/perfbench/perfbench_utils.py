@@ -9,6 +9,8 @@ import click
 
 DEFAULT_WORK_DIR = (Path(__file__).parent / ".perfbench").absolute()
 
+REPO_DIR = Path(__file__).parents[2].absolute()
+
 
 @dataclass
 class RawReportEntry:
@@ -43,6 +45,10 @@ class RawReport:
         dct = json.load(fp)
         entries = [RawReportEntry(**x) for x in dct["entries"]]
         return RawReport(dct["versions"], entries)
+
+
+def venv_bin(venv_dir: Path, name: str) -> Path:
+    return venv_dir / "bin" / name
 
 
 def check_run(args: Sequence[str], **kwargs: Any) -> subprocess.CompletedProcess:
