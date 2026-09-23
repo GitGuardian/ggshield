@@ -30,8 +30,21 @@ FD_HARDENED = (
 )
 
 
+# A real credentials/kubeconfig file is a few KiB. The cap stops an unprivileged user
+# from making the root fan-out allocate a multi-GiB "config" they planted in their home.
+MAX_FILE_SIZE = 8 * 1024 * 1024
+
+
 class SecureFileError(Exception):
     """A file could not be read/written safely (symlink swap, non-dir, fs failure)."""
+
+
+def _check_size(size: int, where: object) -> None:
+    if size > MAX_FILE_SIZE:
+        raise SecureFileError(
+            f"refusing to edit {where}: file is {size} bytes, larger than the "
+            f"{MAX_FILE_SIZE} byte limit for a credentials file"
+        )
 
 
 def require_safe_backend() -> None:
@@ -91,6 +104,11 @@ def read_via_fd(dir_fd: int, name: str) -> Optional[str]:
         return None
     except OSError as exc:  # ELOOP → the file itself is a symlink
         raise SecureFileError(f"refusing to read through symlinked file {name}: {exc}")
+    try:
+        _check_size(os.fstat(fd).st_size, name)
+    except BaseException:
+        os.close(fd)
+        raise
     with os.fdopen(fd, "r", encoding="utf-8") as handle:
         return _read_text(handle, name)
 
@@ -181,6 +199,7 @@ def reject_symlinked_target(path: Path) -> None:
 def read_path(path: Path) -> Optional[str]:
     if not path.exists():
         return None
+    _check_size(path.stat().st_size, path)
     with open(path, "r", encoding="utf-8") as handle:
         return _read_text(handle, path)
 

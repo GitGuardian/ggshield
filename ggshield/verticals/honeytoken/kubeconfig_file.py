@@ -10,15 +10,17 @@ Merge/remove is by entry *name*, orphan-aware, and verify-before-remove:
 - write: upsert our cluster/user/context. If any of those names already exists with
   different content, refuse without ``--force`` rather than clobber it; a cluster/user
   that a *foreign* context still references is refused even with ``--force`` (it is a
-  real principal). We never claim ``current-context`` — hijacking the active context
-  would trip the decoy on the owner's own ``kubectl``. All three identical → no-op.
+  real principal — a same-named *context* is only a binding and ``--force`` does replace
+  it). We never claim ``current-context`` — hijacking the active context would trip
+  the decoy on the owner's own ``kubectl``. All three identical → no-op.
 - remove: drop our context only when it is actually ours (same cluster+user) and the
   on-disk user still carries *our* bearer (a rotated/foreign token is left untouched);
   then drop the cluster/user it referenced only if no *other* context still uses them.
 
 The file is edited round-trip (``ruamel.yaml``): the user's comments, quoting, flow
 style and key order survive, exactly as ``configupdater`` does for ``~/.aws`` — we only
-ever add or drop our own entries.
+ever add or drop our own entries. The one normalisation: CRLF line endings come back as
+LF (kubectl reads both).
 
 Reuses the shared no-follow, fd-anchored I/O (``secure_file``) so the root fan-out gets
 the same TOCTOU hardening as the AWS placement, and the shared outcome/error
@@ -66,7 +68,7 @@ class _Identity:
     """The three named entries (and bearer) our generated kubeconfig contributes."""
 
     def __init__(self, token: KubeconfigToken) -> None:
-        doc = _load_doc(token.kubeconfig, Path("<generated kubeconfig>"))
+        doc = _load_doc(token.kubeconfig, "the generated kubeconfig")
         contexts = _named_list(doc, "contexts")
         ctx = _find(contexts, token.context_name)
         if ctx is None:
@@ -123,7 +125,8 @@ def _yaml() -> YAML:
     return rt
 
 
-def _load_doc(text: Optional[str], where: Path) -> Dict[str, Any]:
+def _load_doc(text: Optional[str], where: str) -> Dict[str, Any]:
+    """Parse a kubeconfig document; ``where`` only labels errors (a path or a phrase)."""
     if not text or not text.strip():
         return {}
     try:
@@ -262,9 +265,9 @@ def _decide_write(
             name = ident.cluster_name if kind == "clusters" else ident.user_name
             if _referenced_by_foreign_context(doc, field, name, ident.context_name):
                 raise PlacementError(
-                    f"kubeconfig {kind[:-1]} [{name}] in {path} belongs to a real "
-                    "cluster/user referenced by another context — refusing to touch it "
-                    "even with --force"
+                    f"kubeconfig {kind[:-1]} [{name}] in {path} is a real "
+                    f"{kind[:-1]} still used by another context — it will not be "
+                    "overwritten (--force does not apply to real principals)"
                 )
     if collisions and not force:
         raise ForceRefusal(collisions[0][1].get("name") or ident.context_name, path)
@@ -335,9 +338,14 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
     return RemoveOutcome.REMOVED
 
 
+_SHELL_KEYS = ("apiVersion", "kind")
+
+
 def _is_empty(doc: Dict[str, Any]) -> bool:
-    """No clusters, users, or contexts left — the file is nothing but an empty shell."""
-    return not any(doc.get(key) for key in _LIST_KEYS)
+    """Nothing of the user's left: only the ``apiVersion``/``kind`` shell (which we may
+    have added ourselves) and empty values. A lone ``preferences`` or ``extensions``
+    block is theirs and keeps the file alive."""
+    return not any(value for key, value in doc.items() if key not in _SHELL_KEYS)
 
 
 # --- public API -------------------------------------------------------------------
@@ -355,7 +363,7 @@ def write_kubeconfig(path: Path, token: KubeconfigToken, force: bool) -> WriteOu
         if secure_file.FD_HARDENED:
             dir_fd = secure_file.open_dir_fd(path.parent, create=True)
             try:
-                doc = _load_doc(secure_file.read_via_fd(dir_fd, path.name), path)
+                doc = _load_doc(secure_file.read_via_fd(dir_fd, path.name), str(path))
                 outcome = _decide_write(doc, ident, force, path)
                 if outcome is WriteOutcome.WROTE:
                     secure_file.atomic_write_via_fd(dir_fd, path.name, _dump(doc))
@@ -364,7 +372,7 @@ def write_kubeconfig(path: Path, token: KubeconfigToken, force: bool) -> WriteOu
                 os.close(dir_fd)
 
         secure_file.reject_symlinked_target(path)
-        doc = _load_doc(secure_file.read_path(path), path)
+        doc = _load_doc(secure_file.read_path(path), str(path))
         outcome = _decide_write(doc, ident, force, path)
         if outcome is WriteOutcome.WROTE:
             secure_file.atomic_write_path(path, _dump(doc))
@@ -388,7 +396,7 @@ def remove_kubeconfig(path: Path, token: KubeconfigToken) -> RemoveOutcome:
                 text = secure_file.read_via_fd(dir_fd, path.name)
                 if text is None:
                     return RemoveOutcome.ALREADY_ABSENT
-                doc = _load_doc(text, path)
+                doc = _load_doc(text, str(path))
                 outcome = _decide_remove(doc, ident)
                 if outcome is not RemoveOutcome.REMOVED:
                     return outcome
@@ -404,7 +412,7 @@ def remove_kubeconfig(path: Path, token: KubeconfigToken) -> RemoveOutcome:
         text = secure_file.read_path(path)
         if text is None:
             return RemoveOutcome.ALREADY_ABSENT
-        doc = _load_doc(text, path)
+        doc = _load_doc(text, str(path))
         outcome = _decide_remove(doc, ident)
         if outcome is not RemoveOutcome.REMOVED:
             return outcome

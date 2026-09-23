@@ -260,3 +260,28 @@ def test_atomic_write_path_cleans_the_temp_on_failure(tmp_path, monkeypatch):
     assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".plant.")] == []
     assert path.read_text() == "old\n"
     assert isinstance(Path(path), Path)
+
+
+# --- size cap (root fan-out DoS) ------------------------------------------------------
+
+
+@posix_only
+def test_read_via_fd_refuses_an_oversized_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(secure_file, "MAX_FILE_SIZE", 16)
+    (tmp_path / "config").write_text("x" * 17)
+    dir_fd = open_dir_fd(tmp_path, create=False)
+    try:
+        with pytest.raises(SecureFileError, match="larger than the 16 byte limit"):
+            read_via_fd(dir_fd, "config")
+        (tmp_path / "small").write_text("x" * 16)
+        assert read_via_fd(dir_fd, "small") == "x" * 16
+    finally:
+        os.close(dir_fd)
+
+
+def test_read_path_refuses_an_oversized_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(secure_file, "MAX_FILE_SIZE", 16)
+    path = tmp_path / "config"
+    path.write_text("x" * 17)
+    with pytest.raises(SecureFileError, match="larger than the 16 byte limit"):
+        read_path(path)

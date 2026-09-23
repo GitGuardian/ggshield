@@ -99,12 +99,18 @@ def _apply_remove(item: Deployment, home: Path) -> Tuple[Path, RemoveOutcome]:
 
 
 @click.command()
-@click.option("--type", "token_type", default="aws", help="Honeytoken type to plant.")
+@click.option(
+    "--type",
+    "token_type",
+    default="aws",
+    help="Honeytoken type to create for this machine (aws, kubeconfig). Existing "
+    "deployments of every type are synchronized regardless.",
+)
 @click.option(
     "--method",
     type=click.Choice(["aws_credentials", "aws_config_profile", "kubeconfig"]),
     default=None,
-    help="Placement method (steers creation of a new deployment only).",
+    help="Placement method for a new deployment (defaults to the type's method).",
 )
 @click.option(
     "--filename",
@@ -115,7 +121,7 @@ def _apply_remove(item: Deployment, home: Path) -> Tuple[Path, RemoveOutcome]:
     "--profile-name",
     "profile_name",
     default=None,
-    help="Override the profile/section name for a new deployment.",
+    help="Override the AWS profile/section name for a new deployment (AWS methods only).",
 )
 @click.option(
     "--user",
@@ -132,7 +138,8 @@ def _apply_remove(item: Deployment, home: Path) -> Tuple[Path, RemoveOutcome]:
 @click.option(
     "--force",
     is_flag=True,
-    help="Overwrite the honeytoken profile if it exists and is not ours.",
+    help="Overwrite the honeytoken entry (AWS profile or kubeconfig context) if it "
+    "exists and is not ours. Never touches a cluster/user a real context still uses.",
 )
 @click.option(
     "--list-targets",

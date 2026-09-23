@@ -3,17 +3,17 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ggshield.verticals.honeytoken.aws_profile import (
-    PlacementError,
-    RemoveOutcome,
-    WriteOutcome,
-)
 from ggshield.verticals.honeytoken.endpoint_deployments import KubeconfigToken
 from ggshield.verticals.honeytoken.kubeconfig_file import (
     ForceRefusal,
     kube_path,
     remove_kubeconfig,
     write_kubeconfig,
+)
+from ggshield.verticals.honeytoken.placement import (
+    PlacementError,
+    RemoveOutcome,
+    WriteOutcome,
 )
 
 
@@ -701,3 +701,68 @@ def test_multi_document_file_is_rejected_clearly(tmp_path):
 
     with pytest.raises(PlacementError, match="another document at line 2"):
         write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+
+# --- batch C: file kept when the user's own top-level keys remain, real-principal message
+
+
+def test_remove_keeps_a_file_that_still_holds_the_users_preferences(tmp_path):
+    # kubectl writes `preferences:` blocks; a file holding only that plus our entries
+    # must survive our removal (we never delete what is theirs).
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "apiVersion: v1\nkind: Config\npreferences:\n  colors: true\n", encoding="utf-8"
+    )
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+
+    assert path.exists()
+    doc = _load(path)
+    assert doc["preferences"] == {"colors": True}
+    assert not doc.get("contexts") and not doc.get("users") and not doc.get("clusters")
+
+
+def test_remove_deletes_a_file_that_is_only_an_empty_shell(tmp_path):
+    # `preferences: {}` and empty lists carry nothing of the user's → the shell goes.
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text("apiVersion: v1\nkind: Config\npreferences: {}\n", encoding="utf-8")
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+    assert not path.exists()
+
+
+def test_real_principal_collision_message_does_not_blame_force(tmp_path):
+    # Without --force the refusal must not read as if the user had passed it.
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [{"name": "abc123", "cluster": {"server": "https://real"}}],
+                "users": [{"name": "real-user", "user": {"token": "real"}}],
+                "contexts": [
+                    {
+                        "name": "real",
+                        "context": {"cluster": "abc123", "user": "real-user"},
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PlacementError) as excinfo:
+        write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+    message = str(excinfo.value)
+    assert "real cluster still used by another context" in message
+    assert "even with --force" not in message
