@@ -31,7 +31,10 @@ pub(crate) struct Args {
 pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
     // Env override is handled below so the user is warned which fields kept their value.
-    let store = SecretStore::builder(provider).env_override(false).build()?;
+    let store = SecretStore::builder(provider)
+        .env_override(false)
+        .project_path_is_default(args.secrets.is_empty())
+        .build()?;
 
     let paths = if args.secrets.is_empty() {
         vec![secret_path(provider, None, None)?]

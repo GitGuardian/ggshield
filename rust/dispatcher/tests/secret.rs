@@ -3418,6 +3418,41 @@ fn the_hook_notices_a_value_set_in_the_repository_store_beside_a_dotenv() {
     );
 }
 
+/// A virtualenv named `.env` is no project file; naming a directory with `--path` still fails.
+#[test]
+fn a_dotenv_directory_falls_through_to_the_repository_store() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+    std::fs::create_dir_all(workspace.project_file(".env").join("bin")).unwrap();
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(!block.contains("not a regular file"), "{block}");
+    assert!(
+        block.contains("export SHARED='fake-shared-value'"),
+        "{block}"
+    );
+
+    let output = workspace.run(&["get", "--provider", "file", "--field", "SHARED", "--expose"]);
+    assert_ok(&output);
+    assert_eq!(stdout(&output).trim(), "fake-shared-value");
+
+    let output = workspace.run(&["run", "--provider", "file", "--", "printenv", "SHARED"]);
+    assert_ok(&output);
+    assert_eq!(stdout(&output).trim(), "fake-shared-value");
+
+    let output = workspace.run(&["get", "--provider", "file", "--path", ".env/bin"]);
+    assert!(!output.status.success(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("not a regular file"),
+        "{}",
+        stderr(&output)
+    );
+}
+
 #[test]
 fn an_untrusted_dotenv_is_still_refused_in_a_repository_with_a_store() {
     let workspace = Workspace::new();

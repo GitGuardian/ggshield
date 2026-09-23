@@ -189,6 +189,8 @@ pub(crate) struct FileBackend {
     /// `None` when the platform has no usable config directory.
     user_path: Option<PathBuf>,
     system_path: Option<PathBuf>,
+    /// The project path was not chosen by the caller, so a directory there is no project file.
+    project_path_is_default: bool,
 }
 
 // No cipher or key material.
@@ -213,7 +215,7 @@ impl std::fmt::Debug for FileBackend {
 }
 
 impl FileBackend {
-    pub(crate) fn new(encrypt: bool) -> Self {
+    pub(crate) fn new(encrypt: bool, project_path_is_default: bool) -> Self {
         FileBackend {
             encryption: if encrypt {
                 Encryption::Device
@@ -222,6 +224,7 @@ impl FileBackend {
             },
             user_path: user_scope_path().ok(),
             system_path: system_scope_path(),
+            project_path_is_default,
         }
     }
 
@@ -728,7 +731,9 @@ impl FileBackend {
                 path: repo_path,
             });
         }
-        if let Some(contents) = atomic::read_to_string(project_path)? {
+        let default_is_a_directory = self.project_path_is_default
+            && std::fs::symlink_metadata(project_path).is_ok_and(|metadata| metadata.is_dir());
+        if !default_is_a_directory && let Some(contents) = atomic::read_to_string(project_path)? {
             layers.push(Layer {
                 scope: Scope::Project,
                 document: Document::parse(&contents),
@@ -996,6 +1001,7 @@ mod tests {
                     user_path: Some(user_path),
                     // A real /etc file would make these tests machine-dependent.
                     system_path: Some(directory.path().join("system-secrets.env")),
+                    project_path_is_default: false,
                 },
                 directory,
             }
@@ -1370,6 +1376,7 @@ mod tests {
                 encryption: Encryption::Fixed(cipher.clone()),
                 user_path: sealing.backend.user_path.clone(),
                 system_path: sealing.backend.system_path.clone(),
+                project_path_is_default: false,
             },
             directory: sealing.directory,
         };
@@ -1401,6 +1408,7 @@ mod tests {
             encryption: Encryption::Unavailable,
             user_path: fixture.backend.user_path.clone(),
             system_path: fixture.backend.system_path.clone(),
+            project_path_is_default: false,
         };
         let (fields, warnings) = blind.get_secrets(&fixture.project_path()).unwrap();
 
@@ -1681,6 +1689,7 @@ mod tests {
             encryption: Encryption::Unavailable,
             user_path: fixture.backend.user_path.clone(),
             system_path: fixture.backend.system_path.clone(),
+            project_path_is_default: false,
         };
         fixture.write_project("FOREIGN=encrypted:dotenvx\nEMPTY=\n");
         let before = fixture.read_project();

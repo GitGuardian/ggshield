@@ -38,6 +38,7 @@ impl SecretStore {
             provider,
             env_override: None,
             file_encrypt: true,
+            project_path_is_default: false,
         }
     }
 
@@ -493,6 +494,7 @@ pub struct SecretStoreBuilder {
     /// `None` means unset: the `file` backend accepts the default but not an explicit `true`.
     env_override: Option<bool>,
     file_encrypt: bool,
+    project_path_is_default: bool,
 }
 
 impl SecretStoreBuilder {
@@ -510,6 +512,14 @@ impl SecretStoreBuilder {
         self
     }
 
+    /// For the `file` provider: the caller defaulted the project path rather than taking it from
+    /// the user, so a directory there (a virtualenv named `.env`) reads as no project file
+    /// instead of failing the read (default: `false`).
+    pub fn project_path_is_default(mut self, defaulted: bool) -> Self {
+        self.project_path_is_default = defaulted;
+        self
+    }
+
     /// Opens no connection; network calls happen on first read.
     pub fn build(self) -> Result<SecretStore> {
         let Some(definition) = self.provider.definition() else {
@@ -520,7 +530,10 @@ impl SecretStoreBuilder {
                  the file holds. Leave it at the default or pass env_override(false)"
             );
             return Ok(SecretStore {
-                backend: Backend::File(FileBackend::new(self.file_encrypt)),
+                backend: Backend::File(FileBackend::new(
+                    self.file_encrypt,
+                    self.project_path_is_default,
+                )),
                 env_override: false,
             });
         };

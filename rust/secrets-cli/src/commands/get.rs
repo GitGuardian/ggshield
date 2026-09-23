@@ -39,13 +39,17 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
     let explicit_path = args.path.is_some();
     let scope = args.scope.get();
+    let defaulted = !explicit_path && scope.is_none();
     let path = secret_path(provider, args.path, scope)?;
     if explicit_path {
         ensure_explicit_path_exists(provider, &path)?;
     }
     let one_scope = scope.is_some();
     // `get` inspects what the provider holds; the environment must not shadow it.
-    let store = SecretStore::builder(provider).env_override(false).build()?;
+    let store = SecretStore::builder(provider)
+        .env_override(false)
+        .project_path_is_default(defaulted)
+        .build()?;
 
     // Redact on a terminal (scrollback, screen-shares); piped output stays usable by scripts.
     let mut out = std::io::stdout().lock();

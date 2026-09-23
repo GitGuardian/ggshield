@@ -585,6 +585,8 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                     needs_trust: true,
                 });
             }
+            // A virtualenv is commonly named `.env`: it is no dotenv file, not a refusal.
+            Ok(metadata) if metadata.is_dir() => {}
             Ok(metadata) => {
                 let what = if metadata.file_type().is_symlink() {
                     "is a symbolic link; refusing to read through it"
