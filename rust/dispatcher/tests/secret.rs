@@ -3364,6 +3364,41 @@ fn the_repository_store_needs_no_trust_decision() {
     assert!(block.contains("export SHARED="), "{block}");
 }
 
+/// `set` writes the repository store by default, which a checkout's `.env` merges.
+#[test]
+fn the_hook_notices_a_value_set_in_the_repository_store_beside_a_dotenv() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(&["set", "--provider", "file", "SHARED"], "fake-v1");
+    workspace.write_project(".env", "PROJECT_KEY=p\n");
+    workspace.trust_project();
+
+    let first = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(first.contains("export SHARED='fake-v1'"), "{first}");
+    let state = state_value(&first);
+
+    assert_ok(&workspace.set(
+        &["set", "--provider", "file", "--yes", "SHARED"],
+        "fake-v2-rotated",
+    ));
+
+    let output = workspace.run_with(
+        None,
+        &[
+            (STATE_VAR, &state),
+            ("SHARED", "fake-v1"),
+            ("PROJECT_KEY", "p"),
+        ],
+        &["hook-env", "bash"],
+    );
+    assert_ok(&output);
+    let block = stdout(&output);
+    assert!(
+        block.contains("export SHARED='fake-v2-rotated'"),
+        "the rotated repository value was not picked up: {block}"
+    );
+}
+
 #[test]
 fn an_untrusted_dotenv_is_still_refused_in_a_repository_with_a_store() {
     let workspace = Workspace::new();

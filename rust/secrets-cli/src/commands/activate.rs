@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use ggshield_secrets::{
-    DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, trust, user_scope_path,
+    DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, system_scope_path, trust,
+    user_scope_path,
 };
 use secrecy::{ExposeSecret, SecretString};
 
@@ -578,7 +579,7 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
             Ok(metadata) if metadata.is_file() => {
                 return Some(Found {
                     directory: directory.to_path_buf(),
-                    fingerprint: fingerprint(&metadata) ^ user_scope_fingerprint(),
+                    fingerprint: layers_fingerprint(directory, &metadata),
                     path,
                     refusal: None,
                     needs_trust: true,
@@ -592,7 +593,7 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                 };
                 return Some(Found {
                     directory: directory.to_path_buf(),
-                    fingerprint: fingerprint(&metadata) ^ user_scope_fingerprint(),
+                    fingerprint: layers_fingerprint(directory, &metadata),
                     refusal: Some(format!(
                         "{} {what}, the same way `get` and `run` do. Nothing was loaded — \
                          walking past it would have loaded another directory's secrets instead",
@@ -626,7 +627,7 @@ fn repo_store(cwd: &Path) -> Option<Found> {
     Some(Found {
         // The shell's directory, not the store's: one store serves every worktree.
         directory: cwd.to_path_buf(),
-        fingerprint: fingerprint(&metadata) ^ user_scope_fingerprint(),
+        fingerprint: layers_fingerprint(cwd, &metadata),
         path,
         refusal: None,
         needs_trust: false,
@@ -644,13 +645,23 @@ fn fingerprint(metadata: &std::fs::Metadata) -> u64 {
     modified ^ metadata.len().rotate_left(32)
 }
 
-/// Every load merges the user-scope file, so its edits must invalidate the state too.
-fn user_scope_fingerprint() -> u64 {
-    let Ok(path) = user_scope_path() else {
-        return 0;
-    };
-    std::fs::symlink_metadata(&path)
-        .map(|metadata| fingerprint(&metadata).rotate_left(17))
+/// Every load merges the system, user and repo files too, so their edits must invalidate the
+/// state as well.
+fn layers_fingerprint(directory: &Path, target: &std::fs::Metadata) -> u64 {
+    [
+        (system_scope_path(), 7),
+        (user_scope_path().ok(), 17),
+        (repo_scope_path(directory), 29),
+    ]
+    .into_iter()
+    .fold(fingerprint(target), |sum, (path, rotation)| {
+        sum ^ path_fingerprint(path.as_deref()).rotate_left(rotation)
+    })
+}
+
+fn path_fingerprint(path: Option<&Path>) -> u64 {
+    path.and_then(|path| std::fs::symlink_metadata(path).ok())
+        .map(|metadata| fingerprint(&metadata))
         .unwrap_or(0)
 }
 
