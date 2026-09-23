@@ -61,7 +61,7 @@ impl LockedFile {
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
         {
-            std::fs::create_dir_all(parent)
+            create_private_dir_all(parent)
                 .with_context(|| format!("creating {}", parent.display()))?;
         }
 
@@ -181,6 +181,18 @@ fn ensure_regular_handle(file: &File, path: &Path) -> Result<()> {
         bail!("{} is not a regular file", path.display());
     }
     Ok(())
+}
+
+/// Private whatever the umask: the shell hook refuses a group-writable repository store.
+fn create_private_dir_all(path: &Path) -> std::io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path)
 }
 
 /// Read `path`, or `None` when it does not exist.

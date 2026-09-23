@@ -3418,6 +3418,46 @@ fn the_hook_notices_a_value_set_in_the_repository_store_beside_a_dotenv() {
     );
 }
 
+/// A store others can write may have come from a copied directory, not `secret set`.
+#[cfg(unix)]
+#[test]
+fn the_hook_refuses_a_repository_store_others_can_write() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let workspace = Workspace::new();
+    let store = make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "SHARED"],
+        "fake-shared-value",
+    );
+    let chmod = |path: &Path, mode: u32| {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    };
+
+    for (path, loose, tight) in [
+        (store.as_path(), 0o666, 0o600),
+        (store.parent().unwrap(), 0o775, 0o700),
+    ] {
+        chmod(path, loose);
+        let first = stdout(&workspace.run(&["hook-env", "bash"]));
+        assert!(!first.contains("SHARED"), "{first}");
+        assert!(first.contains("writable by others"), "{first}");
+
+        chmod(path, tight);
+        let output = workspace.run_with(
+            None,
+            &[(STATE_VAR, &state_value(&first))],
+            &["hook-env", "bash"],
+        );
+        assert_ok(&output);
+        assert!(
+            stdout(&output).contains("export SHARED='fake-shared-value'"),
+            "{}",
+            stdout(&output)
+        );
+    }
+}
+
 /// A virtualenv named `.env` is no project file; naming a directory with `--path` still fails.
 #[test]
 fn a_dotenv_directory_falls_through_to_the_repository_store() {

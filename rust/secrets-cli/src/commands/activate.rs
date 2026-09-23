@@ -431,6 +431,11 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         return emit_state(&script, &found, Vec::new(), shell);
     }
 
+    if let Some(refusal) = foreign_repo_store(&found.directory) {
+        report_always(shell, &refusal);
+        return emit_state(&script, &found, Vec::new(), shell);
+    }
+
     let loaded = match load(&found.path) {
         Ok(loaded) => loaded,
         Err(error) => {
@@ -560,7 +565,8 @@ struct Found {
     directory: PathBuf,
     path: PathBuf,
     fingerprint: u64,
-    /// False for the repository's own store: `git clone` never transfers it.
+    /// False for the repository's own store: `git clone` never transfers it, and
+    /// [`foreign_repo_store`] catches a copied or extracted one.
     needs_trust: bool,
     /// Recorded like any other outcome so the message appears once.
     refusal: Option<String>,
@@ -644,7 +650,19 @@ fn fingerprint(metadata: &std::fs::Metadata) -> u64 {
         .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|delta| delta.as_nanos() as u64)
         .unwrap_or(0);
-    modified ^ metadata.len().rotate_left(32)
+    modified ^ metadata.len().rotate_left(32) ^ ownership(metadata)
+}
+
+/// So a `chmod` or `chown` that settles [`foreign_repo_store`] is not taken for "unchanged".
+#[cfg(unix)]
+fn ownership(metadata: &std::fs::Metadata) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    u64::from(metadata.mode()).rotate_left(48) ^ u64::from(metadata.uid()).rotate_left(16)
+}
+
+#[cfg(not(unix))]
+fn ownership(_: &std::fs::Metadata) -> u64 {
+    0
 }
 
 /// Every load merges the system, user and repo files too, so their edits must invalidate the
@@ -654,6 +672,10 @@ fn layers_fingerprint(directory: &Path, target: &std::fs::Metadata) -> u64 {
         (system_scope_path(), 7),
         (user_scope_path().ok(), 17),
         (repo_scope_path(directory), 29),
+        (
+            repo_scope_path(directory).and_then(|path| path.parent().map(Path::to_path_buf)),
+            37,
+        ),
     ]
     .into_iter()
     .fold(fingerprint(target), |sum, (path, rotation)| {
@@ -670,6 +692,38 @@ fn path_fingerprint(path: Option<&Path>) -> u64 {
     path.and_then(|path| std::fs::symlink_metadata(path).ok())
         .map(|metadata| fingerprint(&metadata))
         .unwrap_or(0)
+}
+
+/// A repository store this user did not write: a copied directory or an extracted archive can
+/// carry `.git/gitguardian/`, and a `.git` file can point anywhere.
+#[cfg(unix)]
+fn foreign_repo_store(directory: &Path) -> Option<String> {
+    use std::os::unix::fs::MetadataExt;
+
+    let path = repo_scope_path(directory)?;
+    let file = std::fs::symlink_metadata(&path).ok()?;
+    // SAFETY: geteuid has no preconditions.
+    let user = unsafe { libc::geteuid() };
+    let private =
+        |metadata: &std::fs::Metadata| metadata.uid() == user && metadata.mode() & 0o022 == 0;
+    let parent_private = path
+        .parent()
+        .and_then(|parent| std::fs::metadata(parent).ok())
+        .is_some_and(|metadata| private(&metadata));
+    if private(&file) && parent_private {
+        return None;
+    }
+    Some(format!(
+        "{} or its directory is not owned by you or is writable by others, so nothing was \
+         loaded: it may have come from a copied directory rather than `ggshield secret set`. \
+         Check it, then make both yours and `chmod go-w` them",
+        path.display()
+    ))
+}
+
+#[cfg(not(unix))]
+fn foreign_repo_store(_: &Path) -> Option<String> {
+    None
 }
 
 enum Stored {

@@ -1,7 +1,8 @@
 //! The repo-scope store: one per repository, shared by every worktree.
 //!
 //! It lives inside the common git directory, so it can never be committed or
-//! arrive via `git clone`, which is why this scope needs no trust gate.
+//! arrive via `git clone`, which is why this scope needs no trust gate. A copied
+//! directory can still carry one; the shell hook checks who owns it.
 
 use std::path::{Path, PathBuf};
 
