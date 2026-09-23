@@ -23,11 +23,8 @@ from typing import Dict, List, Optional
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.core.machine_id import _get_hostname, _get_machine_id, _get_username
 from ggshield.utils.os import is_root  # re-exported for cmd.honeytoken.plant
-from ggshield.verticals.honeytoken.aws_profile import (
-    PlacementError,
-    open_aws_dir_fd,
-    require_safe_backend,
-)
+from ggshield.verticals.honeytoken import secure_file
+from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
 
 # Home roots that look like real human-user spaces (kept even if the shell is nologin,
@@ -95,28 +92,36 @@ def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> 
     privileged chmod/chown elsewhere."""
     if os.name != "posix":
         return
-    require_safe_backend()  # POSIX without dir fds → refuse (no unsafe path fallback)
+    # POSIX without dir fds → refuse (no unsafe path fallback).
+    secure_file.require_safe_backend()
     parent = path.parent
 
     try:
-        dir_fd = open_aws_dir_fd(parent, create=False)
-    except (FileNotFoundError, PlacementError):
-        return  # nothing planted there, or .aws is a symlink — leave it alone
+        dir_fd = secure_file.open_dir_fd(parent, create=False)
+    except (FileNotFoundError, SecureFileError):
+        return  # nothing planted there, or the dir is a symlink — leave it alone
     try:
         try:
             os.fchmod(dir_fd, 0o700)
         except OSError:
             pass
-        if running_as_root and target.uid is not None:
-            gid = _gid_for_uid(target.uid)
-            gid = gid if gid is not None else target.uid
-            try:
-                os.fchown(dir_fd, target.uid, gid)
-                os.chown(
-                    path.name, target.uid, gid, dir_fd=dir_fd, follow_symlinks=False
-                )
-            except OSError:
-                pass
+        if not running_as_root:
+            return
+        uid = target.uid
+        if uid is None:
+            # `--user-dir` without a passwd user: the home's owner is the only sane
+            # answer — leaving the rewritten file root-owned locks that user out of it.
+            uid = os.stat(target.home).st_uid
+        gid = _gid_for_uid(uid)
+        gid = gid if gid is not None else uid
+        try:
+            os.fchown(dir_fd, uid, gid)
+            os.chown(path.name, uid, gid, dir_fd=dir_fd, follow_symlinks=False)
+        except OSError as exc:
+            # Swallowing this would report a planted decoy the user can no longer read.
+            raise SecureFileError(
+                f"could not hand {path} back to uid {uid} after writing it: {exc}"
+            )
     finally:
         os.close(dir_fd)
 

@@ -8,11 +8,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.errors import ExitCode
-from ggshield.verticals.honeytoken.aws_profile import ForceRefusal as AwsForceRefusal
 from ggshield.verticals.honeytoken.aws_profile import (
-    PlacementError,
-    RemoveOutcome,
-    WriteOutcome,
     remove_aws_profile,
     resolve_placement,
     write_aws_profile,
@@ -28,12 +24,15 @@ from ggshield.verticals.honeytoken.endpoint_deployments import (
     KubeconfigToken,
 )
 from ggshield.verticals.honeytoken.kubeconfig_file import (
-    ForceRefusal as KubeForceRefusal,
-)
-from ggshield.verticals.honeytoken.kubeconfig_file import (
     kube_path,
     remove_kubeconfig,
     write_kubeconfig,
+)
+from ggshield.verticals.honeytoken.placement import (
+    ForceRefusal,
+    PlacementError,
+    RemoveOutcome,
+    WriteOutcome,
 )
 from ggshield.verticals.honeytoken.targets import (
     Target,
@@ -58,10 +57,6 @@ _AWS_METHODS = (
     DeploymentMethod.AWS_CREDENTIALS,
     DeploymentMethod.AWS_CONFIG_PROFILE,
 )
-
-# Both placement backends raise a force-refusal on a genuine foreign collision; the
-# write loop treats either the same way.
-ForceRefusal = (AwsForceRefusal, KubeForceRefusal)
 
 
 def _apply_write(

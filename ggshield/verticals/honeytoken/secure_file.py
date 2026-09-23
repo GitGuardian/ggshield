@@ -1,9 +1,9 @@
 """
-Generic, hardened text file I/O shared by the honeytoken placement backends.
+Generic, hardened text file I/O shared by the honeytoken placement backends
+(``aws_profile``, ``kubeconfig_file``) and the ownership fix-up in ``targets``.
 
-The same no-follow, fd-anchored discipline the AWS placement uses (see ``aws_profile``),
-but content-agnostic (plain text in/out) so a second decoy type — the kubeconfig
-placement — reuses it instead of re-deriving the root-fan-out hardening.
+Content-agnostic (plain text in/out): the backends own parsing and decisions, this
+module owns the one implementation of the root-fan-out hardening.
 
 On POSIX every op is anchored to a directory fd opened ``O_NOFOLLOW|O_DIRECTORY``: the fd
 pins the real inode, so a symlink swapped in after a check (TOCTOU) has no effect, and an
@@ -92,7 +92,16 @@ def read_via_fd(dir_fd: int, name: str) -> Optional[str]:
     except OSError as exc:  # ELOOP → the file itself is a symlink
         raise SecureFileError(f"refusing to read through symlinked file {name}: {exc}")
     with os.fdopen(fd, "r", encoding="utf-8") as handle:
+        return _read_text(handle, name)
+
+
+def _read_text(handle, where) -> str:  # type: ignore[no-untyped-def]
+    # A binary or non-UTF-8 file is "not something we can safely edit", not a codec
+    # traceback for the operator.
+    try:
         return handle.read()
+    except UnicodeDecodeError:
+        raise SecureFileError(f"refusing to edit {where}: not a UTF-8 text file")
 
 
 def atomic_write_via_fd(dir_fd: int, name: str, content: str) -> None:
@@ -170,7 +179,10 @@ def reject_symlinked_target(path: Path) -> None:
 
 
 def read_path(path: Path) -> Optional[str]:
-    return path.read_text(encoding="utf-8") if path.exists() else None
+    if not path.exists():
+        return None
+    with open(path, "r", encoding="utf-8") as handle:
+        return _read_text(handle, path)
 
 
 def atomic_write_path(path: Path, content: str) -> None:

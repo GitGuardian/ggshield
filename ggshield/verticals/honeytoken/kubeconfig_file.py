@@ -21,9 +21,8 @@ style and key order survive, exactly as ``configupdater`` does for ``~/.aws`` â€
 ever add or drop our own entries.
 
 Reuses the shared no-follow, fd-anchored I/O (``secure_file``) so the root fan-out gets
-the same TOCTOU hardening as the AWS placement. ``WriteOutcome``/``RemoveOutcome`` and
-``PlacementError`` are the shared placement vocabulary (defined alongside the AWS
-backend); ``ForceRefusal`` is kubeconfig-specific (its own message).
+the same TOCTOU hardening as the AWS placement, and the shared outcome/error
+vocabulary (``placement``); ``ForceRefusal`` here only words the message for kubeconfig.
 """
 
 from __future__ import annotations
@@ -37,35 +36,30 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from ggshield.verticals.honeytoken import secure_file
-from ggshield.verticals.honeytoken.aws_profile import (
+from ggshield.verticals.honeytoken.endpoint_deployments import KubeconfigToken
+from ggshield.verticals.honeytoken.placement import ForceRefusal as _ForceRefusal
+from ggshield.verticals.honeytoken.placement import (
     PlacementError,
     RemoveOutcome,
     WriteOutcome,
 )
-from ggshield.verticals.honeytoken.endpoint_deployments import (
-    DeploymentMethod,
-    KubeconfigToken,
-)
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
-
-SUPPORTED_METHODS = (DeploymentMethod.KUBECONFIG,)
 
 _LIST_KEYS = ("clusters", "users", "contexts")
 
 
-class ForceRefusal(Exception):
-    """One of our named entries already exists with different content; refusing to
-    overwrite without ``--force``. Carried so the caller can classify it."""
+class ForceRefusal(_ForceRefusal):
+    """One of our named entries already exists with different content."""
 
     def __init__(self, name: str, path: Path) -> None:
         super().__init__(
             f"kubeconfig entry [{name}] in {path} already exists with different content "
             "(a real or foreign cluster/user/context reusing our name) â€” refusing to "
-            "overwrite without --force"
+            "overwrite without --force",
+            name=name,
+            path=path,
         )
-        self.name = name
-        self.path = path
 
 
 class _Identity:
