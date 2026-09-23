@@ -579,7 +579,7 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
             Ok(metadata) if metadata.is_file() => {
                 return Some(Found {
                     directory: directory.to_path_buf(),
-                    fingerprint: layers_fingerprint(directory, &metadata),
+                    fingerprint: layers_fingerprint(directory, &metadata) ^ trust_fingerprint(),
                     path,
                     refusal: None,
                     needs_trust: true,
@@ -657,6 +657,11 @@ fn layers_fingerprint(directory: &Path, target: &std::fs::Metadata) -> u64 {
     .fold(fingerprint(target), |sum, (path, rotation)| {
         sum ^ path_fingerprint(path.as_deref()).rotate_left(rotation)
     })
+}
+
+/// `ggshield trust` rewrites the approvals file, so approving an unchanged `.env` reloads it.
+fn trust_fingerprint() -> u64 {
+    path_fingerprint(trust::trust_path().ok().as_deref()).rotate_left(41)
 }
 
 fn path_fingerprint(path: Option<&Path>) -> u64 {

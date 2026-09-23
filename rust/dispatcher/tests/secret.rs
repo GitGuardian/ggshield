@@ -3074,6 +3074,25 @@ fn an_untrusted_dotenv_loads_nothing_until_it_is_trusted() {
 }
 
 #[test]
+fn trusting_an_unchanged_dotenv_loads_it_at_the_next_prompt() {
+    let workspace = Workspace::new();
+    workspace.write_project(".env", "API_KEY=fake-gated-value\n");
+
+    let first = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(first.contains("not trusted"), "{first}");
+    let state = state_value(&first);
+
+    workspace.trust_project();
+    let output = workspace.run_with(None, &[(STATE_VAR, &state)], &["hook-env", "bash"]);
+    assert_ok(&output);
+    let block = stdout(&output);
+    assert!(
+        block.contains("export API_KEY='fake-gated-value'"),
+        "the untrusted state kept the fast path after trust: {block}"
+    );
+}
+
+#[test]
 fn editing_a_trusted_dotenv_revokes_its_approval() {
     let workspace = Workspace::new();
     workspace.write_project(".env", "API_KEY=fake-gated-value\n");
