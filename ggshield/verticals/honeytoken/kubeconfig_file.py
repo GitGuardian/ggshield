@@ -16,6 +16,10 @@ Merge/remove is by entry *name*, orphan-aware, and verify-before-remove:
   on-disk user still carries *our* bearer (a rotated/foreign token is left untouched);
   then drop the cluster/user it referenced only if no *other* context still uses them.
 
+The file is edited round-trip (``ruamel.yaml``): the user's comments, quoting, flow
+style and key order survive, exactly as ``configupdater`` does for ``~/.aws`` — we only
+ever add or drop our own entries.
+
 Reuses the shared no-follow, fd-anchored I/O (``secure_file``) so the root fan-out gets
 the same TOCTOU hardening as the AWS placement. ``WriteOutcome``/``RemoveOutcome`` and
 ``PlacementError`` are the shared placement vocabulary (defined alongside the AWS
@@ -24,11 +28,13 @@ backend); ``ForceRefusal`` is kubeconfig-specific (its own message).
 
 from __future__ import annotations
 
+import io
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from ggshield.verticals.honeytoken import secure_file
 from ggshield.verticals.honeytoken.aws_profile import (
@@ -112,12 +118,23 @@ def kube_path(home: Path, filename: str) -> Path:
 # --- YAML parsing helpers ---------------------------------------------------------
 
 
+def _yaml() -> YAML:
+    """A round-trip loader/dumper tuned to leave the user's file alone: quotes kept, no
+    folding of long scalars (CA blobs, tokens), kubectl's flush-left list indentation.
+    """
+    rt = YAML(typ="rt")
+    rt.preserve_quotes = True
+    rt.width = 1 << 20
+    rt.indent(mapping=2, sequence=2, offset=0)
+    return rt
+
+
 def _load_doc(text: Optional[str], where: Path) -> Dict[str, Any]:
     if not text or not text.strip():
         return {}
     try:
-        doc = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
+        doc = _yaml().load(text)
+    except YAMLError as exc:
         # Never interpolate the exception itself: PyYAML's message embeds the offending
         # source line, and in a kubeconfig that is typically a ``token:`` line — a user's
         # real bearer would end up on stderr / in the fleet agent's logs.
@@ -132,7 +149,7 @@ def _load_doc(text: Optional[str], where: Path) -> Dict[str, Any]:
     return doc
 
 
-def _yaml_error_location(exc: yaml.YAMLError) -> str:
+def _yaml_error_location(exc: YAMLError) -> str:
     """The parser's problem statement and position only — nothing copied from the file."""
     problem = getattr(exc, "problem", None) or "parse error"
     mark = getattr(exc, "problem_mark", None)
@@ -142,7 +159,9 @@ def _yaml_error_location(exc: yaml.YAMLError) -> str:
 
 
 def _dump(doc: Dict[str, Any]) -> str:
-    return yaml.safe_dump(doc, sort_keys=False, default_flow_style=False)
+    stream = io.StringIO()
+    _yaml().dump(doc, stream)
+    return stream.getvalue()
 
 
 def _named_list(doc: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
@@ -169,6 +188,14 @@ def _same_name(item: Any, name: Optional[str]) -> bool:
     return isinstance(item, dict) and item.get("name") == name
 
 
+def _remove_where(items: List[Any], unwanted: Callable[[Any], bool]) -> None:
+    """Delete matching items in place, by index, so the round-trip list keeps the
+    comments attached to the entries that stay (rebuilding the list would drop them)."""
+    for index in range(len(items) - 1, -1, -1):
+        if unwanted(items[index]):
+            del items[index]
+
+
 def _upsert(items: List[Dict[str, Any]], entry: Dict[str, Any]) -> None:
     """Replace the first same-named entry in place (keeps the file order) and drop any
     later duplicate: kubectl resolves names by first match, so extra copies are dead
@@ -179,9 +206,9 @@ def _upsert(items: List[Dict[str, Any]], entry: Dict[str, Any]) -> None:
         items.append(entry)
         return
     items[first] = entry
-    items[first + 1 :] = [
-        item for item in items[first + 1 :] if not _same_name(item, name)
-    ]
+    for index in range(len(items) - 1, first, -1):
+        if _same_name(items[index], name):
+            del items[index]
 
 
 # --- decisions (shared by both I/O backends) --------------------------------------
@@ -287,31 +314,28 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
         return RemoveOutcome.FOREIGN_KEPT
 
     # Drop our context object(s) by identity — a foreign same-named context stays.
-    doc["contexts"] = [ctx for ctx in contexts if not any(ctx is o for o in ours)]
+    _remove_where(contexts, lambda ctx: any(ctx is o for o in ours))
     # Drop the cluster/user only if no remaining context still references them (a real
     # context may legitimately share the name, e.g. the common `kubernetes-admin` user).
     still_used_clusters = {
         _mapping(ctx.get("context")).get("cluster")
-        for ctx in doc["contexts"]
+        for ctx in contexts
         if isinstance(ctx, dict)
     }
     still_used_users = {
         _mapping(ctx.get("context")).get("user")
-        for ctx in doc["contexts"]
+        for ctx in contexts
         if isinstance(ctx, dict)
     }
     if ident.cluster_name not in still_used_clusters:
-        doc["clusters"] = [
-            c
-            for c in _named_list(doc, "clusters")
-            if not (isinstance(c, dict) and c.get("name") == ident.cluster_name)
-        ]
+        _remove_where(
+            _named_list(doc, "clusters"),
+            lambda c: _same_name(c, ident.cluster_name),
+        )
     if ident.user_name not in still_used_users:
-        doc["users"] = [
-            u
-            for u in _named_list(doc, "users")
-            if not (isinstance(u, dict) and u.get("name") == ident.user_name)
-        ]
+        _remove_where(
+            _named_list(doc, "users"), lambda u: _same_name(u, ident.user_name)
+        )
     if doc.get("current-context") == ident.context_name:
         doc.pop("current-context", None)
     return RemoveOutcome.REMOVED

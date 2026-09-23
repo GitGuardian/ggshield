@@ -51,6 +51,9 @@ dependencies = [
     "python-dotenv>=0.21.0,<2",
     "pyyaml>=6.0.1,<7",
     "requests>=2.32.0,<3",
+    # Round-trip YAML editing (comments, quotes, key order) for the kubeconfig
+    # honeytoken merge — the YAML counterpart of configupdater. Pure Python.
+    "ruamel.yaml>=0.18,<0.20",
     "rich~=13.0",
     "sigstore>=4.0.0,<5",
     "typing-extensions~=4.14",

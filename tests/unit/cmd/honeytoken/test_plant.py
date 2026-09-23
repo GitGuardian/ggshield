@@ -359,7 +359,8 @@ def test_remove_only_foreign_profile_is_kept(
     cli_fs_runner: CliRunner, monkeypatch
 ) -> None:
     # The on-disk profile holds a DIFFERENT key than the revoked token → verify-before-
-    # remove leaves it untouched (never clobber a foreign profile).
+    # remove leaves it untouched (never clobber a foreign profile), and the deployment is
+    # reported FAILED, not removed: the server must keep sending the delete.
     aws_dir = Path("home/.aws")
     aws_dir.mkdir(parents=True)
     parser = configparser.ConfigParser(interpolation=None)
@@ -385,8 +386,10 @@ def test_remove_only_foreign_profile_is_kept(
         cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
     )
 
-    assert_invoke_ok(result)
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
     assert "left untouched" in result.output
+    assert "1 failure(s) (0 written, 0 skipped, 0 removed)" in result.output
     # The foreign profile is preserved verbatim.
     assert (
         _section(aws_dir / "credentials", "prod-backup")["aws_access_key_id"]

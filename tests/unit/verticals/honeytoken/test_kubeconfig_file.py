@@ -590,3 +590,114 @@ def test_remove_proceeds_when_on_disk_user_carries_no_token(tmp_path):
 
     assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
     assert not path.exists()
+
+
+# --- round-trip fidelity: the user's file is theirs, we only add/remove our entries -----
+
+
+_ANNOTATED = """\
+# ~/.kube/config — managed by hand, do not reformat
+apiVersion: v1
+kind: Config
+preferences: {}
+current-context: prod   # keep prod as default!
+clusters:
+- name: prod  # the real one
+  cluster:
+    server: 'https://prod.example.com:6443'
+    certificate-authority-data: QUJD
+users:
+- name: me
+  user:
+    token: "real-token"   # rotated monthly
+contexts:
+- name: prod
+  context: {cluster: prod, user: me, namespace: payments}
+"""
+
+
+def test_write_preserves_comments_quotes_and_key_order(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(_ANNOTATED, encoding="utf-8")
+
+    assert write_kubeconfig(path, _token("abc123", "s3cret"), force=False) is (
+        WriteOutcome.WROTE
+    )
+
+    text = path.read_text(encoding="utf-8")
+    # Every comment the user wrote is still there, where they wrote it.
+    assert text.startswith("# ~/.kube/config — managed by hand, do not reformat\n")
+    assert "current-context: prod   # keep prod as default!" in text
+    assert "- name: prod  # the real one" in text
+    assert 'token: "real-token"   # rotated monthly' in text
+    # Quoting style, flow mapping and top-level key order are untouched.
+    assert "server: 'https://prod.example.com:6443'" in text
+    assert "context: {cluster: prod, user: me, namespace: payments}" in text
+    top_level = [
+        line.split(":")[0] for line in text.splitlines() if line and line[0].isalpha()
+    ]
+    assert top_level == [
+        "apiVersion",
+        "kind",
+        "preferences",
+        "current-context",
+        "clusters",
+        "users",
+        "contexts",
+    ]
+    # And our entries were merged in, once.
+    doc = _load(path)
+    assert _names(doc, "contexts") == {"prod", "kubernetes-admin@abc123"}
+
+
+def test_remove_restores_the_annotated_file_verbatim(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(_ANNOTATED, encoding="utf-8")
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+
+    assert path.read_text(encoding="utf-8") == _ANNOTATED
+
+
+def test_idempotent_rewrite_does_not_touch_the_file_at_all(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(_ANNOTATED, encoding="utf-8")
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+    before = path.read_text(encoding="utf-8")
+
+    assert write_kubeconfig(path, token, force=False) is WriteOutcome.ALREADY_CURRENT
+
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_long_scalars_are_not_folded(tmp_path):
+    # A 1800-char certificate-authority-data must stay on one line: a line-wrapped
+    # scalar is valid YAML but a visible change to the user's file.
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    blob = "Q" * 1800
+    path.write_text(
+        "apiVersion: v1\nkind: Config\nclusters:\n- name: prod\n  cluster:\n"
+        f"    server: https://prod\n    certificate-authority-data: {blob}\n"
+        "users: []\ncontexts: []\n",
+        encoding="utf-8",
+    )
+
+    write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+
+    assert f"certificate-authority-data: {blob}\n" in path.read_text(encoding="utf-8")
+
+
+def test_multi_document_file_is_rejected_clearly(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text("apiVersion: v1\n---\napiVersion: v1\n", encoding="utf-8")
+
+    with pytest.raises(PlacementError, match="another document at line 2"):
+        write_kubeconfig(path, _token("abc123", "s3cret"), force=False)

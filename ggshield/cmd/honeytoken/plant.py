@@ -94,6 +94,8 @@ def _apply_remove(item: Deployment, home: Path) -> Tuple[Path, RemoveOutcome]:
         )
         return path, remove_aws_profile(path, section, expected)
     if item.method is DeploymentMethod.KUBECONFIG:
+        # The server always ships the token on `delete` too (the identity — context,
+        # cluster, user — lives in it); without it there is nothing safe to remove.
         if not isinstance(item.token, KubeconfigToken):
             raise PlacementError("kubeconfig delete is missing its kubeconfig identity")
         path = kube_path(home, item.config.filename)
@@ -275,12 +277,18 @@ def _reconcile_for_user(
         try:
             path, result = _apply_remove(item, target.home)
             if result is RemoveOutcome.FOREIGN_KEPT:
+                # Nothing was removed: the entry no longer carries our token (hand
+                # edit, dotfiles sync). Confirming `removed` here would make the server
+                # drop the delete for good and leave the stale decoy on disk forever.
                 click.echo(
                     f"[{target.username}] deployment {item.id}: entry holds a "
                     "different token, left untouched",
                     err=True,
                 )
-            elif result is RemoveOutcome.REMOVED and path.exists():
+                _confirm(client, item, ConfirmStatus.FAILED, target)
+                other_failed += 1
+                continue
+            if result is RemoveOutcome.REMOVED and path.exists():
                 # The removal rewrote the file (other profiles remain). As root the
                 # temp-file swap leaves it root-owned, locking the target user out of
                 # their own ~/.aws — re-assert their ownership (the mode is preserved).
