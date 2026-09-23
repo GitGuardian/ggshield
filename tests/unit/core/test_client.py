@@ -35,7 +35,6 @@ from ggshield.core.errors import (
     MissingScopesError,
     ServiceUnavailableError,
     UnexpectedError,
-    UnknownInstanceError,
 )
 
 
@@ -334,12 +333,12 @@ def test_retrieve_client_unknown_custom_dashboard_url(isolated_fs: FakeFilesyste
     """
     GIVEN an auth config telling the client to use a custom instance
     WHEN retrieve_client() is called
-    AND the custom instance does not exist
-    THEN the exception message mentions the instance name
+    AND no API key is available for that instance
+    THEN the exception says how to authenticate against that instance
     """
     with pytest.raises(
-        UnknownInstanceError,
-        match="Unknown instance: 'https://example.com'",
+        APIKeyCheckError,
+        match=r"ggshield auth login --instance https://example\.com",
     ):
         with patch.dict(os.environ, clear=True):
             config = Config()
