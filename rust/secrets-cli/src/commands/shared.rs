@@ -17,6 +17,17 @@ pub(crate) enum Scope {
     Project,
 }
 
+impl std::fmt::Display for Scope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Scope::System => "system",
+            Scope::Global => "global",
+            Scope::Local => "local",
+            Scope::Project => "project",
+        })
+    }
+}
+
 /// The scope flags, spelled the way `git config` spells them.
 #[derive(clap::Args)]
 #[group(multiple = false)]

@@ -32,26 +32,30 @@ pub(crate) struct Args {
 
 pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
-    let one_scope = args.scope.get().is_some();
+    let scope = args.scope.get();
     let explicit_path = args.path.is_some();
-    let path = secret_path(provider, args.path, args.scope.get())?;
+    let path = secret_path(provider, args.path, scope)?;
     if explicit_path {
         ensure_explicit_path_exists(provider, &path)?;
     }
     let store = SecretStore::builder(provider).env_override(false).build()?;
 
-    let names: Vec<(String, Option<String>)> = if provider == Provider::File && !one_scope {
-        store
+    let names: Vec<(String, Option<String>)> = match scope {
+        Some(scope) => store
+            .field_names(&path)?
+            .into_iter()
+            .map(|name| (name, Some(scope.to_string())))
+            .collect(),
+        None if provider == Provider::File => store
             .field_scopes(&path)?
             .into_iter()
             .map(|(name, scope)| (name, Some(scope)))
-            .collect()
-    } else {
-        store
+            .collect(),
+        None => store
             .field_names(&path)?
             .into_iter()
             .map(|name| (name, None))
-            .collect()
+            .collect(),
     };
 
     let mut out = std::io::stdout().lock();

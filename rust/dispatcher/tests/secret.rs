@@ -3242,6 +3242,44 @@ fn get_scopes_names_the_file_each_value_won_in() {
 }
 
 #[test]
+fn show_scope_with_a_scope_flag_labels_values_with_that_scope() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    workspace.set(
+        &["set", "--provider", "file", "--global", "USER_KEY"],
+        "fake-user-value",
+    );
+    workspace.set(
+        &["set", "--provider", "file", "--local", "REPO_KEY"],
+        "fake-repo-value",
+    );
+
+    for (flag, line) in [
+        ("--global", "USER_KEY=fake-user-value  # global"),
+        ("--local", "REPO_KEY=fake-repo-value  # local"),
+    ] {
+        let output = workspace.run(&[
+            "get",
+            "--provider",
+            "file",
+            flag,
+            "--show-scope",
+            "--expose",
+        ]);
+        assert_ok(&output);
+        assert!(stdout(&output).contains(line), "{}", stdout(&output));
+    }
+    for (flag, line) in [
+        ("--global", "USER_KEY  # global"),
+        ("--local", "REPO_KEY  # local"),
+    ] {
+        let output = workspace.run(&["list", "--provider", "file", flag, "--show-scope"]);
+        assert_ok(&output);
+        assert_eq!(stdout(&output).trim(), line);
+    }
+}
+
+#[test]
 fn scope_repo_outside_a_repository_is_refused_rather_than_guessed() {
     let workspace = Workspace::new();
     let output = workspace.set(

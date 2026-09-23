@@ -38,11 +38,12 @@ pub(crate) struct Args {
 pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
     let explicit_path = args.path.is_some();
-    let path = secret_path(provider, args.path, args.scope.get())?;
+    let scope = args.scope.get();
+    let path = secret_path(provider, args.path, scope)?;
     if explicit_path {
         ensure_explicit_path_exists(provider, &path)?;
     }
-    let one_scope = args.scope.get().is_some();
+    let one_scope = scope.is_some();
     // `get` inspects what the provider holds; the environment must not shadow it.
     let store = SecretStore::builder(provider).env_override(false).build()?;
 
@@ -70,10 +71,14 @@ pub(crate) fn execute(args: Args) -> Result<()> {
             } else {
                 store.get_secrets_with_warnings(&path)?
             };
-            let scopes = if args.show_scope {
-                store.field_scopes(&path)?
-            } else {
-                Default::default()
+            // The merge would label a scope's file as the project layer.
+            let scopes = match (args.show_scope, scope) {
+                (false, _) => Default::default(),
+                (true, Some(scope)) => fields
+                    .keys()
+                    .map(|key| (key.clone(), scope.to_string()))
+                    .collect(),
+                (true, None) => store.field_scopes(&path)?,
             };
             // Deliberately partial: `get` only prints, so it warns where `run` refuses.
             // Stderr keeps piped stdout to values only.
