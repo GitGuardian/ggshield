@@ -28,6 +28,8 @@ pub(crate) enum Shell {
     Bash,
     Zsh,
     Fish,
+    #[value(name = "powershell", alias = "pwsh")]
+    Pwsh,
 }
 
 impl Shell {
@@ -35,10 +37,13 @@ impl Shell {
         // Login shells are started as `-zsh`; Nix wraps binaries as `.zsh-wrapped`.
         let name = name.trim_start_matches(['-', '.']);
         let name = name.strip_suffix("-wrapped").unwrap_or(name);
+        let name = name.to_ascii_lowercase();
+        let name = name.strip_suffix(".exe").unwrap_or(&name);
         match name {
             "bash" => Some(Shell::Bash),
             "zsh" => Some(Shell::Zsh),
             "fish" => Some(Shell::Fish),
+            "pwsh" | "powershell" => Some(Shell::Pwsh),
             _ => None,
         }
     }
@@ -56,7 +61,9 @@ impl Shell {
             .as_deref()
             .and_then(from_path)
             .or_else(|| std::env::var("SHELL").ok().as_deref().and_then(from_path))
-            .context("could not tell which shell this is; name it: activate bash|zsh|fish")
+            .context(
+                "could not tell which shell this is; name it: activate bash|zsh|fish|powershell",
+            )
     }
 
     fn name(self) -> &'static str {
@@ -64,6 +71,7 @@ impl Shell {
             Shell::Bash => "bash",
             Shell::Zsh => "zsh",
             Shell::Fish => "fish",
+            Shell::Pwsh => "powershell",
         }
     }
 }
@@ -105,7 +113,51 @@ fn parent_process_name() -> Option<String> {
     String::from_utf8(buffer).ok()
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(windows)]
+fn parent_process_name() -> Option<String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
+        TH32CS_SNAPPROCESS,
+    };
+
+    let mut processes = Vec::new();
+    // SAFETY: the snapshot handle is checked before use and closed once; `entry` is a
+    // plain struct whose `dwSize` is set as the API requires.
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return None;
+        }
+        let mut entry = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        let mut more = Process32FirstW(snapshot, &mut entry) != 0;
+        while more {
+            let length = entry
+                .szExeFile
+                .iter()
+                .position(|&unit| unit == 0)
+                .unwrap_or(entry.szExeFile.len());
+            processes.push((
+                entry.th32ProcessID,
+                entry.th32ParentProcessID,
+                String::from_utf16_lossy(&entry.szExeFile[..length]),
+            ));
+            more = Process32NextW(snapshot, &mut entry) != 0;
+        }
+        CloseHandle(snapshot);
+    }
+    let own = std::process::id();
+    let (_, parent, _) = processes.iter().find(|(pid, _, _)| *pid == own)?;
+    processes
+        .iter()
+        .find(|(pid, _, _)| pid == parent)
+        .map(|(_, _, name)| name.clone())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
 fn parent_process_name() -> Option<String> {
     None
 }
@@ -123,6 +175,8 @@ fn parent_process_name() -> Option<String> {
 ///   zsh   eval "$(ggshield activate zsh)"    # ~/.zshrc
 ///
 ///   fish  ggshield activate fish | source    # ~/.config/fish/config.fish
+///
+///   powershell  Invoke-Expression (& ggshield activate powershell | Out-String)   # $PROFILE
 ///
 /// The shell can be left out, in which case it is detected from the calling
 /// process, falling back to $SHELL.
@@ -224,6 +278,22 @@ end
 "#
             )
         }
+        // Module-qualified so a user alias or function of the same name cannot stand in.
+        Shell::Pwsh => {
+            let exe = powershell_quote(&exe);
+            format!(
+                r#"function global:_ggshield_hook {{
+  $__ggshield_status = Microsoft.PowerShell.Utility\Get-Variable -Name LASTEXITCODE -Scope Global -ValueOnly -ErrorAction Ignore
+  $global:__ggshield_pwd = $PWD.Path
+  $__ggshield_out = & ({exe}) hook-env powershell
+  $global:LASTEXITCODE = $__ggshield_status
+  if ($__ggshield_out) {{
+    Microsoft.PowerShell.Utility\Invoke-Expression ($__ggshield_out -join "`n")
+  }}
+}}
+"#
+            )
+        }
     };
 
     script.push_str(&hook_installation(shell, hook));
@@ -270,6 +340,31 @@ fi
             "{removal}function _ggshield_hook_trigger --on-variable PWD\n  \
              _ggshield_hook\nend\n"
         ),
+
+        // The wrapper is installed once and reads the mode, so re-sourcing never wraps
+        // it twice; the marker check finds it even after the mode changes.
+        (Shell::Pwsh, _) => {
+            let mode = match hook {
+                Hook::Prompt => "prompt",
+                _ => "pwd",
+            };
+            format!(
+                r#"{removal}if ("$function:prompt" -notlike '*__ggshield_hook_mode*') {{
+  $global:__ggshield_original_prompt = $function:prompt
+  function global:prompt {{
+    if ($global:__ggshield_hook_mode -ceq 'prompt' -or ($global:__ggshield_hook_mode -ceq 'pwd' -and $PWD.Path -cne $global:__ggshield_pwd)) {{
+      $null = _ggshield_hook
+    }}
+    if ($global:__ggshield_original_prompt) {{
+      & $global:__ggshield_original_prompt
+    }}
+  }}
+}}
+$global:__ggshield_pwd = $null
+$global:__ggshield_hook_mode = '{mode}'
+"#
+            )
+        }
     }
 }
 
@@ -307,6 +402,8 @@ fi
         Shell::Fish => "functions -q _ggshield_hook_trigger; and functions -e \
                         _ggshield_hook_trigger\n"
             .to_string(),
+
+        Shell::Pwsh => "$global:__ggshield_hook_mode = 'none'\n".to_string(),
     }
 }
 
@@ -923,17 +1020,31 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "RUBYLIB",
     "RUBYOPT",
     "_JAVA_OPTIONS",
+    // PowerShell and Windows.
+    "ComSpec",
+    "PATHEXT",
+    "PSExecutionPolicyPreference",
+    "PSModulePath",
 ];
 
 /// Prefixes covering families of the same thing: every `LD_*` and `DYLD_*`
 /// loader knob, and bash's exported-function encoding.
 const SHELL_CONTROL_PREFIXES: &[&str] = &["BASH_FUNC_", "DYLD_", "LD_"];
 
+/// Case-insensitive on Windows, where `Path` and `PATH` are the same variable.
 fn is_shell_control_var(key: &str) -> bool {
-    SHELL_CONTROL_VARS.contains(&key)
-        || SHELL_CONTROL_PREFIXES
-            .iter()
-            .any(|prefix| key.starts_with(prefix))
+    let same = |a: &str, b: &str| {
+        if cfg!(windows) {
+            a.eq_ignore_ascii_case(b)
+        } else {
+            a == b
+        }
+    };
+    SHELL_CONTROL_VARS.iter().any(|var| same(var, key))
+        || SHELL_CONTROL_PREFIXES.iter().any(|prefix| {
+            key.get(..prefix.len())
+                .is_some_and(|start| same(start, prefix))
+        })
 }
 
 /// The name is validated too: it is interpolated unquoted and may come from the
@@ -943,6 +1054,7 @@ fn export_statement(shell: Shell, key: &str, value: &str) -> Result<String> {
     Ok(match shell {
         Shell::Bash | Shell::Zsh => format!("export {key}={};\n", posix_quote(value)),
         Shell::Fish => format!("set -gx {key} {};\n", fish_quote(value)),
+        Shell::Pwsh => format!("$env:{key} = {}\n", powershell_quote(value)),
     })
 }
 
@@ -951,6 +1063,10 @@ fn unset_statement(shell: Shell, key: &str) -> Result<String> {
     Ok(match shell {
         Shell::Bash | Shell::Zsh => format!("unset {key};\n"),
         Shell::Fish => format!("set -e {key};\n"),
+        Shell::Pwsh => format!(
+            "Microsoft.PowerShell.Management\\Remove-Item -ErrorAction SilentlyContinue \
+             -LiteralPath Env:{key}\n"
+        ),
     })
 }
 
@@ -979,6 +1095,29 @@ fn fish_quote(value: &str) -> String {
             '\'' => quoted.push_str("\\'"),
             '\\' => quoted.push_str("\\\\"),
             other => quoted.push(other),
+        }
+    }
+    quoted.push('\'');
+    quoted
+}
+
+/// An expression, not a bare literal: anything outside printable ASCII is spliced in
+/// as `[char]0x…`, so neither the console code page nor line splitting can alter it.
+fn powershell_quote(value: &str) -> String {
+    let mut quoted = String::with_capacity(value.len() + 2);
+    quoted.push('\'');
+    let mut units = [0_u16; 2];
+    for ch in value.chars() {
+        match ch {
+            '\'' => quoted.push_str("''"),
+            ' '..='~' => quoted.push(ch),
+            other => {
+                quoted.push('\'');
+                for unit in other.encode_utf16(&mut units) {
+                    quoted.push_str(&format!(" + [char]0x{unit:04X}"));
+                }
+                quoted.push_str(" + '");
+            }
         }
     }
     quoted.push('\'');
@@ -1025,6 +1164,7 @@ fn report_always(shell: Shell, message: &str) {
     match shell {
         Shell::Bash | Shell::Zsh => println!("printf '%s\\n' {} >&2;", posix_quote(&line)),
         Shell::Fish => println!("printf '%s\\n' {} >&2;", fish_quote(&line)),
+        Shell::Pwsh => println!("[Console]::Error.WriteLine({})", powershell_quote(&line)),
     }
 }
 
@@ -1416,5 +1556,209 @@ mod tests {
         assert!(Shell::from_name(".fish-wrapped") == Some(Shell::Fish));
         assert!(Shell::from_name("sh").is_none());
         assert!(Shell::from_name("cargo").is_none());
+    }
+
+    #[test]
+    fn powershell_is_recognised_by_either_name_with_or_without_exe() {
+        for name in ["pwsh", "pwsh.exe", "powershell", "PowerShell.exe", "-pwsh"] {
+            assert!(Shell::from_name(name) == Some(Shell::Pwsh), "{name}");
+        }
+        assert!(Shell::from_name("bash.exe") == Some(Shell::Bash));
+        assert!(Shell::from_name("powershell_ise.exe").is_none());
+    }
+
+    /// Accepts only the grammar `powershell_quote` emits, decoding it as PowerShell would.
+    fn powershell_unquote(expression: &str) -> Option<String> {
+        let mut units = Vec::new();
+        let mut rest = expression;
+        loop {
+            rest = rest.strip_prefix('\'')?;
+            loop {
+                if let Some(after) = rest.strip_prefix("''") {
+                    units.push(u16::from(b'\''));
+                    rest = after;
+                } else if let Some(after) = rest.strip_prefix('\'') {
+                    rest = after;
+                    break;
+                } else {
+                    let ch = rest.chars().next()?;
+                    // PowerShell also closes a quote on U+2018..U+201B, so none may appear raw.
+                    if !(' '..='~').contains(&ch) {
+                        return None;
+                    }
+                    units.push(ch as u16);
+                    rest = &rest[1..];
+                }
+            }
+            while let Some(after) = rest.strip_prefix(" + [char]0x") {
+                units.push(u16::from_str_radix(after.get(..4)?, 16).ok()?);
+                rest = &after[4..];
+            }
+            if rest.is_empty() {
+                return String::from_utf16(&units).ok();
+            }
+            rest = rest.strip_prefix(" + ")?;
+        }
+    }
+
+    #[test]
+    fn powershell_quoting_round_trips_as_printable_ascii() {
+        for value in [
+            "plain",
+            "",
+            "it's",
+            "'",
+            "''",
+            "$env:PATH",
+            "$(Remove-Item x)",
+            "`whoami`",
+            "a\nb",
+            "a\r\nb",
+            "tab\there",
+            "\u{2018}smart\u{2019} \u{201a}\u{201b}",
+            "h\u{e9}llo",
+            "\u{1f600}",
+            "back\\slash",
+            "\"double\"",
+        ] {
+            let quoted = powershell_quote(value);
+            assert!(
+                quoted.chars().all(|ch| (' '..='~').contains(&ch)),
+                "{quoted}"
+            );
+            assert_eq!(
+                powershell_unquote(&quoted).as_deref(),
+                Some(value),
+                "{quoted}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_value_cannot_break_out_of_its_powershell_assignment() {
+        for hostile in [
+            "x'; Remove-Item -Recurse -Force ~; '",
+            "x\u{2019}; Remove-Item -Recurse -Force ~; \u{2018}",
+            "x'\n; calc; #",
+        ] {
+            let statement = export_statement(Shell::Pwsh, "API_KEY", hostile).unwrap();
+            let expression = statement
+                .strip_prefix("$env:API_KEY = ")
+                .and_then(|rest| rest.strip_suffix('\n'))
+                .unwrap();
+            assert!(!expression.contains('\n'), "{statement}");
+            assert_eq!(
+                powershell_unquote(expression).as_deref(),
+                Some(hostile),
+                "{statement}"
+            );
+        }
+        assert_eq!(
+            export_statement(Shell::Pwsh, "API_KEY", "it's").unwrap(),
+            "$env:API_KEY = 'it''s'\n"
+        );
+    }
+
+    #[test]
+    fn powershell_statements_validate_names_and_remove_quietly() {
+        for hostile in ["EVIL; calc; #", "A B", "$(calc)", "Env:X", ""] {
+            assert!(
+                unset_statement(Shell::Pwsh, hostile).is_err(),
+                "{hostile:?}"
+            );
+            assert!(
+                export_statement(Shell::Pwsh, hostile, "value").is_err(),
+                "{hostile:?}"
+            );
+        }
+        assert_eq!(
+            unset_statement(Shell::Pwsh, "API_KEY").unwrap(),
+            "Microsoft.PowerShell.Management\\Remove-Item -ErrorAction SilentlyContinue \
+             -LiteralPath Env:API_KEY\n"
+        );
+    }
+
+    #[test]
+    fn powershell_hook_env_refuses_a_terminal() {
+        let error = hook_env_to(HookArgs { shell: Shell::Pwsh }, true)
+            .expect_err("hook-env wrote to a terminal");
+        assert!(format!("{error:#}").contains("activate powershell"));
+    }
+
+    #[test]
+    fn powershell_hook_runs_the_quoted_binary_and_evaluates_its_output() {
+        let script = hook_script(Shell::Pwsh, Hook::Pwd, false);
+        let exe = std::env::current_exe().unwrap();
+        let exe = powershell_quote(exe.to_str().unwrap());
+        assert!(
+            script.contains(&format!("& ({exe}) hook-env powershell")),
+            "{script}"
+        );
+        assert!(
+            script.contains(
+                "Microsoft.PowerShell.Utility\\Invoke-Expression ($__ggshield_out -join \"`n\")"
+            ),
+            "{script}"
+        );
+        assert!(script.contains("$global:LASTEXITCODE = $__ggshield_status"));
+    }
+
+    /// Re-sourcing only changes the mode; the marker keeps a second wrapper out.
+    #[test]
+    fn powershell_wraps_the_prompt_once_and_switches_by_mode() {
+        let pwd = hook_script(Shell::Pwsh, Hook::Pwd, false);
+        assert!(
+            pwd.contains(r#"if ("$function:prompt" -notlike '*__ggshield_hook_mode*') {"#),
+            "{pwd}"
+        );
+        assert!(pwd.contains("$global:__ggshield_original_prompt = $function:prompt"));
+        assert!(pwd.contains("function global:prompt {"));
+        assert!(pwd.contains("$PWD.Path -cne $global:__ggshield_pwd"));
+        assert!(pwd.contains("& $global:__ggshield_original_prompt"));
+        assert!(
+            pwd.trim_end()
+                .ends_with("$global:__ggshield_hook_mode = 'pwd'"),
+            "{pwd}"
+        );
+        let prompt = hook_script(Shell::Pwsh, Hook::Prompt, false);
+        assert!(
+            prompt
+                .trim_end()
+                .ends_with("$global:__ggshield_hook_mode = 'prompt'"),
+            "{prompt}"
+        );
+        let none = hook_script(Shell::Pwsh, Hook::None, true);
+        assert!(!none.contains("function global:prompt"), "{none}");
+        assert!(
+            none.trim_end()
+                .ends_with("$global:__ggshield_hook_mode = 'none'"),
+            "{none}"
+        );
+        assert!(
+            hook_script(Shell::Pwsh, Hook::Pwd, true)
+                .trim_end()
+                .ends_with("_ggshield_hook")
+        );
+    }
+
+    #[test]
+    fn powershell_and_windows_control_variables_are_refused() {
+        for key in [
+            "PSModulePath",
+            "PATHEXT",
+            "ComSpec",
+            "PSExecutionPolicyPreference",
+        ] {
+            assert!(is_shell_control_var(key), "{key} was allowed");
+        }
+        assert!(!is_shell_control_var("PSModulePathPrefix"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_refuses_control_variables_in_any_case() {
+        for key in ["Path", "comspec", "PSMODULEPATH", "ld_preload"] {
+            assert!(is_shell_control_var(key), "{key} was allowed");
+        }
     }
 }

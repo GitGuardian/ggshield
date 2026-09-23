@@ -2303,6 +2303,48 @@ fn activate_without_a_recognisable_shell_asks_for_one() {
 }
 
 #[test]
+fn activate_powershell_and_pwsh_install_the_powershell_hook() {
+    let workspace = Workspace::new();
+    for shell in ["powershell", "pwsh"] {
+        let output = workspace.run(&["activate", shell, "--no-hook-env"]);
+        assert_ok(&output);
+        let script = stdout(&output);
+        assert!(script.contains("hook-env powershell"), "{shell}: {script}");
+        assert!(
+            !script.trim_end().ends_with("_ggshield_hook"),
+            "{shell}: {script}"
+        );
+    }
+}
+
+/// Checked on the emitted text: pwsh is not required to run the suite.
+#[test]
+fn powershell_hook_env_quotes_a_hostile_value_and_reports_through_stderr() {
+    let workspace = Workspace::new();
+    let hostile = "x'; Remove-Item -Recurse -Force ~; '";
+    workspace.write_project(".env", &format!("EVIL={hostile}\n"));
+
+    let output = workspace.run(&["hook-env", "powershell"]);
+    assert_ok(&output);
+    let block = stdout(&output);
+    assert!(
+        block.contains("[Console]::Error.WriteLine('ggshield: "),
+        "{block}"
+    );
+    assert!(!block.contains("$env:EVIL"), "{block}");
+
+    workspace.trust_project();
+    let output = workspace.run(&["hook-env", "powershell"]);
+    assert_ok(&output);
+    let block = stdout(&output);
+    assert!(
+        block.contains("$env:EVIL = 'x''; Remove-Item -Recurse -Force ~; '''\n"),
+        "{block}"
+    );
+    assert!(block.contains(&format!("$env:{STATE_VAR} = '")), "{block}");
+}
+
+#[test]
 fn the_hook_loads_and_unloads_secrets_around_a_project_directory() {
     if !has_shell("zsh") {
         return;

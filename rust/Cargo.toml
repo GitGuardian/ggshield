@@ -63,12 +63,14 @@ secret-service = { version = "5", default-features = false, features = ["rt-asyn
 # WinVaultKeyring target scheme Python's `keyring` writes; we link nothing but
 # the read entry point. `LockFileEx` (Storage_FileSystem + System_IO for
 # OVERLAPPED) is the byte-range lock `filelock` takes via `msvcrt.locking`, so
-# the credential read serialises against `ggshield`'s.
+# the credential read serialises against `ggshield`'s. Toolhelp32 names the
+# shell that ran `activate`.
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_Security_Credentials",
   "Win32_Storage_FileSystem",
   "Win32_System_Console",
+  "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_IO",
 ] }
 
