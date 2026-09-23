@@ -1,7 +1,7 @@
 import sys as _sys
 
 
-__version__ = "1.54.0"
+__version__ = "1.55.0rc1"
 
 _MIN_PYTHON = (3, 9)
 
