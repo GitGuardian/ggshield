@@ -27,6 +27,22 @@ on:
         required: false
       TEST_GG_VALID_TOKEN_IGNORE_SHA:
         required: false
+      MACOS_P12_FILE:
+        required: false
+      MACOS_P12_PASSWORD:
+        required: false
+      MACOS_API_KEY_FILE:
+        required: false
+      WINDOWS_CERT_FINGERPRINT:
+        required: false
+      SM_API_KEY:
+        required: false
+      SM_HOST:
+        required: false
+      SM_CLIENT_CERT_FILE:
+        required: false
+      SM_CLIENT_CERT_PASSWORD:
+        required: false
   workflow_dispatch:
     inputs:
       release_mode:
