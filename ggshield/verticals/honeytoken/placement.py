@@ -28,6 +28,15 @@ class PlacementError(Exception):
     or unparseable file)."""
 
 
+def leaf_path(home: Path, directory: str, filename: str) -> Path:
+    """Compose ``<home>/<directory>/<filename>``, re-asserting the server's safe-charset
+    rule on the basename (defense in depth: this may run as root) so the path stays
+    directly inside the backend's directory."""
+    if filename in ("", ".", "..") or "/" in filename or "\\" in filename:
+        raise PlacementError(f"invalid honeytoken filename {filename!r}")
+    return home / directory / filename
+
+
 class ForceRefusal(Exception):
     """An entry with our name exists with different content; refusing to overwrite
     without ``--force``. Each backend words the message for its own file format; the

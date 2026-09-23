@@ -34,6 +34,7 @@ from ggshield.verticals.honeytoken.placement import (
     PlacementError,
     RemoveOutcome,
     WriteOutcome,
+    leaf_path,
 )
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
@@ -53,16 +54,11 @@ class ForceRefusal(_ForceRefusal):
             name=profile,
             path=path,
         )
-        self.profile = profile
 
 
 def aws_path(home: Path, filename: str) -> Path:
-    """Compose ``<home>/.aws/<filename>``, re-asserting the backend's safe-charset rule
-    (defense in depth: this may run as root) so the path stays directly inside ``.aws``.
-    """
-    if filename in ("", ".", "..") or "/" in filename or "\\" in filename:
-        raise PlacementError(f"invalid honeytoken filename {filename!r}")
-    return home / ".aws" / filename
+    """Compose ``<home>/.aws/<filename>`` (see ``placement.leaf_path``)."""
+    return leaf_path(home, ".aws", filename)
 
 
 def resolve_placement(
@@ -177,7 +173,7 @@ def write_aws_profile(
         if outcome is WriteOutcome.WROTE:
             secure_file.atomic_write_path(path, str(parser))
         return outcome
-    except SecureFileError as exc:
+    except (SecureFileError, OSError) as exc:
         raise PlacementError(str(exc))
 
 
@@ -228,5 +224,5 @@ def remove_aws_profile(
         else:
             secure_file.unlink_path(path)
         return outcome
-    except SecureFileError as exc:
+    except (SecureFileError, OSError) as exc:
         raise PlacementError(str(exc))

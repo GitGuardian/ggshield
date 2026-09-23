@@ -47,7 +47,6 @@ from ggshield.verticals.honeytoken.targets import (
 class _Outcome:
     """Per-target reconciliation result, aggregated into the final exit code."""
 
-    success: bool = True
     api_failure: bool = False
     api_auth_failure: bool = False
     fs_failure: bool = False
@@ -309,6 +308,17 @@ def _reconcile_for_user(
         else [d for d in deployments if d.action is DeploymentAction.WRITE]
     )
     for item in write_items:
+        if item.method is DeploymentMethod.UNKNOWN:
+            # A newer backend's placement method: say so, rather than blaming the
+            # payload (its token is unparsed, not missing).
+            click.echo(
+                f"[{target.username}] deployment {item.id}: unsupported deployment "
+                "method — client may be out of date",
+                err=True,
+            )
+            _confirm(client, item, ConfirmStatus.FAILED, target)
+            other_failed += 1
+            continue
         if item.token is None:
             click.echo(
                 f"[{target.username}] 'write' entry missing credentials", err=True

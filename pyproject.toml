@@ -53,7 +53,7 @@ dependencies = [
     "requests>=2.32.0,<3",
     # Round-trip YAML editing (comments, quotes, key order) for the kubeconfig
     # honeytoken merge — the YAML counterpart of configupdater. Pure Python.
-    "ruamel.yaml>=0.18,<0.20",
+    "ruamel.yaml>=0.19,<0.20",
     "rich~=13.0",
     "sigstore>=4.0.0,<5",
     "typing-extensions~=4.14",

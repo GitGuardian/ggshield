@@ -433,7 +433,7 @@ def test_scoped_user_name_round_trips(tmp_path):
 
 @pytest.mark.parametrize("where", ["on_disk", "generated"])
 def test_parse_error_never_leaks_the_bearer(tmp_path, where):
-    # PyYAML's error message embeds the offending source line; a kubeconfig's broken line
+    # The parser's error message embeds the offending source line; a kubeconfig's broken line
     # is typically the `token:` one, so the message must be built from position only.
     real_bearer = "REAL-USER-PROD-BEARER-MUST-NOT-LEAK"
     broken = f"users:\n- name: me\n  user:\n    token: {real_bearer}: oops\n"
@@ -699,7 +699,7 @@ def test_multi_document_file_is_rejected_clearly(tmp_path):
     path.parent.mkdir(parents=True)
     path.write_text("apiVersion: v1\n---\napiVersion: v1\n", encoding="utf-8")
 
-    with pytest.raises(PlacementError, match="another document at line 2"):
+    with pytest.raises(PlacementError, match="ComposerError at line 2"):
         write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
 
 
@@ -766,3 +766,60 @@ def test_real_principal_collision_message_does_not_blame_force(tmp_path):
     message = str(excinfo.value)
     assert "real cluster still used by another context" in message
     assert "even with --force" not in message
+
+
+# --- batch D: duplicate-key leak, comments-only remainder, non-regular files ------------
+
+
+@pytest.mark.parametrize("where", ["on_disk", "generated"])
+def test_duplicate_key_error_never_leaks_the_value(tmp_path, where):
+    # ruamel's DuplicateKeyError.problem quotes the duplicated VALUE — for a repeated
+    # `token:` key that is the user's real bearer. Only the error class + position may go
+    # into our message.
+    real_bearer = "REAL-PROD-BEARER-MUST-NOT-LEAK"
+    doubled = (
+        "users:\n- name: prod-admin\n  user:\n"
+        f"    token: {real_bearer}\n    token: {real_bearer}\n"
+    )
+    path = tmp_path / ".kube" / "config"
+    if where == "on_disk":
+        path.parent.mkdir(parents=True)
+        path.write_text(doubled, encoding="utf-8")
+        token = _token("abc123", "s3cret")
+    else:
+        token = KubeconfigToken(doubled, "whatever")
+
+    with pytest.raises(PlacementError) as excinfo:
+        write_kubeconfig(path, token, force=False)
+
+    message = str(excinfo.value)
+    assert real_bearer not in message
+    assert "DuplicateKeyError at line 5" in message
+
+
+def test_remove_keeps_a_file_whose_only_remainder_is_the_users_comments(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    annotated = "# === my curated kube config ===\n# do not delete\napiVersion: v1\nkind: Config\n"
+    path.write_text(annotated, encoding="utf-8")
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+
+    # The file survives with the user's comments in place; only the (now empty) list
+    # keys the merge normalised remain alongside the shell.
+    assert path.exists()
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith(annotated)
+    assert "s3cret" not in text and "abc123" not in text
+
+
+def test_directory_in_place_of_the_kubeconfig_is_a_placement_error(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    path.mkdir(parents=True)
+
+    with pytest.raises(PlacementError, match="not a regular file"):
+        write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
+    with pytest.raises(PlacementError, match="not a regular file"):
+        remove_kubeconfig(path, _token("abc123", "s3cret"))

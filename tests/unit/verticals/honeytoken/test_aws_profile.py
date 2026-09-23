@@ -544,7 +544,7 @@ def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(not FD_HARDENED, reason="POSIX advisory lock")
-def test_open_aws_dir_fd_holds_exclusive_lock(tmp_path):
+def test_open_dir_fd_holds_exclusive_lock_on_the_aws_dir(tmp_path):
     """The dir fd carries an exclusive advisory lock, so a second acquirer is blocked."""
     import fcntl
 

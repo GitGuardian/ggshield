@@ -86,10 +86,10 @@ def resolve_targets(user: Optional[str], user_dir: Optional[Path]) -> List[Targe
 
 
 def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> None:
-    """Keep ``.aws`` private (0700) and, as root, chown the file + dir to the target user
-    (mode left to the write path). No-op off Unix. Anchored to an ``O_NOFOLLOW`` dir fd
-    (``fchmod``/``fchown``/``dir_fd``) so a symlinked ``.aws`` can't redirect the
-    privileged chmod/chown elsewhere."""
+    """Keep the placement dir (``.aws`` / ``.kube``) private (0700) and, as root, chown
+    the file + dir to the target user (mode left to the write path). No-op off Unix.
+    Anchored to an ``O_NOFOLLOW`` dir fd (``fchmod``/``fchown``/``dir_fd``) so a symlinked
+    dir can't redirect the privileged chmod/chown elsewhere."""
     if os.name != "posix":
         return
     # POSIX without dir fds → refuse (no unsafe path fallback).
@@ -109,9 +109,10 @@ def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> 
             return
         uid = target.uid
         if uid is None:
-            # `--user-dir` without a passwd user: the home's owner is the only sane
-            # answer — leaving the rewritten file root-owned locks that user out of it.
-            uid = os.stat(target.home).st_uid
+            # `--user-dir` without a passwd user: the placement dir's owner is the only
+            # sane answer — leaving the rewritten file root-owned locks that user out.
+            # Read it off the pinned fd, never a path (a symlinked home would lie).
+            uid = os.fstat(dir_fd).st_uid
         gid = _gid_for_uid(uid)
         gid = gid if gid is not None else uid
         try:

@@ -649,3 +649,176 @@ def test_plant_applies_every_live_deployment_whatever_the_type(
     assert Path("home/.aws/credentials").exists()
     assert Path("home/.kube/config").exists()
     assert "2 written" in result.output
+
+
+# --- kubeconfig failure paths through the CLI -------------------------------------------
+
+
+def test_kubeconfig_delete_without_token_is_reported_failed(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # The server always ships the token on delete; a payload without it cannot be applied
+    # safely and must surface as a failure, not be silently confirmed removed.
+    mock = _install_mock(monkeypatch)
+    deployment = _kube_deployment(
+        "delete", dep_id="dep-k", subdomain="abc123", bearer="s3cret"
+    )
+    del deployment["token"]
+    mock.add_GET(ENDPOINT, create_json_response({"deployments": [deployment]}))
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-k", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
+    assert "missing its kubeconfig identity" in result.output
+    assert "1 failure(s)" in result.output
+
+
+def test_kubeconfig_foreign_token_on_delete_is_kept_and_reported_failed(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # Our context is on disk but its bearer was rotated by someone else → verify-before-
+    # remove keeps it, and the deployment is confirmed FAILED so the server retries.
+    kube_dir = Path("home/.kube")
+    kube_dir.mkdir(parents=True)
+    (kube_dir / "config").write_text(
+        _kubeconfig_text("abc123", "rotated-by-someone-else"), encoding="utf-8"
+    )
+    mock = _install_mock(monkeypatch)
+    mock.add_GET(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _kube_deployment(
+                        "delete", dep_id="dep-k", subdomain="abc123", bearer="planted"
+                    )
+                ]
+            }
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-k", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--remove-only", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "left untouched" in result.output
+    assert "1 failure(s) (0 written, 0 skipped, 0 removed)" in result.output
+    assert "rotated-by-someone-else" in (kube_dir / "config").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_kubeconfig_foreign_entry_without_force_is_a_clean_refusal(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # A real user already carries our (scoped) user name with another token: the
+    # kubeconfig ForceRefusal must be caught by the plant loop like the AWS one.
+    kube_dir = Path("home/.kube")
+    kube_dir.mkdir(parents=True)
+    (kube_dir / "config").write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [],
+                "users": [
+                    {
+                        "name": "kubernetes-admin-abc123",
+                        "user": {"token": "real-admin-token"},
+                    }
+                ],
+                "contexts": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _kube_deployment(
+                        "write", dep_id="dep-k", subdomain="abc123", bearer="s3cret"
+                    )
+                ]
+            }
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-k", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "kubeconfig", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "refusing to overwrite without --force" in result.output
+    assert "Traceback" not in result.output
+    assert "real-admin-token" in (kube_dir / "config").read_text(encoding="utf-8")
+
+
+def test_ownership_failure_after_write_is_a_deployment_failure(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # apply_perms_and_owner raising (e.g. chown refused as root) must mark that
+    # deployment FAILED and let the run finish, not crash it.
+    from ggshield.verticals.honeytoken.secure_file import SecureFileError
+
+    def _refuse(path, target, running_as_root):
+        raise SecureFileError("could not hand back ownership")
+
+    monkeypatch.setattr("ggshield.cmd.honeytoken.plant.apply_perms_and_owner", _refuse)
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _kube_deployment(
+                        "write", dep_id="dep-k", subdomain="abc123", bearer="s3cret"
+                    )
+                ]
+            }
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-k", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "kubeconfig", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "could not hand back ownership" in result.output
+    assert "1 failure(s)" in result.output
+
+
+def test_unknown_method_on_write_says_client_may_be_out_of_date(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    mock = _install_mock(monkeypatch)
+    deployment = _deployment("write", token=("AKIAEXAMPLE", "s3"))
+    deployment["method"] = "teleport_profile"
+    mock.add_POST(ENDPOINT, create_json_response({"deployments": [deployment]}))
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert "client may be out of date" in result.output
+    assert "missing credentials" not in result.output

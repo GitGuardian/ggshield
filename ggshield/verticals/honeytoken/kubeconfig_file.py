@@ -19,8 +19,9 @@ Merge/remove is by entry *name*, orphan-aware, and verify-before-remove:
 
 The file is edited round-trip (``ruamel.yaml``): the user's comments, quoting, flow
 style and key order survive, exactly as ``configupdater`` does for ``~/.aws`` — we only
-ever add or drop our own entries. The one normalisation: CRLF line endings come back as
-LF (kubectl reads both).
+ever add or drop our own entries. Two normalisations: CRLF line endings come back as LF
+(kubectl reads both), and a YAML alias pointing at an entry we replace or drop is inlined
+(kubectl never writes anchors).
 
 Reuses the shared no-follow, fd-anchored I/O (``secure_file``) so the root fan-out gets
 the same TOCTOU hardening as the AWS placement, and the shared outcome/error
@@ -44,6 +45,7 @@ from ggshield.verticals.honeytoken.placement import (
     PlacementError,
     RemoveOutcome,
     WriteOutcome,
+    leaf_path,
 )
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
@@ -103,12 +105,8 @@ class _Identity:
 
 
 def kube_path(home: Path, filename: str) -> Path:
-    """Compose ``<home>/.kube/<filename>``, re-asserting the backend's safe-charset rule
-    (defense in depth: this may run as root) so the path stays directly inside ``.kube``.
-    """
-    if filename in ("", ".", "..") or "/" in filename or "\\" in filename:
-        raise PlacementError(f"invalid honeytoken filename {filename!r}")
-    return home / ".kube" / filename
+    """Compose ``<home>/.kube/<filename>`` (see ``placement.leaf_path``)."""
+    return leaf_path(home, ".kube", filename)
 
 
 # --- YAML parsing helpers ---------------------------------------------------------
@@ -132,9 +130,9 @@ def _load_doc(text: Optional[str], where: str) -> Dict[str, Any]:
     try:
         doc = _yaml().load(text)
     except YAMLError as exc:
-        # Never interpolate the exception itself: PyYAML's message embeds the offending
-        # source line, and in a kubeconfig that is typically a ``token:`` line — a user's
-        # real bearer would end up on stderr / in the fleet agent's logs.
+        # Never interpolate anything the parser wrote: its messages embed the offending
+        # source line, or the duplicated *value* for a repeated key — in a kubeconfig that
+        # is a ``token:`` line, so a user's real bearer would land on stderr / in logs.
         raise PlacementError(
             f"could not parse {where}: not a valid kubeconfig/YAML file "
             f"({_yaml_error_location(exc)})"
@@ -147,12 +145,13 @@ def _load_doc(text: Optional[str], where: str) -> Dict[str, Any]:
 
 
 def _yaml_error_location(exc: YAMLError) -> str:
-    """The parser's problem statement and position only — nothing copied from the file."""
-    problem = getattr(exc, "problem", None) or "parse error"
+    """The error class and position only — no parser-supplied text, which can quote
+    the file (``DuplicateKeyError.problem`` repeats the duplicated value)."""
+    kind = type(exc).__name__
     mark = getattr(exc, "problem_mark", None)
     if mark is None:
-        return str(problem)
-    return f"{problem} at line {mark.line + 1}, column {mark.column + 1}"
+        return kind
+    return f"{kind} at line {mark.line + 1}, column {mark.column + 1}"
 
 
 def _dump(doc: Dict[str, Any]) -> str:
@@ -162,7 +161,11 @@ def _dump(doc: Dict[str, Any]) -> str:
 
 
 def _named_list(doc: Dict[str, Any], key: str) -> List[Dict[str, Any]]:
-    items = doc.get(key) or []
+    # Only a missing/null key gets a fresh list: an existing (even empty) round-trip
+    # sequence is returned as-is so the comments attached to it survive.
+    items = doc.get(key)
+    if items is None:
+        return []
     if not isinstance(items, list):
         raise PlacementError(f"kubeconfig {key!r} is not a list")
     return items
@@ -343,9 +346,13 @@ _SHELL_KEYS = ("apiVersion", "kind")
 
 def _is_empty(doc: Dict[str, Any]) -> bool:
     """Nothing of the user's left: only the ``apiVersion``/``kind`` shell (which we may
-    have added ourselves) and empty values. A lone ``preferences`` or ``extensions``
-    block is theirs and keeps the file alive."""
-    return not any(value for key, value in doc.items() if key not in _SHELL_KEYS)
+    have added ourselves) and empty values — kubectl's ``preferences: {}`` counts as
+    empty, a *non-empty* ``preferences``/``extensions`` block is theirs. Comments are
+    theirs too and are invisible to the values, so the rendered text is checked as well
+    (the AWS placement keeps a comments-only remainder the same way)."""
+    if any(value for key, value in doc.items() if key not in _SHELL_KEYS):
+        return False
+    return not any(line.lstrip().startswith("#") for line in _dump(doc).splitlines())
 
 
 # --- public API -------------------------------------------------------------------
@@ -377,7 +384,7 @@ def write_kubeconfig(path: Path, token: KubeconfigToken, force: bool) -> WriteOu
         if outcome is WriteOutcome.WROTE:
             secure_file.atomic_write_path(path, _dump(doc))
         return outcome
-    except SecureFileError as exc:
+    except (SecureFileError, OSError) as exc:
         raise PlacementError(str(exc))
 
 
@@ -421,5 +428,5 @@ def remove_kubeconfig(path: Path, token: KubeconfigToken) -> RemoveOutcome:
         else:
             secure_file.atomic_write_path(path, _dump(doc))
         return outcome
-    except SecureFileError as exc:
+    except (SecureFileError, OSError) as exc:
         raise PlacementError(str(exc))

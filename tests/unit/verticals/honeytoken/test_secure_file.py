@@ -233,7 +233,8 @@ def test_path_backend_round_trip_and_mode(tmp_path):
     if os.name == "posix":
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
         os.chmod(path, 0o644)
-        atomic_write_path(path, "b\n")
+    atomic_write_path(path, "b\n")
+    if os.name == "posix":
         assert stat.S_IMODE(path.stat().st_mode) == 0o644
     assert read_path(path) == "b\n"
     assert [p.name for p in path.parent.iterdir() if p.name.startswith(".plant.")] == []
@@ -285,3 +286,34 @@ def test_read_path_refuses_an_oversized_file(tmp_path, monkeypatch):
     path.write_text("x" * 17)
     with pytest.raises(SecureFileError, match="larger than the 16 byte limit"):
         read_path(path)
+
+
+# --- non-regular files: a FIFO must not hang the (root, lock-holding) run ----------------
+
+
+@posix_only
+def test_read_via_fd_refuses_a_fifo_without_blocking(tmp_path):
+    os.mkfifo(tmp_path / "config")
+    dir_fd = open_dir_fd(tmp_path, create=False)
+    try:
+        with pytest.raises(SecureFileError, match="not a regular file"):
+            read_via_fd(dir_fd, "config")  # would block forever without O_NONBLOCK
+    finally:
+        os.close(dir_fd)
+
+
+@posix_only
+def test_read_via_fd_refuses_a_directory(tmp_path):
+    (tmp_path / "config").mkdir()
+    dir_fd = open_dir_fd(tmp_path, create=False)
+    try:
+        with pytest.raises(SecureFileError, match="not a regular file"):
+            read_via_fd(dir_fd, "config")
+    finally:
+        os.close(dir_fd)
+
+
+def test_read_path_refuses_a_directory(tmp_path):
+    (tmp_path / "config").mkdir()
+    with pytest.raises(SecureFileError, match="not a regular file"):
+        read_path(tmp_path / "config")

@@ -10,7 +10,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-09-20T12:41:43.8043Z"
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -25,7 +25,7 @@ overrides = [
 [[package]]
 name = "altgraph"
 version = "0.17.5"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7e/f8/97fdf103f38fed6792a1601dbc16cc8aac56e7459a9fff08c812d8ae177a/altgraph-0.17.5.tar.gz", hash = "sha256:c87b395dd12fabde9c99573a9749d67da8d29ef9de0125c7f536699b4a9bc9e7", size = 48428, upload-time = "2025-11-21T20:35:50.583Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/ba/000a1996d4308bc65120167c21241a3b205464a2e0b58deda26ae8ac21d1/altgraph-0.17.5-py2.py3-none-any.whl", hash = "sha256:f3a22400bce1b0c701683820ac4f3b159cd301acab067c51c653e06961600597", size = 21228, upload-time = "2025-11-21T20:35:49.444Z" },
@@ -34,7 +34,7 @@ wheels = [
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ee/67/531ea369ba64dcff5ec9c3402f9f51bf748cec26dde048a2f973a4eea7f5/annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89", size = 16081, upload-time = "2024-05-20T21:33:25.928Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/78/b6/6307fbef88d9b5ee7421e68d78a9f162e0da4900bc5f5793f6d3d0e34fb8/annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53", size = 13643, upload-time = "2024-05-20T21:33:24.1Z" },
@@ -43,7 +43,7 @@ wheels = [
 [[package]]
 name = "anyio"
 version = "4.12.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -61,7 +61,7 @@ wheels = [
 [[package]]
 name = "anyio"
 version = "4.14.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -80,7 +80,7 @@ wheels = [
 [[package]]
 name = "aspy-refactor-imports"
 version = "3.0.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/1d/2c/051d8bcdce88969dd9f2d96b97cdf7ce55e6fa54e609ad79fd3423f424a5/aspy.refactor_imports-3.0.2.tar.gz", hash = "sha256:3c7329cdb2613c46fcd757c8e45120efbc3d4b9db805092911eb605c19c5795c", size = 7617, upload-time = "2022-07-01T23:55:21.117Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/d3/18747b53e6b92bdc2bb3eae56f27f4aea6b6c1228a45372484984aea84c1/aspy.refactor_imports-3.0.2-py2.py3-none-any.whl", hash = "sha256:f306037682479945df61b2e6d01bf97256d68f3e704742768deef549e0d61fbb", size = 7873, upload-time = "2022-07-01T23:55:19.61Z" },
@@ -89,7 +89,7 @@ wheels = [
 [[package]]
 name = "asttokens"
 version = "3.0.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/be/a5/8e3f9b6771b0b408517c82d97aed8f2036509bc247d46114925e32fe33f0/asttokens-3.0.1.tar.gz", hash = "sha256:71a4ee5de0bde6a31d64f6b13f2293ac190344478f081c3d1bccfcf5eacb0cb7", size = 62308, upload-time = "2025-11-15T16:43:48.578Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/39/e7eaf1799466a4aef85b6a4fe7bd175ad2b1c6345066aa33f1f58d4b18d0/asttokens-3.0.1-py3-none-any.whl", hash = "sha256:15a3ebc0f43c2d0a50eeafea25e19046c68398e487b9f1f5b517f7c0f40f976a", size = 27047, upload-time = "2025-11-15T16:43:16.109Z" },
@@ -98,7 +98,7 @@ wheels = [
 [[package]]
 name = "attrs"
 version = "25.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6b/5c/685e6633917e101e5dcb62b9dd76946cbb57c26e133bae9e0cd36033c0a9/attrs-25.4.0.tar.gz", hash = "sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11", size = 934251, upload-time = "2025-10-06T13:54:44.725Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373", size = 67615, upload-time = "2025-10-06T13:54:43.17Z" },
@@ -107,7 +107,7 @@ wheels = [
 [[package]]
 name = "backports-datetime-fromisoformat"
 version = "2.0.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/71/81/eff3184acb1d9dc3ce95a98b6f3c81a49b4be296e664db8e1c2eeabef3d9/backports_datetime_fromisoformat-2.0.3.tar.gz", hash = "sha256:b58edc8f517b66b397abc250ecc737969486703a66eb97e01e6d51291b1a139d", size = 23588, upload-time = "2024-12-28T20:18:15.017Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/42/4b/d6b051ca4b3d76f23c2c436a9669f3be616b8cf6461a7e8061c7c4269642/backports_datetime_fromisoformat-2.0.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:5f681f638f10588fa3c101ee9ae2b63d3734713202ddfcfb6ec6cea0778a29d4", size = 27561, upload-time = "2024-12-28T20:16:47.974Z" },
@@ -151,7 +151,7 @@ wheels = [
 [[package]]
 name = "backports-tarfile"
 version = "1.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/86/72/cd9b395f25e290e633655a100af28cb253e4393396264a98bd5f5951d50f/backports_tarfile-1.2.0.tar.gz", hash = "sha256:d75e02c268746e1b8144c278978b6e98e85de6ad16f8e4b0844a154557eca991", size = 86406, upload-time = "2024-05-28T17:01:54.731Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b9/fa/123043af240e49752f1c4bd24da5053b6bd00cad78c2be53c0d1e8b975bc/backports.tarfile-1.2.0-py3-none-any.whl", hash = "sha256:77e284d754527b01fb1e6fa8a1afe577858ebe4e9dad8919e34c862cb399bc34", size = 30181, upload-time = "2024-05-28T17:01:53.112Z" },
@@ -160,15 +160,15 @@ wheels = [
 [[package]]
 name = "black"
 version = "24.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "mypy-extensions" },
     { name = "packaging" },
     { name = "pathspec" },
-    { name = "platformdirs", version = "4.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "platformdirs", version = "4.9.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "platformdirs", version = "4.9.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
@@ -196,7 +196,7 @@ wheels = [
 [[package]]
 name = "build"
 version = "1.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "os_name == 'nt'" },
     { name = "importlib-metadata", marker = "python_full_version < '3.10.2'" },
@@ -212,7 +212,7 @@ wheels = [
 [[package]]
 name = "certifi"
 version = "2026.2.25"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/af/2d/7bf41579a8986e348fa033a31cdd0e4121114f6bce2457e8876010b092dd/certifi-2026.2.25.tar.gz", hash = "sha256:e887ab5cee78ea814d3472169153c2d12cd43b14bd03329a39a9c6e2e80bfba7", size = 155029, upload-time = "2026-02-25T02:54:17.342Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9a/3c/c17fb3ca2d9c3acff52e30b309f538586f9f5b9c9cf454f3845fc9af4881/certifi-2026.2.25-py3-none-any.whl", hash = "sha256:027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa", size = 153684, upload-time = "2026-02-25T02:54:15.766Z" },
@@ -221,10 +221,10 @@ wheels = [
 [[package]]
 name = "cffi"
 version = "2.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", version = "2.23", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10' and implementation_name != 'PyPy'" },
-    { name = "pycparser", version = "3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10' and implementation_name != 'PyPy'" },
+    { name = "pycparser", version = "2.23", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and implementation_name != 'PyPy'" },
+    { name = "pycparser", version = "3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -316,7 +316,7 @@ wheels = [
 [[package]]
 name = "cfgv"
 version = "3.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -329,7 +329,7 @@ wheels = [
 [[package]]
 name = "cfgv"
 version = "3.5.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -343,7 +343,7 @@ wheels = [
 [[package]]
 name = "charset-normalizer"
 version = "3.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ff/d7/8d757f8bd45be079d76309248845a04f09619a7b17d6dfc8c9ff6433cac2/charset-normalizer-3.1.0.tar.gz", hash = "sha256:34e0a2f9c370eb95597aae63bf85eb5e96826d81e3dcf88b8886012906f509b5", size = 95987, upload-time = "2023-03-06T09:49:37.964Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4f/a2/9031ba4a008e11a21d7b7aa41751290d2f2035a2f14ecb6e589771a17c47/charset_normalizer-3.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:e0ac8959c929593fee38da1c2b64ee9778733cdf03c482c9ff1d508b6b593b2b", size = 202016, upload-time = "2023-03-06T09:48:01.969Z" },
@@ -397,14 +397,14 @@ wheels = [
 [[package]]
 name = "check-wheel-contents"
 version = "0.6.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "packaging" },
-    { name = "pydantic", version = "2.11.10", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pydantic", version = "2.13.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pydantic", version = "2.11.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pydantic", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "wheel-filename" },
 ]
@@ -416,7 +416,7 @@ wheels = [
 [[package]]
 name = "click"
 version = "8.1.8"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -432,7 +432,7 @@ wheels = [
 [[package]]
 name = "click"
 version = "8.4.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -449,10 +449,10 @@ wheels = [
 [[package]]
 name = "click-log"
 version = "0.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/32/32/228be4f971e4bd556c33d52a22682bfe318ffe57a1ddb7a546f347a90260/click-log-0.4.0.tar.gz", hash = "sha256:3970f8570ac54491237bcdb3d8ab5e3eef6c057df29f8c3d1151a51a9c23b975", size = 9985, upload-time = "2022-03-13T11:10:15.262Z" }
 wheels = [
@@ -462,7 +462,7 @@ wheels = [
 [[package]]
 name = "colorama"
 version = "0.4.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697, upload-time = "2022-10-25T02:36:22.414Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
@@ -471,7 +471,7 @@ wheels = [
 [[package]]
 name = "configupdater"
 version = "3.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2b/f4/603bd8a65e040b23d25b5843836297b0f4e430f509d8ed2ef8f072fb4127/ConfigUpdater-3.2.tar.gz", hash = "sha256:9fdac53831c1b062929bf398b649b87ca30e7f1a735f3fbf482072804106306b", size = 140603, upload-time = "2023-11-27T17:16:45.434Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e7/f0/b59cb7613d9d0f866b6ff247c5953ad78363c27ff5d684a2a98899ab8220/ConfigUpdater-3.2-py2.py3-none-any.whl", hash = "sha256:0f65a041627d7693840b4dd743581db4c441c97195298a29d075f91b79539df2", size = 34688, upload-time = "2023-11-27T17:16:43.53Z" },
@@ -480,7 +480,7 @@ wheels = [
 [[package]]
 name = "coverage"
 version = "7.10.7"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -595,7 +595,7 @@ wheels = [
 [[package]]
 name = "coverage"
 version = "7.13.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -713,7 +713,7 @@ wheels = [
 [[package]]
 name = "cryptography"
 version = "46.0.7"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -777,7 +777,7 @@ wheels = [
 [[package]]
 name = "cryptography"
 version = "50.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -839,7 +839,7 @@ wheels = [
 [[package]]
 name = "decorator"
 version = "5.2.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/43/fa/6d96a0978d19e17b68d634497769987b16c8f4cd0a7a05048bec693caa6b/decorator-5.2.1.tar.gz", hash = "sha256:65f266143752f734b0a7cc83c46f4618af75b8c5911b00ccb61d0ac9b6da0360", size = 56711, upload-time = "2025-02-24T04:41:34.073Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4e/8c/f3147f5c4b73e7550fe5f9352eaa956ae838d5c51eb58e7a25b9f3e2643b/decorator-5.2.1-py3-none-any.whl", hash = "sha256:d316bb415a2d9e2d2b3abcc4084c6502fc09240e292cd76a76afc106a1c8e04a", size = 9190, upload-time = "2025-02-24T04:41:32.565Z" },
@@ -848,7 +848,7 @@ wheels = [
 [[package]]
 name = "distlib"
 version = "0.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
@@ -857,7 +857,7 @@ wheels = [
 [[package]]
 name = "dnspython"
 version = "2.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -870,7 +870,7 @@ wheels = [
 [[package]]
 name = "dnspython"
 version = "2.8.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -884,10 +884,10 @@ wheels = [
 [[package]]
 name = "email-validator"
 version = "2.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "dnspython", version = "2.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "dnspython", version = "2.8.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "dnspython", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "dnspython", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "idna" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
@@ -898,7 +898,7 @@ wheels = [
 [[package]]
 name = "exceptiongroup"
 version = "1.3.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
@@ -910,7 +910,7 @@ wheels = [
 [[package]]
 name = "execnet"
 version = "2.1.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bf/89/780e11f9588d9e7128a3f87788354c7946a9cbb1401ad38a48c4db9a4f07/execnet-2.1.2.tar.gz", hash = "sha256:63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd", size = 166622, upload-time = "2025-11-12T09:56:37.75Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl", hash = "sha256:67fba928dd5a544b783f6056f449e5e3931a5c378b128bc18501f7ea79e296ec", size = 40708, upload-time = "2025-11-12T09:56:36.333Z" },
@@ -919,7 +919,7 @@ wheels = [
 [[package]]
 name = "executing"
 version = "2.2.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/28/c14e053b6762b1044f34a13aab6859bbf40456d37d23aa286ac24cfd9a5d/executing-2.2.1.tar.gz", hash = "sha256:3632cc370565f6648cc328b32435bd120a1e4ebb20c77e3fdde9a13cd1e533c4", size = 1129488, upload-time = "2025-09-01T09:48:10.866Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/ea/53f2148663b321f21b5a606bd5f191517cf40b7072c0497d3c92c4a13b1e/executing-2.2.1-py2.py3-none-any.whl", hash = "sha256:760643d3452b4d777d295bb167ccc74c64a81df23fb5e08eff250c425a4b2017", size = 28317, upload-time = "2025-09-01T09:48:08.5Z" },
@@ -928,10 +928,10 @@ wheels = [
 [[package]]
 name = "factory-boy"
 version = "3.3.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "faker", version = "37.12.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "faker", version = "40.8.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "faker", version = "37.12.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "faker", version = "40.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ba/98/75cacae9945f67cfe323829fc2ac451f64517a8a330b572a06a323997065/factory_boy-3.3.3.tar.gz", hash = "sha256:866862d226128dfac7f2b4160287e899daf54f2612778327dd03d0e2cb1e3d03", size = 164146, upload-time = "2025-02-03T09:49:04.433Z" }
 wheels = [
@@ -941,7 +941,7 @@ wheels = [
 [[package]]
 name = "faker"
 version = "37.12.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -957,7 +957,7 @@ wheels = [
 [[package]]
 name = "faker"
 version = "40.8.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -974,7 +974,7 @@ wheels = [
 [[package]]
 name = "filelock"
 version = "3.19.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -987,7 +987,7 @@ wheels = [
 [[package]]
 name = "filelock"
 version = "3.25.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1001,7 +1001,7 @@ wheels = [
 [[package]]
 name = "flake8"
 version = "7.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mccabe" },
     { name = "pycodestyle" },
@@ -1015,14 +1015,14 @@ wheels = [
 [[package]]
 name = "flake8-isort"
 version = "6.1.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "flake8", marker = "python_full_version < '3.10'" },
-    { name = "isort", version = "6.1.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "isort", version = "6.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7c/ea/2f2662d4fefa6ab335c7119cb28e5bc57c935a86a69a7f72df3ea5fe7b2c/flake8_isort-6.1.2.tar.gz", hash = "sha256:9d0452acdf0e1cd6f2d6848e3605e66b54d920e73471fb4744eef0f93df62d5d", size = 17756, upload-time = "2025-01-29T12:29:25.753Z" }
 wheels = [
@@ -1032,7 +1032,7 @@ wheels = [
 [[package]]
 name = "flake8-isort"
 version = "7.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1040,7 +1040,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "flake8", marker = "python_full_version >= '3.10'" },
-    { name = "isort", version = "8.0.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "isort", version = "8.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/57/a4/4b170983fd2e9b5ecc40c88738db6dfb77e069c71be9a81f9893cdb8a0cc/flake8_isort-7.0.0.tar.gz", hash = "sha256:a677199d1197f826eb69084e7ac272f208f4583363285f43111c34272abe7e5d", size = 17796, upload-time = "2025-10-25T13:31:08.768Z" }
 wheels = [
@@ -1050,7 +1050,7 @@ wheels = [
 [[package]]
 name = "flake8-quotes"
 version = "3.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flake8" },
     { name = "setuptools" },
@@ -1062,40 +1062,40 @@ name = "ggshield"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "configupdater" },
-    { name = "cryptography", version = "46.0.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "cryptography", version = "50.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "filelock", version = "3.19.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "filelock", version = "3.25.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", version = "46.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "filelock", version = "3.25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "keyring" },
-    { name = "marshmallow", version = "4.0.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "marshmallow", version = "4.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "marshmallow", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "marshmallow-dataclass" },
     { name = "notify-py" },
     { name = "oauthlib" },
     { name = "packaging" },
-    { name = "platformdirs", version = "4.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "platformdirs", version = "4.9.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "platformdirs", version = "4.9.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pygitguardian" },
     { name = "pyjwt" },
-    { name = "python-dotenv", version = "1.2.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "python-dotenv", version = "1.2.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "python-dotenv", version = "1.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "python-dotenv", version = "1.2.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pyyaml" },
-    { name = "requests", version = "2.32.5", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "requests", version = "2.32.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "rich" },
     { name = "ruamel-yaml" },
-    { name = "sigstore", version = "4.1.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "sigstore", version = "4.5.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "sigstore", version = "4.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "sigstore", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "tomlkit" },
     { name = "truststore", marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions" },
     { name = "unearth" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 
 [package.dev-dependencies]
@@ -1103,24 +1103,24 @@ dev = [
     { name = "black" },
     { name = "build" },
     { name = "check-wheel-contents" },
-    { name = "coverage", version = "7.10.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "coverage", version = "7.13.4", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "coverage", version = "7.10.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "coverage", version = "7.13.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "flake8" },
-    { name = "flake8-isort", version = "6.1.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "flake8-isort", version = "7.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "flake8-isort", version = "6.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "flake8-isort", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "flake8-quotes" },
-    { name = "import-linter", version = "2.5.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "import-linter", version = "2.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "import-linter", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "import-linter", version = "2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "ipdb" },
-    { name = "ipython", version = "8.18.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "ipython", version = "8.38.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "ipython", version = "9.10.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "ipython", version = "9.11.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pre-commit", version = "4.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pre-commit", version = "4.5.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ipython", version = "8.38.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "ipython", version = "9.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "ipython", version = "9.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pre-commit", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pre-commit", version = "4.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pyright" },
-    { name = "scriv", version = "1.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, extra = ["toml"], marker = "python_full_version < '3.10'" },
-    { name = "scriv", version = "1.8.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, extra = ["toml"], marker = "python_full_version >= '3.10'" },
+    { name = "scriv", version = "1.7.0", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version < '3.10'" },
+    { name = "scriv", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, extra = ["toml"], marker = "python_full_version >= '3.10'" },
     { name = "tomli" },
     { name = "ty" },
 ]
@@ -1129,19 +1129,19 @@ standalone = [
 ]
 tests = [
     { name = "factory-boy" },
-    { name = "jsonschema", version = "4.25.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "jsonschema", version = "4.26.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "pyfakefs", version = "5.10.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pyfakefs", version = "6.2.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "jsonschema", version = "4.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "jsonschema", version = "4.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pyfakefs", version = "5.10.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pyfakefs", version = "6.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest-mock" },
     { name = "pytest-socket" },
     { name = "pytest-voluptuous" },
     { name = "pytest-xdist" },
     { name = "seed-isort-config" },
-    { name = "syrupy", version = "4.9.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "syrupy", version = "5.1.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "vcrpy", version = "7.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "vcrpy", version = "8.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "syrupy", version = "4.9.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "syrupy", version = "5.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "vcrpy", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "vcrpy", version = "8.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "voluptuous" },
 ]
 
@@ -1165,7 +1165,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "rich", specifier = "~=13.0" },
-    { name = "ruamel-yaml", specifier = ">=0.18,<0.20" },
+    { name = "ruamel-yaml", specifier = ">=0.19,<0.20" },
     { name = "sigstore", specifier = ">=4.0.0,<5" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.4.0" },
     { name = "tomlkit", specifier = ">=0.13.3,<0.14" },
@@ -1211,7 +1211,7 @@ tests = [
 [[package]]
 name = "grimp"
 version = "3.13"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
@@ -1332,7 +1332,7 @@ wheels = [
 [[package]]
 name = "h11"
 version = "0.16.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
@@ -1341,7 +1341,7 @@ wheels = [
 [[package]]
 name = "httpcore"
 version = "1.0.9"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "h11" },
@@ -1354,10 +1354,10 @@ wheels = [
 [[package]]
 name = "httpx"
 version = "0.28.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio", version = "4.12.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "anyio", version = "4.14.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "anyio", version = "4.12.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "anyio", version = "4.14.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "certifi" },
     { name = "httpcore" },
     { name = "idna" },
@@ -1370,10 +1370,10 @@ wheels = [
 [[package]]
 name = "id"
 version = "1.6.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6d/04/c2156091427636080787aac190019dc64096e56a23b7364d3c1764ee3a06/id-1.6.1.tar.gz", hash = "sha256:d0732d624fb46fd4e7bc4e5152f00214450953b9e772c182c1c22964def1a069", size = 18088, upload-time = "2026-02-04T16:19:41.26Z" }
 wheels = [
@@ -1383,7 +1383,7 @@ wheels = [
 [[package]]
 name = "identify"
 version = "2.6.15"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1396,7 +1396,7 @@ wheels = [
 [[package]]
 name = "identify"
 version = "2.6.17"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1410,7 +1410,7 @@ wheels = [
 [[package]]
 name = "idna"
 version = "3.18"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cd/63/9496c57188a2ee585e0f1db071d75089a11e98aa86eb99d9d7618fc1edce/idna-3.18.tar.gz", hash = "sha256:ffb385a7e039654cef1ab9ef32c6fafe283c0c0467bba1d9029738ce4a14a848", size = 196711, upload-time = "2026-06-02T14:34:07.794Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl", hash = "sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2", size = 65455, upload-time = "2026-06-02T14:34:06.319Z" },
@@ -1419,13 +1419,13 @@ wheels = [
 [[package]]
 name = "import-linter"
 version = "2.5.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "grimp", marker = "python_full_version < '3.10'" },
     { name = "tomli", marker = "python_full_version < '3.10'" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
@@ -1438,14 +1438,14 @@ wheels = [
 [[package]]
 name = "import-linter"
 version = "2.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "grimp", marker = "python_full_version >= '3.10'" },
     { name = "tomli", marker = "python_full_version == '3.10.*'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.10'" },
@@ -1458,7 +1458,7 @@ wheels = [
 [[package]]
 name = "importlib-metadata"
 version = "8.7.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "zipp", marker = "python_full_version < '3.12'" },
 ]
@@ -1470,7 +1470,7 @@ wheels = [
 [[package]]
 name = "importlib-resources"
 version = "5.13.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "zipp", marker = "python_full_version < '3.10'" },
 ]
@@ -1482,7 +1482,7 @@ wheels = [
 [[package]]
 name = "iniconfig"
 version = "2.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1495,7 +1495,7 @@ wheels = [
 [[package]]
 name = "iniconfig"
 version = "2.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1509,13 +1509,13 @@ wheels = [
 [[package]]
 name = "ipdb"
 version = "0.13.13"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "decorator" },
-    { name = "ipython", version = "8.18.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "ipython", version = "8.38.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version == '3.10.*'" },
-    { name = "ipython", version = "9.10.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version == '3.11.*'" },
-    { name = "ipython", version = "9.11.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ipython", version = "8.38.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "ipython", version = "9.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
+    { name = "ipython", version = "9.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3d/1b/7e07e7b752017f7693a0f4d41c13e5ca29ce8cbcfdcc1fd6c4ad8c0a27a0/ipdb-0.13.13.tar.gz", hash = "sha256:e3ac6018ef05126d442af680aad863006ec19d02290561ac88b8b1c0b0cfc726", size = 17042, upload-time = "2023-03-09T15:40:57.487Z" }
@@ -1526,7 +1526,7 @@ wheels = [
 [[package]]
 name = "ipython"
 version = "8.18.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1552,7 +1552,7 @@ wheels = [
 [[package]]
 name = "ipython"
 version = "8.38.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version == '3.10.*'",
 ]
@@ -1577,7 +1577,7 @@ wheels = [
 [[package]]
 name = "ipython"
 version = "9.10.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version == '3.11.*'",
 ]
@@ -1602,7 +1602,7 @@ wheels = [
 [[package]]
 name = "ipython"
 version = "9.11.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
 ]
@@ -1626,7 +1626,7 @@ wheels = [
 [[package]]
 name = "ipython-pygments-lexers"
 version = "1.1.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pygments", marker = "python_full_version >= '3.11'" },
 ]
@@ -1638,7 +1638,7 @@ wheels = [
 [[package]]
 name = "isort"
 version = "6.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1654,7 +1654,7 @@ wheels = [
 [[package]]
 name = "isort"
 version = "8.0.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1668,7 +1668,7 @@ wheels = [
 [[package]]
 name = "jaraco-classes"
 version = "3.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "more-itertools" },
 ]
@@ -1680,7 +1680,7 @@ wheels = [
 [[package]]
 name = "jaraco-context"
 version = "6.1.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1696,7 +1696,7 @@ wheels = [
 [[package]]
 name = "jaraco-context"
 version = "6.1.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1713,7 +1713,7 @@ wheels = [
 [[package]]
 name = "jaraco-functools"
 version = "4.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "more-itertools" },
 ]
@@ -1725,7 +1725,7 @@ wheels = [
 [[package]]
 name = "jedi"
 version = "0.19.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "parso" },
 ]
@@ -1737,7 +1737,7 @@ wheels = [
 [[package]]
 name = "jeepney"
 version = "0.9.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7b/6f/357efd7602486741aa73ffc0617fb310a29b588ed0fd69c2399acbb85b0c/jeepney-0.9.0.tar.gz", hash = "sha256:cf0e9e845622b81e4a28df94c40345400256ec608d0e55bb8a3feaa9163f5732", size = 106758, upload-time = "2025-02-27T18:51:01.684Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/a3/e137168c9c44d18eff0376253da9f1e9234d0239e0ee230d2fee6cea8e55/jeepney-0.9.0-py3-none-any.whl", hash = "sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683", size = 49010, upload-time = "2025-02-27T18:51:00.104Z" },
@@ -1746,7 +1746,7 @@ wheels = [
 [[package]]
 name = "jinja2"
 version = "3.1.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markupsafe" },
 ]
@@ -1758,7 +1758,7 @@ wheels = [
 [[package]]
 name = "jsonschema"
 version = "4.25.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1766,8 +1766,8 @@ resolution-markers = [
 dependencies = [
     { name = "attrs", marker = "python_full_version < '3.10'" },
     { name = "jsonschema-specifications", marker = "python_full_version < '3.10'" },
-    { name = "referencing", version = "0.36.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "rpds-py", version = "0.27.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "referencing", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "rpds-py", version = "0.27.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/74/69/f7185de793a29082a9f3c7728268ffb31cb5095131a9c139a74078e27336/jsonschema-4.25.1.tar.gz", hash = "sha256:e4a9655ce0da0c0b67a085847e00a3a51449e1157f4f75e9fb5aa545e122eb85", size = 357342, upload-time = "2025-08-18T17:03:50.038Z" }
 wheels = [
@@ -1777,7 +1777,7 @@ wheels = [
 [[package]]
 name = "jsonschema"
 version = "4.26.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1786,8 +1786,8 @@ resolution-markers = [
 dependencies = [
     { name = "attrs", marker = "python_full_version >= '3.10'" },
     { name = "jsonschema-specifications", marker = "python_full_version >= '3.10'" },
-    { name = "referencing", version = "0.37.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "rpds-py", version = "0.30.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "referencing", version = "0.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "rpds-py", version = "0.30.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b3/fc/e067678238fa451312d4c62bf6e6cf5ec56375422aee02f9cb5f909b3047/jsonschema-4.26.0.tar.gz", hash = "sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326", size = 366583, upload-time = "2026-01-07T13:41:07.246Z" }
 wheels = [
@@ -1797,10 +1797,10 @@ wheels = [
 [[package]]
 name = "jsonschema-specifications"
 version = "2025.9.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "referencing", version = "0.36.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "referencing", version = "0.37.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "referencing", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "referencing", version = "0.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/19/74/a633ee74eb36c44aa6d1095e7cc5569bebf04342ee146178e2d36600708b/jsonschema_specifications-2025.9.1.tar.gz", hash = "sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d", size = 32855, upload-time = "2025-09-08T01:34:59.186Z" }
 wheels = [
@@ -1810,17 +1810,17 @@ wheels = [
 [[package]]
 name = "keyring"
 version = "25.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "importlib-metadata", marker = "python_full_version < '3.12'" },
     { name = "jaraco-classes" },
-    { name = "jaraco-context", version = "6.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "jaraco-context", version = "6.1.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "jaraco-context", version = "6.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "jaraco-context", version = "6.1.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "jaraco-functools" },
     { name = "jeepney", marker = "sys_platform == 'linux'" },
     { name = "pywin32-ctypes", marker = "sys_platform == 'win32'" },
-    { name = "secretstorage", version = "3.3.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10' and sys_platform == 'linux'" },
-    { name = "secretstorage", version = "3.5.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10' and sys_platform == 'linux'" },
+    { name = "secretstorage", version = "3.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and sys_platform == 'linux'" },
+    { name = "secretstorage", version = "3.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/43/4b/674af6ef2f97d56f0ab5153bf0bfa28ccb6c3ed4d1babf4305449668807b/keyring-25.7.0.tar.gz", hash = "sha256:fe01bd85eb3f8fb3dd0405defdeac9a5b4f6f0439edbb3149577f244a2e8245b", size = 63516, upload-time = "2025-11-16T16:26:09.482Z" }
 wheels = [
@@ -1830,7 +1830,7 @@ wheels = [
 [[package]]
 name = "loguru"
 version = "0.6.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "win32-setctime", marker = "sys_platform == 'win32'" },
@@ -1843,7 +1843,7 @@ wheels = [
 [[package]]
 name = "macholib"
 version = "1.16.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "altgraph" },
 ]
@@ -1855,7 +1855,7 @@ wheels = [
 [[package]]
 name = "markdown-it-py"
 version = "3.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -1871,7 +1871,7 @@ wheels = [
 [[package]]
 name = "markdown-it-py"
 version = "4.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1888,7 +1888,7 @@ wheels = [
 [[package]]
 name = "markupsafe"
 version = "3.0.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7e/99/7690b6d4034fffd95959cbe0c02de8deb3098cc577c67bb6a24fe5d7caa7/markupsafe-3.0.3.tar.gz", hash = "sha256:722695808f4b6457b320fdc131280796bdceb04ab50fe1795cd540799ebe1698", size = 80313, upload-time = "2025-09-27T18:37:40.426Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e8/4b/3541d44f3937ba468b75da9eebcae497dcf67adb65caa16760b0a6807ebb/markupsafe-3.0.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2f981d352f04553a7171b8e44369f2af4055f888dfb147d55e42d29e29e74559", size = 11631, upload-time = "2025-09-27T18:36:05.558Z" },
@@ -1984,7 +1984,7 @@ wheels = [
 [[package]]
 name = "marshmallow"
 version = "4.0.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -2001,7 +2001,7 @@ wheels = [
 [[package]]
 name = "marshmallow"
 version = "4.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2019,10 +2019,10 @@ wheels = [
 [[package]]
 name = "marshmallow-dataclass"
 version = "8.7.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "marshmallow", version = "4.0.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "marshmallow", version = "4.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "marshmallow", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typeguard" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
     { name = "typing-inspect" },
@@ -2035,7 +2035,7 @@ wheels = [
 [[package]]
 name = "matplotlib-inline"
 version = "0.2.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "traitlets" },
 ]
@@ -2047,7 +2047,7 @@ wheels = [
 [[package]]
 name = "mccabe"
 version = "0.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/ff/0ffefdcac38932a54d2b5eed4e0ba8a408f215002cd178ad1df0f2806ff8/mccabe-0.7.0.tar.gz", hash = "sha256:348e0240c33b60bbdf4e523192ef919f28cb2c3d7d5c7794f74009290f236325", size = 9658, upload-time = "2022-01-24T01:14:51.113Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/1a/1f68f9ba0c207934b35b86a8ca3aad8395a3d6dd7921c0686e23853ff5a9/mccabe-0.7.0-py2.py3-none-any.whl", hash = "sha256:6c2d30ab6be0e4a46919781807b4f0d834ebdd6c6e3dca0bda5a15f863427b6e", size = 7350, upload-time = "2022-01-24T01:14:49.62Z" },
@@ -2056,7 +2056,7 @@ wheels = [
 [[package]]
 name = "mdurl"
 version = "0.1.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
@@ -2065,7 +2065,7 @@ wheels = [
 [[package]]
 name = "more-itertools"
 version = "10.8.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ea/5d/38b681d3fce7a266dd9ab73c66959406d565b3e85f21d5e66e1181d93721/more_itertools-10.8.0.tar.gz", hash = "sha256:f638ddf8a1a0d134181275fb5d58b086ead7c6a72429ad725c67503f13ba30bd", size = 137431, upload-time = "2025-09-02T15:23:11.018Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/8e/469e5a4a2f5855992e425f3cb33804cc07bf18d48f2db061aec61ce50270/more_itertools-10.8.0-py3-none-any.whl", hash = "sha256:52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b", size = 69667, upload-time = "2025-09-02T15:23:09.635Z" },
@@ -2074,7 +2074,7 @@ wheels = [
 [[package]]
 name = "multidict"
 version = "6.7.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
@@ -2230,7 +2230,7 @@ wheels = [
 [[package]]
 name = "mypy-extensions"
 version = "1.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558", size = 6343, upload-time = "2025-04-22T14:54:24.164Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
@@ -2239,7 +2239,7 @@ wheels = [
 [[package]]
 name = "nodeenv"
 version = "1.10.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/24/bf/d1bda4f6168e0b2e9e5958945e01910052158313224ada5ce1fb2e1113b8/nodeenv-1.10.0.tar.gz", hash = "sha256:996c191ad80897d076bdfba80a41994c2b47c68e224c542b48feba42ba00f8bb", size = 55611, upload-time = "2025-12-20T14:08:54.006Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl", hash = "sha256:5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827", size = 23438, upload-time = "2025-12-20T14:08:52.782Z" },
@@ -2248,7 +2248,7 @@ wheels = [
 [[package]]
 name = "notify-py"
 version = "0.3.43"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jeepney", marker = "sys_platform == 'linux'" },
     { name = "loguru" },
@@ -2261,7 +2261,7 @@ wheels = [
 [[package]]
 name = "oauthlib"
 version = "3.3.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
@@ -2270,7 +2270,7 @@ wheels = [
 [[package]]
 name = "packaging"
 version = "26.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
@@ -2279,7 +2279,7 @@ wheels = [
 [[package]]
 name = "parso"
 version = "0.8.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/81/76/a1e769043c0c0c9fe391b702539d594731a4362334cdf4dc25d0c09761e7/parso-0.8.6.tar.gz", hash = "sha256:2b9a0332696df97d454fa67b81618fd69c35a7b90327cbe6ba5c92d2c68a7bfd", size = 401621, upload-time = "2026-02-09T15:45:24.425Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b6/61/fae042894f4296ec49e3f193aff5d7c18440da9e48102c3315e1bc4519a7/parso-0.8.6-py2.py3-none-any.whl", hash = "sha256:2c549f800b70a5c4952197248825584cb00f033b29c692671d3bf08bf380baff", size = 106894, upload-time = "2026-02-09T15:45:21.391Z" },
@@ -2288,7 +2288,7 @@ wheels = [
 [[package]]
 name = "pathspec"
 version = "1.0.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fa/36/e27608899f9b8d4dff0617b2d9ab17ca5608956ca44461ac14ac48b44015/pathspec-1.0.4.tar.gz", hash = "sha256:0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645", size = 131200, upload-time = "2026-01-27T03:59:46.938Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/3c/2c197d226f9ea224a9ab8d197933f9da0ae0aac5b6e0f884e2b8d9c8e9f7/pathspec-1.0.4-py3-none-any.whl", hash = "sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723", size = 55206, upload-time = "2026-01-27T03:59:45.137Z" },
@@ -2297,7 +2297,7 @@ wheels = [
 [[package]]
 name = "pefile"
 version = "2024.8.26"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/03/4f/2750f7f6f025a1507cd3b7218691671eecfd0bbebebe8b39aa0fe1d360b8/pefile-2024.8.26.tar.gz", hash = "sha256:3ff6c5d8b43e8c37bb6e6dd5085658d658a7a0bdcd20b6a07b1fcfc1c4e9d632", size = 76008, upload-time = "2024-08-26T20:58:38.155Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/16/12b82f791c7f50ddec566873d5bdd245baa1491bac11d15ffb98aecc8f8b/pefile-2024.8.26-py3-none-any.whl", hash = "sha256:76f8b485dcd3b1bb8166f1128d395fa3d87af26360c2358fb75b80019b957c6f", size = 74766, upload-time = "2024-08-26T21:01:02.632Z" },
@@ -2306,7 +2306,7 @@ wheels = [
 [[package]]
 name = "pexpect"
 version = "4.9.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ptyprocess" },
 ]
@@ -2318,7 +2318,7 @@ wheels = [
 [[package]]
 name = "platformdirs"
 version = "4.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -2331,7 +2331,7 @@ wheels = [
 [[package]]
 name = "platformdirs"
 version = "4.9.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2345,7 +2345,7 @@ wheels = [
 [[package]]
 name = "pluggy"
 version = "1.6.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
@@ -2354,14 +2354,14 @@ wheels = [
 [[package]]
 name = "pre-commit"
 version = "4.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "cfgv", version = "3.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "identify", version = "2.6.15", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cfgv", version = "3.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "identify", version = "2.6.15", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "nodeenv", marker = "python_full_version < '3.10'" },
     { name = "pyyaml", marker = "python_full_version < '3.10'" },
     { name = "virtualenv", marker = "python_full_version < '3.10'" },
@@ -2374,15 +2374,15 @@ wheels = [
 [[package]]
 name = "pre-commit"
 version = "4.5.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "cfgv", version = "3.5.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "identify", version = "2.6.17", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cfgv", version = "3.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "identify", version = "2.6.17", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "nodeenv", marker = "python_full_version >= '3.10'" },
     { name = "pyyaml", marker = "python_full_version >= '3.10'" },
     { name = "virtualenv", marker = "python_full_version >= '3.10'" },
@@ -2395,7 +2395,7 @@ wheels = [
 [[package]]
 name = "prompt-toolkit"
 version = "3.0.52"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "wcwidth" },
 ]
@@ -2407,7 +2407,7 @@ wheels = [
 [[package]]
 name = "propcache"
 version = "0.4.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/9e/da/e9fc233cf63743258bff22b3dfa7ea5baef7b5bc324af47a0ad89b8ffc6f/propcache-0.4.1.tar.gz", hash = "sha256:f48107a8c637e80362555f37ecf49abe20370e557cc4ab374f04ec4423c97c3d", size = 46442, upload-time = "2025-10-08T19:49:02.291Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/0e/934b541323035566a9af292dba85a195f7b78179114f2c6ebb24551118a9/propcache-0.4.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7c2d1fa3201efaf55d730400d945b5b3ab6e672e100ba0f9a409d950ab25d7db", size = 79534, upload-time = "2025-10-08T19:46:02.083Z" },
@@ -2536,7 +2536,7 @@ wheels = [
 [[package]]
 name = "ptyprocess"
 version = "0.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/20/e5/16ff212c1e452235a90aeb09066144d0c5a6a8c0834397e03f5224495c4e/ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220", size = 70762, upload-time = "2020-12-28T15:15:30.155Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/22/a6/858897256d0deac81a172289110f31629fc4cee19b6f01283303e18c8db3/ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35", size = 13993, upload-time = "2020-12-28T15:15:28.35Z" },
@@ -2545,7 +2545,7 @@ wheels = [
 [[package]]
 name = "pure-eval"
 version = "0.2.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cd/05/0a34433a064256a578f1783a10da6df098ceaa4a57bbeaa96a6c0352786b/pure_eval-0.2.3.tar.gz", hash = "sha256:5f4e983f40564c576c7c8635ae88db5956bb2229d7e9237d03b3c0b0190eaf42", size = 19752, upload-time = "2024-07-21T12:58:21.801Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8e/37/efad0257dc6e593a18957422533ff0f87ede7c9c6ea010a2177d738fb82f/pure_eval-0.2.3-py3-none-any.whl", hash = "sha256:1db8e35b67b3d218d818ae653e27f06c3aa420901fa7b081ca98cbedc874e0d0", size = 11842, upload-time = "2024-07-21T12:58:20.04Z" },
@@ -2554,7 +2554,7 @@ wheels = [
 [[package]]
 name = "pyasn1"
 version = "0.6.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a4/9a/23310166d960def5897e91fe20e5b724601b02a22e84ba1f94232c0b7f67/pyasn1-0.6.4.tar.gz", hash = "sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81", size = 151262, upload-time = "2026-07-09T01:12:33.988Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl", hash = "sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b", size = 84410, upload-time = "2026-07-09T01:12:32.92Z" },
@@ -2563,7 +2563,7 @@ wheels = [
 [[package]]
 name = "pycodestyle"
 version = "2.14.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/11/e0/abfd2a0d2efe47670df87f3e3a0e2edda42f055053c85361f19c0e2c1ca8/pycodestyle-2.14.0.tar.gz", hash = "sha256:c4b5b517d278089ff9d0abdec919cd97262a3367449ea1c8b49b91529167b783", size = 39472, upload-time = "2025-06-20T18:49:48.75Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d7/27/a58ddaf8c588a3ef080db9d0b7e0b97215cee3a45df74f3a94dbbf5c893a/pycodestyle-2.14.0-py2.py3-none-any.whl", hash = "sha256:dd6bf7cb4ee77f8e016f9c8e74a35ddd9f67e1d5fd4184d86c3b98e07099f42d", size = 31594, upload-time = "2025-06-20T18:49:47.491Z" },
@@ -2572,7 +2572,7 @@ wheels = [
 [[package]]
 name = "pycparser"
 version = "2.23"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -2585,7 +2585,7 @@ wheels = [
 [[package]]
 name = "pycparser"
 version = "3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2599,14 +2599,14 @@ wheels = [
 [[package]]
 name = "pydantic"
 version = "2.11.10"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "annotated-types", marker = "python_full_version < '3.10'" },
-    { name = "pydantic-core", version = "2.33.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pydantic-core", version = "2.33.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
     { name = "typing-inspection", marker = "python_full_version < '3.10'" },
 ]
@@ -2623,7 +2623,7 @@ email = [
 [[package]]
 name = "pydantic"
 version = "2.13.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2631,7 +2631,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "annotated-types", marker = "python_full_version >= '3.10'" },
-    { name = "pydantic-core", version = "2.46.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pydantic-core", version = "2.46.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.10'" },
     { name = "typing-inspection", marker = "python_full_version >= '3.10'" },
 ]
@@ -2648,7 +2648,7 @@ email = [
 [[package]]
 name = "pydantic-core"
 version = "2.33.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -2761,7 +2761,7 @@ wheels = [
 [[package]]
 name = "pydantic-core"
 version = "2.46.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2896,7 +2896,7 @@ wheels = [
 [[package]]
 name = "pyfakefs"
 version = "5.10.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -2909,7 +2909,7 @@ wheels = [
 [[package]]
 name = "pyfakefs"
 version = "6.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -2923,7 +2923,7 @@ wheels = [
 [[package]]
 name = "pyflakes"
 version = "3.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/45/dc/fd034dc20b4b264b3d015808458391acbf9df40b1e54750ef175d39180b1/pyflakes-3.4.0.tar.gz", hash = "sha256:b24f96fafb7d2ab0ec5075b7350b3d2d2218eab42003821c06344973d3ea2f58", size = 64669, upload-time = "2025-06-20T18:45:27.834Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/2f/81d580a0fb83baeb066698975cb14a618bdbed7720678566f1b046a95fe8/pyflakes-3.4.0-py2.py3-none-any.whl", hash = "sha256:f742a7dbd0d9cb9ea41e9a24a918996e8170c799fa528688d40dd582c8265f4f", size = 63551, upload-time = "2025-06-20T18:45:26.937Z" },
@@ -2932,13 +2932,13 @@ wheels = [
 [[package]]
 name = "pygitguardian"
 version = "1.35.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "marshmallow", version = "4.0.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "marshmallow", version = "4.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "marshmallow", version = "4.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "marshmallow-dataclass" },
-    { name = "requests", version = "2.32.5", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "requests", version = "2.32.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "setuptools" },
     { name = "typing-extensions" },
 ]
@@ -2950,7 +2950,7 @@ wheels = [
 [[package]]
 name = "pygments"
 version = "2.20.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c3/b2/bc9c9196916376152d655522fdcebac55e66de6603a76a02bca1b6414f6c/pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f", size = 4955991, upload-time = "2026-03-29T13:29:33.898Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/7e/a72dd26f3b0f4f2bf1dd8923c85f7ceb43172af56d63c7383eb62b332364/pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176", size = 1231151, upload-time = "2026-03-29T13:29:30.038Z" },
@@ -2959,7 +2959,7 @@ wheels = [
 [[package]]
 name = "pyinstaller"
 version = "6.21.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "altgraph" },
     { name = "importlib-metadata", marker = "python_full_version < '3.10'" },
@@ -2988,7 +2988,7 @@ wheels = [
 [[package]]
 name = "pyinstaller-hooks-contrib"
 version = "2026.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "importlib-metadata", marker = "python_full_version < '3.10'" },
     { name = "packaging" },
@@ -3001,7 +3001,7 @@ wheels = [
 [[package]]
 name = "pyjwt"
 version = "2.13.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
@@ -3013,13 +3013,13 @@ wheels = [
 [[package]]
 name = "pyopenssl"
 version = "26.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "cryptography", version = "46.0.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cryptography", version = "46.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1a/51/27a5ad5f939d08f690a326ef9582cda7140555180db71695f6fb747d6a36/pyopenssl-26.2.0.tar.gz", hash = "sha256:8c6fcecd1183a7fc897548dfe388b0cdb7f37e018200d8409cf33959dbe35387", size = 182195, upload-time = "2026-05-04T23:06:09.72Z" }
@@ -3030,14 +3030,14 @@ wheels = [
 [[package]]
 name = "pyopenssl"
 version = "26.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "cryptography", version = "50.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.10' and python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3f/e8/7325d258199b159eb2c03fe32107533e2832e70e63f4fb88a6aa00023201/pyopenssl-26.4.0.tar.gz", hash = "sha256:28dfcce0162b9211413e26dfbfdf1d24317fbeba18fc93c12400a1856b2a0bc7", size = 182046, upload-time = "2026-08-01T19:50:50.512Z" }
@@ -3048,7 +3048,7 @@ wheels = [
 [[package]]
 name = "pyproject-hooks"
 version = "1.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/82/28175b2414effca1cdac8dc99f76d660e7a4fb0ceefa4b4ab8f5f6742925/pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8", size = 19228, upload-time = "2024-09-29T09:24:13.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913", size = 10216, upload-time = "2024-09-29T09:24:11.978Z" },
@@ -3057,7 +3057,7 @@ wheels = [
 [[package]]
 name = "pyright"
 version = "1.1.367"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "nodeenv" },
 ]
@@ -3069,7 +3069,7 @@ wheels = [
 [[package]]
 name = "pytest"
 version = "8.4.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -3077,7 +3077,7 @@ resolution-markers = [
 dependencies = [
     { name = "colorama", marker = "python_full_version < '3.10' and sys_platform == 'win32'" },
     { name = "exceptiongroup", marker = "python_full_version < '3.10'" },
-    { name = "iniconfig", version = "2.1.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "iniconfig", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "packaging", marker = "python_full_version < '3.10'" },
     { name = "pluggy", marker = "python_full_version < '3.10'" },
     { name = "pygments", marker = "python_full_version < '3.10'" },
@@ -3091,7 +3091,7 @@ wheels = [
 [[package]]
 name = "pytest"
 version = "9.1.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3100,7 +3100,7 @@ resolution-markers = [
 dependencies = [
     { name = "colorama", marker = "python_full_version >= '3.10' and sys_platform == 'win32'" },
     { name = "exceptiongroup", marker = "python_full_version == '3.10.*'" },
-    { name = "iniconfig", version = "2.3.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "iniconfig", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "packaging", marker = "python_full_version >= '3.10'" },
     { name = "pluggy", marker = "python_full_version >= '3.10'" },
     { name = "pygments", marker = "python_full_version >= '3.10'" },
@@ -3114,10 +3114,10 @@ wheels = [
 [[package]]
 name = "pytest-mock"
 version = "3.15.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pytest", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pytest", version = "9.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/68/14/eb014d26be205d38ad5ad20d9a80f7d201472e08167f0bb4361e251084a9/pytest_mock-3.15.1.tar.gz", hash = "sha256:1849a238f6f396da19762269de72cb1814ab44416fa73a8686deac10b0d87a0f", size = 34036, upload-time = "2025-09-16T16:37:27.081Z" }
 wheels = [
@@ -3127,10 +3127,10 @@ wheels = [
 [[package]]
 name = "pytest-socket"
 version = "0.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pytest", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pytest", version = "9.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/05/ff/90c7e1e746baf3d62ce864c479fd53410b534818b9437413903596f81580/pytest_socket-0.7.0.tar.gz", hash = "sha256:71ab048cbbcb085c15a4423b73b619a8b35d6a307f46f78ea46be51b1b7e11b3", size = 12389, upload-time = "2024-01-28T20:17:23.177Z" }
 wheels = [
@@ -3140,10 +3140,10 @@ wheels = [
 [[package]]
 name = "pytest-voluptuous"
 version = "1.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pytest", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pytest", version = "9.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "voluptuous" },
 ]
 wheels = [
@@ -3153,11 +3153,11 @@ wheels = [
 [[package]]
 name = "pytest-xdist"
 version = "3.8.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "execnet" },
-    { name = "pytest", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pytest", version = "9.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/78/b4/439b179d1ff526791eb921115fca8e44e596a13efeda518b9d845a619450/pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1", size = 88069, upload-time = "2025-07-01T13:30:59.346Z" }
 wheels = [
@@ -3167,12 +3167,12 @@ wheels = [
 [[package]]
 name = "python-discovery"
 version = "1.2.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", version = "3.19.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "filelock", version = "3.25.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "platformdirs", version = "4.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "platformdirs", version = "4.9.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "filelock", version = "3.25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "platformdirs", version = "4.9.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/de/ef/3bae0e537cfe91e8431efcba4434463d2c5a65f5a89edd47c6cf2f03c55f/python_discovery-1.2.2.tar.gz", hash = "sha256:876e9c57139eb757cb5878cbdd9ae5379e5d96266c99ef731119e04fffe533bb", size = 58872, upload-time = "2026-04-07T17:28:49.249Z" }
 wheels = [
@@ -3182,7 +3182,7 @@ wheels = [
 [[package]]
 name = "python-dotenv"
 version = "1.2.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -3195,7 +3195,7 @@ wheels = [
 [[package]]
 name = "python-dotenv"
 version = "1.2.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3209,7 +3209,7 @@ wheels = [
 [[package]]
 name = "pywin32-ctypes"
 version = "0.2.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/85/9f/01a1a99704853cb63f253eea009390c88e7131c67e66a0a02099a8c917cb/pywin32-ctypes-0.2.3.tar.gz", hash = "sha256:d162dc04946d704503b2edc4d55f3dba5c1d539ead017afa00142c38b9885755", size = 29471, upload-time = "2024-08-14T10:15:34.626Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/3d/8161f7711c017e01ac9f008dfddd9410dff3674334c233bde66e7ba65bbf/pywin32_ctypes-0.2.3-py3-none-any.whl", hash = "sha256:8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8", size = 30756, upload-time = "2024-08-14T10:15:33.187Z" },
@@ -3218,7 +3218,7 @@ wheels = [
 [[package]]
 name = "pyyaml"
 version = "6.0.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f", size = 130960, upload-time = "2025-09-25T21:33:16.546Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/a0/39350dd17dd6d6c6507025c0e53aef67a9293a6d37d3511f23ea510d5800/pyyaml-6.0.3-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:214ed4befebe12df36bcc8bc2b64b396ca31be9304b8f59e25c11cf94a4c033b", size = 184227, upload-time = "2025-09-25T21:31:46.04Z" },
@@ -3291,14 +3291,14 @@ wheels = [
 [[package]]
 name = "referencing"
 version = "0.36.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "attrs", marker = "python_full_version < '3.10'" },
-    { name = "rpds-py", version = "0.27.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "rpds-py", version = "0.27.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2f/db/98b5c277be99dd18bfd91dd04e1b759cad18d1a338188c936e92f921c7e2/referencing-0.36.2.tar.gz", hash = "sha256:df2e89862cd09deabbdba16944cc3f10feb6b3e6f18e902f7cc25609a34775aa", size = 74744, upload-time = "2025-01-25T08:48:16.138Z" }
@@ -3309,7 +3309,7 @@ wheels = [
 [[package]]
 name = "referencing"
 version = "0.37.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3317,7 +3317,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "attrs", marker = "python_full_version >= '3.10'" },
-    { name = "rpds-py", version = "0.30.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "rpds-py", version = "0.30.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.10' and python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/22/f5/df4e9027acead3ecc63e50fe1e36aca1523e1719559c499951bb4b53188f/referencing-0.37.0.tar.gz", hash = "sha256:44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8", size = 78036, upload-time = "2025-10-13T15:30:48.871Z" }
@@ -3328,7 +3328,7 @@ wheels = [
 [[package]]
 name = "requests"
 version = "2.32.5"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -3337,7 +3337,7 @@ dependencies = [
     { name = "certifi", marker = "python_full_version < '3.10'" },
     { name = "charset-normalizer", marker = "python_full_version < '3.10'" },
     { name = "idna", marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517, upload-time = "2025-08-18T20:46:02.573Z" }
 wheels = [
@@ -3347,7 +3347,7 @@ wheels = [
 [[package]]
 name = "requests"
 version = "2.34.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3357,7 +3357,7 @@ dependencies = [
     { name = "certifi", marker = "python_full_version >= '3.10'" },
     { name = "charset-normalizer", marker = "python_full_version >= '3.10'" },
     { name = "idna", marker = "python_full_version >= '3.10'" },
-    { name = "urllib3", version = "2.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
@@ -3367,10 +3367,10 @@ wheels = [
 [[package]]
 name = "rfc3161-client"
 version = "1.0.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", version = "46.0.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "cryptography", version = "50.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", version = "46.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/a7/be3b086133a87d595e7b11564931d5e5283edeeabba05dfee636a34b4dab/rfc3161_client-1.0.6.tar.gz", hash = "sha256:9969262fe6c08ecce39f9fe3996cf412187793834a022a643803090db5aae6b4", size = 106710, upload-time = "2026-04-08T14:15:05.66Z" }
 wheels = [
@@ -3397,7 +3397,7 @@ wheels = [
 [[package]]
 name = "rfc8785"
 version = "0.1.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ef/2f/fa1d2e740c490191b572d33dbca5daa180cb423c24396b856f5886371d8b/rfc8785-0.1.4.tar.gz", hash = "sha256:e545841329fe0eee4f6a3b44e7034343100c12b4ec566dc06ca9735681deb4da", size = 14321, upload-time = "2024-09-27T16:33:31.206Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/78/119878110660b2ad709888c8a1614fce7e2fab39080ab960656dc8605bf6/rfc8785-0.1.4-py3-none-any.whl", hash = "sha256:520d690b448ecf0703691c76e1a34a24ddcd4fc5bc41d589cb7c58ec651bcd48", size = 9240, upload-time = "2024-09-27T16:33:29.683Z" },
@@ -3406,10 +3406,10 @@ wheels = [
 [[package]]
 name = "rich"
 version = "13.9.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markdown-it-py", version = "3.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "markdown-it-py", version = "4.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "markdown-it-py", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "markdown-it-py", version = "4.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pygments" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
@@ -3421,7 +3421,7 @@ wheels = [
 [[package]]
 name = "rpds-py"
 version = "0.27.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -3587,7 +3587,7 @@ wheels = [
 [[package]]
 name = "rpds-py"
 version = "0.30.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3714,7 +3714,7 @@ wheels = [
 [[package]]
 name = "ruamel-yaml"
 version = "0.19.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c7/3b/ebda527b56beb90cb7652cb1c7e4f91f48649fbcd8d2eb2fb6e77cd3329b/ruamel_yaml-0.19.1.tar.gz", hash = "sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993", size = 142709, upload-time = "2026-01-02T16:50:31.84Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/0c/51f6841f1d84f404f92463fc2b1ba0da357ca1e3db6b7fbda26956c3b82a/ruamel_yaml-0.19.1-py3-none-any.whl", hash = "sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93", size = 118102, upload-time = "2026-01-02T16:50:29.201Z" },
@@ -3723,18 +3723,18 @@ wheels = [
 [[package]]
 name = "scriv"
 version = "1.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "attrs", marker = "python_full_version < '3.10'" },
-    { name = "click", version = "8.1.8", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "click-log", marker = "python_full_version < '3.10'" },
     { name = "jinja2", marker = "python_full_version < '3.10'" },
-    { name = "markdown-it-py", version = "3.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "requests", version = "2.32.5", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "markdown-it-py", version = "3.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "requests", version = "2.32.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b2/ff/c32aee5e1750e884fb83de0e01b2979d065472276ac34454b8055c45f626/scriv-1.7.0.tar.gz", hash = "sha256:7c1a8be6351d03692e5e75784deea0d8f11b2c90f91be18b0fb3a375555b525e", size = 94092, upload-time = "2025-04-20T18:29:42.381Z" }
 wheels = [
@@ -3749,7 +3749,7 @@ toml = [
 [[package]]
 name = "scriv"
 version = "1.8.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -3757,11 +3757,11 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "attrs", marker = "python_full_version >= '3.10'" },
-    { name = "click", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "click", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "click-log", marker = "python_full_version >= '3.10'" },
     { name = "jinja2", marker = "python_full_version >= '3.10'" },
-    { name = "markdown-it-py", version = "4.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "markdown-it-py", version = "4.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/14/9a/2ef2209e0672b264a2f2574dc88ea3cd9cfc9adfecbfd3165a900980ec8c/scriv-1.8.0.tar.gz", hash = "sha256:7b1a105dd411ac541998250fc8594742419f94cee984ca1257c5ebf5af21918b", size = 98160, upload-time = "2025-12-30T00:01:10.13Z" }
 wheels = [
@@ -3776,13 +3776,13 @@ toml = [
 [[package]]
 name = "secretstorage"
 version = "3.3.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "cryptography", version = "46.0.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cryptography", version = "46.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "jeepney", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/53/a4/f48c9d79cb507ed1373477dbceaba7401fd8a23af63b837fa61f1dcd3691/SecretStorage-3.3.3.tar.gz", hash = "sha256:2403533ef369eca6d2ba81718576c5e0f564d5cca1b58f73a8b23e7d4eeebd77", size = 19739, upload-time = "2022-08-13T16:22:46.976Z" }
@@ -3793,14 +3793,14 @@ wheels = [
 [[package]]
 name = "secretstorage"
 version = "3.5.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "cryptography", version = "50.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "jeepney", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/03/e834bcd866f2f8a49a85eaff47340affa3bfa391ee9912a952a1faa68c7b/secretstorage-3.5.0.tar.gz", hash = "sha256:f04b8e4689cbce351744d5537bf6b1329c6fc68f91fa666f60a380edddcd11be", size = 19884, upload-time = "2025-11-23T19:02:53.191Z" }
@@ -3811,7 +3811,7 @@ wheels = [
 [[package]]
 name = "securesystemslib"
 version = "1.3.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c2/dd/d1828dce0db18aa8d34f82aee4dbcf49b0f0303cad123a1c716bb1f3bf83/securesystemslib-1.3.1.tar.gz", hash = "sha256:ca915f4b88209bb5450ac05426b859d74b7cd1421cafcf73b8dd3418a0b17486", size = 934782, upload-time = "2025-09-26T13:36:56.79Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/29/1c560f46b3a95d8c508e1bd8c6d0bbf53c42d412ee7d19ec2a89ceced5b9/securesystemslib-1.3.1-py3-none-any.whl", hash = "sha256:2e5414bbdde33155a91805b295cbedc4ae3f12b48dccc63e1089093537f43c81", size = 871380, upload-time = "2025-09-26T13:36:54.851Z" },
@@ -3820,7 +3820,7 @@ wheels = [
 [[package]]
 name = "seed-isort-config"
 version = "2.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aspy-refactor-imports" },
 ]
@@ -3832,7 +3832,7 @@ wheels = [
 [[package]]
 name = "setuptools"
 version = "82.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/82/f3/748f4d6f65d1756b9ae577f329c951cda23fb900e4de9f70900ced962085/setuptools-82.0.0.tar.gz", hash = "sha256:22e0a2d69474c6ae4feb01951cb69d515ed23728cf96d05513d36e42b62b37cb", size = 1144893, upload-time = "2026-02-08T15:08:40.206Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/c6/76dc613121b793286a3f91621d7b75a2b493e0390ddca50f11993eadf192/setuptools-82.0.0-py3-none-any.whl", hash = "sha256:70b18734b607bd1da571d097d236cfcfacaf01de45717d59e6e04b96877532e0", size = 1003468, upload-time = "2026-02-08T15:08:38.723Z" },
@@ -3841,27 +3841,27 @@ wheels = [
 [[package]]
 name = "sigstore"
 version = "4.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "cryptography", version = "46.0.7", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cryptography", version = "46.0.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "id", marker = "python_full_version < '3.10'" },
     { name = "importlib-resources", marker = "python_full_version < '3.10'" },
-    { name = "platformdirs", version = "4.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pyasn1", marker = "python_full_version < '3.10'" },
-    { name = "pydantic", version = "2.11.10", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pydantic", version = "2.11.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pyjwt", marker = "python_full_version < '3.10'" },
-    { name = "pyopenssl", version = "26.2.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "requests", version = "2.32.5", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pyopenssl", version = "26.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "requests", version = "2.32.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "rfc3161-client", marker = "python_full_version < '3.10'" },
     { name = "rfc8785", marker = "python_full_version < '3.10'" },
     { name = "rich", marker = "python_full_version < '3.10'" },
-    { name = "sigstore-models", version = "0.0.5", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "sigstore-models", version = "0.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "sigstore-rekor-types", marker = "python_full_version < '3.10'" },
-    { name = "tuf", version = "6.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "tuf", version = "6.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/64/1e/8c115a155b67254b52780730bc86edf90d108d172377e526ce91e42ba9de/sigstore-4.1.0.tar.gz", hash = "sha256:312f7f73fe27127784245f523b86b6334978c555fe4ba7831be5602c089807c1", size = 87928, upload-time = "2025-10-11T12:48:14.541Z" }
 wheels = [
@@ -3871,28 +3871,28 @@ wheels = [
 [[package]]
 name = "sigstore"
 version = "4.5.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "cryptography", version = "50.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "cryptography", version = "50.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "id", marker = "python_full_version >= '3.10'" },
     { name = "importlib-resources", marker = "python_full_version == '3.10.*'" },
-    { name = "platformdirs", version = "4.9.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "platformdirs", version = "4.9.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pyasn1", marker = "python_full_version >= '3.10'" },
-    { name = "pydantic", version = "2.13.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pydantic", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pyjwt", marker = "python_full_version >= '3.10'" },
-    { name = "pyopenssl", version = "26.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pyopenssl", version = "26.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "rfc3161-client", marker = "python_full_version >= '3.10'" },
     { name = "rfc8785", marker = "python_full_version >= '3.10'" },
     { name = "rich", marker = "python_full_version >= '3.10'" },
-    { name = "sigstore-models", version = "0.0.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "sigstore-models", version = "0.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "sigstore-rekor-types", marker = "python_full_version >= '3.10'" },
-    { name = "tuf", version = "7.0.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "tuf", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/18/e0/279419065e2d7102413605b3456122adbbccbc42e010b499c7b882fc01f8/sigstore-4.5.0.tar.gz", hash = "sha256:020d3e07f622b2916bf453e66ff6ff0711e1fdc5ab69e8bd8902f71d9fcb316f", size = 90969, upload-time = "2026-07-28T07:34:01.717Z" }
 wheels = [
@@ -3902,13 +3902,13 @@ wheels = [
 [[package]]
 name = "sigstore-models"
 version = "0.0.5"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "pydantic", version = "2.11.10", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pydantic", version = "2.11.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/13/f67a87e8d8c97b9a47d4971263ca6afbd5250315a55b8056358061fc07da/sigstore_models-0.0.5.tar.gz", hash = "sha256:8eda90fe16ef3e4e624edd029f4cbbc9832a192dc5c8f66011d94ec4253f9f3f", size = 7037, upload-time = "2025-07-23T17:22:30.173Z" }
@@ -3919,14 +3919,14 @@ wheels = [
 [[package]]
 name = "sigstore-models"
 version = "0.0.6"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "pydantic", version = "2.13.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pydantic", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "typing-extensions", marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c6/ed/5c0ff809f90b19f4e971e17c1ed11f4df60082c6010b32a82054087e91e0/sigstore_models-0.0.6.tar.gz", hash = "sha256:c766c09470c2a7e8a4a333c893f07e2001c56a3ff1757b1a246119f53169a849", size = 7037, upload-time = "2025-11-26T19:18:12.61Z" }
@@ -3937,10 +3937,10 @@ wheels = [
 [[package]]
 name = "sigstore-rekor-types"
 version = "0.0.18"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pydantic", version = "2.11.10", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, extra = ["email"], marker = "python_full_version < '3.10'" },
-    { name = "pydantic", version = "2.13.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, extra = ["email"], marker = "python_full_version >= '3.10'" },
+    { name = "pydantic", version = "2.11.10", source = { registry = "https://pypi.org/simple" }, extra = ["email"], marker = "python_full_version < '3.10'" },
+    { name = "pydantic", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, extra = ["email"], marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b4/54/102e772445c5e849b826fbdcd44eb9ad7b3d10fda17b08964658ec7027dc/sigstore_rekor_types-0.0.18.tar.gz", hash = "sha256:19aef25433218ebf9975a1e8b523cc84aaf3cd395ad39a30523b083ea7917ec5", size = 15687, upload-time = "2024-11-22T13:59:54.009Z" }
 wheels = [
@@ -3950,7 +3950,7 @@ wheels = [
 [[package]]
 name = "stack-data"
 version = "0.6.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asttokens" },
     { name = "executing" },
@@ -3964,13 +3964,13 @@ wheels = [
 [[package]]
 name = "syrupy"
 version = "4.9.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
-    { name = "pytest", version = "8.4.2", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/f8/022d8704a3314f3e96dbd6bbd16ebe119ce30e35f41aabfa92345652fceb/syrupy-4.9.1.tar.gz", hash = "sha256:b7d0fcadad80a7d2f6c4c71917918e8ebe2483e8c703dfc8d49cdbb01081f9a4", size = 52492, upload-time = "2025-03-24T01:36:37.225Z" }
 wheels = [
@@ -3980,14 +3980,14 @@ wheels = [
 [[package]]
 name = "syrupy"
 version = "5.1.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
 ]
 dependencies = [
-    { name = "pytest", version = "9.1.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2e/b0/24bca682d6a6337854be37f242d116cceeda9942571d5804c44bc1bdd427/syrupy-5.1.0.tar.gz", hash = "sha256:df543c7aa50d3cf1246e83d58fe490afe5f7dab7b41e74ecc0d8d23ae19bd4b8", size = 50495, upload-time = "2026-01-25T14:53:06.2Z" }
 wheels = [
@@ -3997,7 +3997,7 @@ wheels = [
 [[package]]
 name = "tomli"
 version = "2.4.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/82/30/31573e9457673ab10aa432461bee537ce6cef177667deca369efb79df071/tomli-2.4.0.tar.gz", hash = "sha256:aa89c3f6c277dd275d8e243ad24f3b5e701491a860d5121f2cdd399fbb31fc9c", size = 17477, upload-time = "2026-01-11T11:22:38.165Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/d9/3dc2289e1f3b32eb19b9785b6a006b28ee99acb37d1d47f78d4c10e28bf8/tomli-2.4.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:b5ef256a3fd497d4973c11bf142e9ed78b150d36f5773f1ca6088c230ffc5867", size = 153663, upload-time = "2026-01-11T11:21:45.27Z" },
@@ -4051,7 +4051,7 @@ wheels = [
 [[package]]
 name = "tomlkit"
 version = "0.13.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/18/0bbf3884e9eaa38819ebe46a7bd25dcd56b67434402b66a58c4b8e552575/tomlkit-0.13.3.tar.gz", hash = "sha256:430cf247ee57df2b94ee3fbe588e71d362a941ebb545dec29b53961d61add2a1", size = 185207, upload-time = "2025-06-05T07:13:44.947Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/75/8539d011f6be8e29f339c42e633aae3cb73bffa95dd0f9adec09b9c58e85/tomlkit-0.13.3-py3-none-any.whl", hash = "sha256:c89c649d79ee40629a9fda55f8ace8c6a1b42deb912b2a8fd8d942ddadb606b0", size = 38901, upload-time = "2025-06-05T07:13:43.546Z" },
@@ -4060,7 +4060,7 @@ wheels = [
 [[package]]
 name = "traitlets"
 version = "5.14.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/eb/79/72064e6a701c2183016abbbfedaba506d81e30e232a68c9f0d6f6fcd1574/traitlets-5.14.3.tar.gz", hash = "sha256:9ed0579d3502c94b4b3732ac120375cda96f923114522847de4b3bb98b96b6b7", size = 161621, upload-time = "2024-04-19T11:11:49.746Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/00/c0/8f5d070730d7836adc9c9b6408dec68c6ced86b304a9b26a14df072a6e8c/traitlets-5.14.3-py3-none-any.whl", hash = "sha256:b74e89e397b1ed28cc831db7aea759ba6640cb3de13090ca145426688ff1ac4f", size = 85359, upload-time = "2024-04-19T11:11:46.763Z" },
@@ -4069,7 +4069,7 @@ wheels = [
 [[package]]
 name = "truststore"
 version = "0.10.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/53/a3/1585216310e344e8102c22482f6060c7a6ea0322b63e026372e6dcefcfd6/truststore-0.10.4.tar.gz", hash = "sha256:9d91bd436463ad5e4ee4aba766628dd6cd7010cf3e2461756b3303710eebc301", size = 26169, upload-time = "2025-08-12T18:49:02.73Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/19/97/56608b2249fe206a67cd573bc93cd9896e1efb9e98bce9c163bcdc704b88/truststore-0.10.4-py3-none-any.whl", hash = "sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981", size = 18660, upload-time = "2025-08-12T18:49:01.46Z" },
@@ -4078,14 +4078,14 @@ wheels = [
 [[package]]
 name = "tuf"
 version = "6.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "securesystemslib", marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/25/b5/377a566dfa8286b2ca27ddbc792ab1645de0b6c65dd5bf03027b3bf8cc8f/tuf-6.0.0.tar.gz", hash = "sha256:9eed0f7888c5fff45dc62164ff243a05d47fb8a3208035eb268974287e0aee8d", size = 271268, upload-time = "2025-03-11T10:48:45.489Z" }
 wheels = [
@@ -4095,7 +4095,7 @@ wheels = [
 [[package]]
 name = "tuf"
 version = "7.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -4103,7 +4103,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "securesystemslib", marker = "python_full_version >= '3.10'" },
-    { name = "urllib3", version = "2.7.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/aa/40/25ceaf7f02e18b0d99150d94e200929351a542479c54abb7b92e1fd74b10/tuf-7.0.0.tar.gz", hash = "sha256:9d2e6723538e0d5a3e482b6de805fcfe64481448d5853039ba6b06ba541efd7f", size = 272032, upload-time = "2026-05-18T08:28:57.408Z" }
 wheels = [
@@ -4113,7 +4113,7 @@ wheels = [
 [[package]]
 name = "ty"
 version = "0.0.55"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/08/48/f687c8d268e3581f2f104d1f2ac5944d5b5e841b3695c613b3f263e5bbf7/ty-0.0.55.tar.gz", hash = "sha256:88ca87073825a79a8327c550efcc86cec94344890244c5946f84c9e44a969f31", size = 6040230, upload-time = "2026-06-27T00:27:29.385Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/a3/1a90ba7e5a61c6d09adb92346ddba97668095fc257b577af433e5ac4f404/ty-0.0.55-py3-none-linux_armv6l.whl", hash = "sha256:31e83eef512d066542fe990fe1a3b814423abd1616376c54e48af7045b3e1749", size = 11677249, upload-time = "2026-06-27T00:26:52.18Z" },
@@ -4138,7 +4138,7 @@ wheels = [
 [[package]]
 name = "typeguard"
 version = "4.5.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "importlib-metadata", marker = "python_full_version < '3.10'" },
     { name = "typing-extensions" },
@@ -4151,7 +4151,7 @@ wheels = [
 [[package]]
 name = "typing-extensions"
 version = "4.15.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466", size = 109391, upload-time = "2025-08-25T13:49:26.313Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548", size = 44614, upload-time = "2025-08-25T13:49:24.86Z" },
@@ -4160,7 +4160,7 @@ wheels = [
 [[package]]
 name = "typing-inspect"
 version = "0.9.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mypy-extensions" },
     { name = "typing-extensions" },
@@ -4173,7 +4173,7 @@ wheels = [
 [[package]]
 name = "typing-inspection"
 version = "0.4.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions" },
 ]
@@ -4185,7 +4185,7 @@ wheels = [
 [[package]]
 name = "tzdata"
 version = "2025.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5e/a7/c202b344c5ca7daf398f3b8a477eeb205cf3b6f32e7ec3a6bac0629ca975/tzdata-2025.3.tar.gz", hash = "sha256:de39c2ca5dc7b0344f2eba86f49d614019d29f060fc4ebc8a417896a620b56a7", size = 196772, upload-time = "2025-12-13T17:45:35.667Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/b0/003792df09decd6849a5e39c28b513c06e84436a54440380862b5aeff25d/tzdata-2025.3-py2.py3-none-any.whl", hash = "sha256:06a47e5700f3081aab02b2e513160914ff0694bce9947d6b76ebd6bf57cfc5d1", size = 348521, upload-time = "2025-12-13T17:45:33.889Z" },
@@ -4194,7 +4194,7 @@ wheels = [
 [[package]]
 name = "unearth"
 version = "0.18.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "packaging" },
@@ -4207,7 +4207,7 @@ wheels = [
 [[package]]
 name = "urllib3"
 version = "2.6.3"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
@@ -4220,7 +4220,7 @@ wheels = [
 [[package]]
 name = "urllib3"
 version = "2.7.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -4234,14 +4234,14 @@ wheels = [
 [[package]]
 name = "vcrpy"
 version = "7.0.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version > '3.9' and python_full_version < '3.10'",
     "python_full_version <= '3.9'",
 ]
 dependencies = [
     { name = "pyyaml", marker = "python_full_version < '3.10'" },
-    { name = "urllib3", version = "2.6.3", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "wrapt", marker = "python_full_version < '3.10'" },
     { name = "yarl", marker = "python_full_version < '3.10'" },
 ]
@@ -4253,7 +4253,7 @@ wheels = [
 [[package]]
 name = "vcrpy"
 version = "8.3.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -4271,13 +4271,13 @@ wheels = [
 [[package]]
 name = "virtualenv"
 version = "21.2.4"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
-    { name = "filelock", version = "3.19.1", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "filelock", version = "3.25.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "platformdirs", version = "4.4.0", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "platformdirs", version = "4.9.6", source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "filelock", version = "3.19.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "filelock", version = "3.25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "platformdirs", version = "4.9.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "python-discovery" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
@@ -4289,7 +4289,7 @@ wheels = [
 [[package]]
 name = "voluptuous"
 version = "0.14.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a1/ce/0733e4d6f870a0e5f4dbb00766b36b71ee0d25f8de33d27fb662f29154b1/voluptuous-0.14.2.tar.gz", hash = "sha256:533e36175967a310f1b73170d091232bf881403e4ebe52a9b4ade8404d151f5d", size = 50885, upload-time = "2024-02-03T11:23:57.022Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3e/21/0424844b889dccd8f1899f92f239d6eca5f4995f5c86baff094694140828/voluptuous-0.14.2-py3-none-any.whl", hash = "sha256:efc1dadc9ae32a30cc622602c1400a17b7bf8ee2770d64f70418144860739c3b", size = 31160, upload-time = "2024-02-03T11:23:55.226Z" },
@@ -4298,7 +4298,7 @@ wheels = [
 [[package]]
 name = "wcwidth"
 version = "0.6.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/35/a2/8e3becb46433538a38726c948d3399905a4c7cabd0df578ede5dc51f0ec2/wcwidth-0.6.0.tar.gz", hash = "sha256:cdc4e4262d6ef9a1a57e018384cbeb1208d8abbc64176027e2c2455c81313159", size = 159684, upload-time = "2026-02-06T19:19:40.919Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/68/5a/199c59e0a824a3db2b89c5d2dade7ab5f9624dbf6448dc291b46d5ec94d3/wcwidth-0.6.0-py3-none-any.whl", hash = "sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad", size = 94189, upload-time = "2026-02-06T19:19:39.646Z" },
@@ -4307,7 +4307,7 @@ wheels = [
 [[package]]
 name = "wheel-filename"
 version = "1.4.2"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/38/be/726dab762b770d0417e505c58e26d661aac1ec0c831e483cda4817ca2417/wheel_filename-1.4.2.tar.gz", hash = "sha256:87891c465dcbb40b40394a906f01a93214bdd51aa5d25e3a9a59cae62bc298fd", size = 7911, upload-time = "2024-12-01T13:03:16.012Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b4/0f/6e97a3bc38cdde32e3ec49f8c0903fe3559ec9ec9db181782f0bb4417717/wheel_filename-1.4.2-py3-none-any.whl", hash = "sha256:3fa599046443d4ca830d06e3d180cd0a675d5871af0a68daa5623318bb4d17e3", size = 6195, upload-time = "2024-12-01T13:03:00.536Z" },
@@ -4316,7 +4316,7 @@ wheels = [
 [[package]]
 name = "win32-setctime"
 version = "1.2.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b3/8f/705086c9d734d3b663af0e9bb3d4de6578d08f46b1b101c2442fd9aecaa2/win32_setctime-1.2.0.tar.gz", hash = "sha256:ae1fdf948f5640aae05c511ade119313fb6a30d7eabe25fef9764dca5873c4c0", size = 4867, upload-time = "2024-12-07T15:28:28.314Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/07/c6fe3ad3e685340704d314d765b7912993bcb8dc198f0e7a89382d37974b/win32_setctime-1.2.0-py3-none-any.whl", hash = "sha256:95d644c4e708aba81dc3704a116d8cbc974d70b3bdb8be1d150e36be6e9d1390", size = 4083, upload-time = "2024-12-07T15:28:26.465Z" },
@@ -4325,7 +4325,7 @@ wheels = [
 [[package]]
 name = "wrapt"
 version = "2.1.1"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f7/37/ae31f40bec90de2f88d9597d0b5281e23ffe85b893a47ca5d9c05c63a4f6/wrapt-2.1.1.tar.gz", hash = "sha256:5fdcb09bf6db023d88f312bd0767594b414655d58090fc1c46b3414415f67fac", size = 81329, upload-time = "2026-02-03T02:12:13.786Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/21/293b657a27accfbbbb6007ebd78af0efa2083dac83e8f523272ea09b4638/wrapt-2.1.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7e927375e43fd5a985b27a8992327c22541b6dede1362fc79df337d26e23604f", size = 60554, upload-time = "2026-02-03T02:11:17.362Z" },
@@ -4406,7 +4406,7 @@ wheels = [
 [[package]]
 name = "yarl"
 version = "1.22.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna", marker = "python_full_version < '3.10'" },
     { name = "multidict", marker = "python_full_version < '3.10'" },
@@ -4548,7 +4548,7 @@ wheels = [
 [[package]]
 name = "zipp"
 version = "3.23.0"
-source = { registry = "https://gitlab.gitguardian.ovh/api/v4/projects/435/packages/pypi/simple" }
+source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e3/02/0f2892c661036d50ede074e376733dca2ae7c6eb617489437771209d4180/zipp-3.23.0.tar.gz", hash = "sha256:a07157588a12518c9d4034df3fbbee09c814741a33ff63c05fa29d26a2404166", size = 25547, upload-time = "2025-06-08T17:06:39.4Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2e/54/647ade08bf0db230bfea292f893923872fd20be6ac6f53b2b936ba839d75/zipp-3.23.0-py3-none-any.whl", hash = "sha256:071652d6115ed432f5ce1d34c336c0adfd6a884660d1e9712a256d3d3bd4b14e", size = 10276, upload-time = "2025-06-08T17:06:38.034Z" },

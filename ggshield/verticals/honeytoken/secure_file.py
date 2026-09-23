@@ -43,7 +43,7 @@ def _check_size(size: int, where: object) -> None:
     if size > MAX_FILE_SIZE:
         raise SecureFileError(
             f"refusing to edit {where}: file is {size} bytes, larger than the "
-            f"{MAX_FILE_SIZE} byte limit for a credentials file"
+            f"{MAX_FILE_SIZE} byte limit for a credentials/kubeconfig file"
         )
 
 
@@ -99,13 +99,18 @@ def open_dir_fd(directory: Path, *, create: bool) -> int:
 def read_via_fd(dir_fd: int, name: str) -> Optional[str]:
     """Read ``name`` under the pinned dir, no-follow. ``None`` if absent."""
     try:
-        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
+        # O_NONBLOCK: opening a FIFO planted at this name would otherwise block the
+        # (root, lock-holding) run forever; the S_ISREG check below then rejects it.
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
     except FileNotFoundError:
         return None
     except OSError as exc:  # ELOOP → the file itself is a symlink
         raise SecureFileError(f"refusing to read through symlinked file {name}: {exc}")
     try:
-        _check_size(os.fstat(fd).st_size, name)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SecureFileError(f"refusing to edit {name}: not a regular file")
+        _check_size(info.st_size, name)
     except BaseException:
         os.close(fd)
         raise
@@ -199,6 +204,8 @@ def reject_symlinked_target(path: Path) -> None:
 def read_path(path: Path) -> Optional[str]:
     if not path.exists():
         return None
+    if not path.is_file():
+        raise SecureFileError(f"refusing to edit {path}: not a regular file")
     _check_size(path.stat().st_size, path)
     with open(path, "r", encoding="utf-8") as handle:
         return _read_text(handle, path)
