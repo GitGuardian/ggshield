@@ -48,6 +48,10 @@ def get_tag(version: str) -> str:
     return f"v{version}"
 
 
+def is_prerelease(version: str) -> bool:
+    return "rc" in version
+
+
 def check_run(
     cmd: List[Union[str, Path]], **kwargs: Any
 ) -> subprocess.CompletedProcess:
@@ -226,8 +230,7 @@ def replace_once_in_file(path: Path, src: str, dst: str, flags: int = 0) -> None
 
 
 def check_version(version: str) -> None:
-    # Check version is valid
-    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+    if not re.fullmatch(r"\d+\.\d+\.\d+(rc\d+)?", version):
         fail(f"'{version}' is not a valid version number")
 
     # Check version does not already exist
@@ -246,7 +249,8 @@ def update_version(version: str) -> None:
         flags=re.MULTILINE,
     )
 
-    # Pin the version of the Docker image used by the actions
+    if is_prerelease(version):
+        return
     for action_path in ACTION_PATHS:
         replace_once_in_file(
             action_path,
@@ -282,7 +286,10 @@ def prepare(version: str) -> None:
     """
     check_version(version)
     update_version(version)
-    update_changelog()
+    if is_prerelease(version):
+        log_progress("Release candidate: CHANGELOG.md and changelog.d are left as is")
+    else:
+        update_changelog()
     commit_changes(version)
     log_progress(f"Done, review changes and then run `{sys.argv[0]} tag`")
 
@@ -304,16 +311,22 @@ def get_release_notes(version: str) -> str:
     """Reads CHANGELOG.md, returns the changes for version `version`, formatted for
     `gh release`."""
 
-    # Extract changes from CHANGELOG.md
-    changes = CHANGELOG_PATH.read_text()
-    start_match = re.search(f"^## {re.escape(version)} .*", changes, flags=re.MULTILINE)
-    assert start_match
-    start_pos = start_match.end() + 1
+    if is_prerelease(version):
+        proc = check_run(["scriv", "print"], capture_output=True)
+        notes = proc.stdout
+    else:
+        # Extract changes from CHANGELOG.md
+        changes = CHANGELOG_PATH.read_text()
+        start_match = re.search(
+            f"^## {re.escape(version)} .*", changes, flags=re.MULTILINE
+        )
+        assert start_match
+        start_pos = start_match.end() + 1
 
-    end_match = re.search("^(<a |## )", changes[start_pos:], flags=re.MULTILINE)
-    assert end_match
+        end_match = re.search("^(<a |## )", changes[start_pos:], flags=re.MULTILINE)
+        assert end_match
 
-    notes = changes[start_pos : end_match.start() + start_pos]
+        notes = changes[start_pos : end_match.start() + start_pos]
 
     # Remove one level of indent
     notes = re.sub("^#", "", notes, flags=re.MULTILINE)
@@ -339,18 +352,10 @@ def publish_gh_release(dry_run: bool = False) -> None:
         print(notes)
         return
 
-    check_run(
-        [
-            "gh",
-            "release",
-            "edit",
-            tag,
-            "--title",
-            version,
-            "--notes",
-            notes,
-        ]
-    )
+    edit_args = ["gh", "release", "edit", tag, "--title", version, "--notes", notes]
+    if is_prerelease(version):
+        edit_args.append("--prerelease")
+    check_run(edit_args)
     check_run(["gh", "release", "edit", tag, "--draft=false"])
 
 

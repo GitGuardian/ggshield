@@ -29,6 +29,15 @@ flowchart TD
     create_archive --> rpm[/"rpm 🐧"/]
 ```
 
+## Version numbers
+
+The build reads `__version__` from `ggshield/__init__.py`. A release candidate is spelled the PEP 440 way there (`1.55.0rc1`), because PyPI accepts nothing else, and that is what `ggshield --version` prints and what archive and installer names carry. Two package formats want SemVer instead, so the script derives `1.55.0-rc1` for them:
+
+- nfpm turns it into `1.55.0~rc1` for the deb and rpm, so that the final `1.55.0` sorts above the candidate for apt and yum.
+- Chocolatey only offers a `1.55.0-rc1` package to `choco install --pre`.
+
+MSI accepts `X.Y.Z` only, so the candidate and the final release share their MSI version (see below).
+
 ## Generating the standalone executable
 
 We use [PyInstaller](https://pyinstaller.org) to generate the standalone executable.
@@ -114,6 +123,6 @@ The build produces an MSI installer (`ggshield-VERSION-x86_64-pc-windows-msvc.ms
 
 - **Install location**: `C:\Program Files\GitGuardian\ggshield\`
 - **PATH**: The installer adds the install location to the system `PATH`. This is removed on uninstall.
-- **Upgrades**: Installing a newer version automatically removes the previous one (via `MajorUpgrade`).
+- **Upgrades**: Installing a newer version automatically removes the previous one (via `MajorUpgrade`). Same-version upgrades are allowed too, so that a final release replaces the release candidate that shares its `X.Y.Z`. This works both ways: running a candidate's MSI on a machine that has the final release installed replaces the final with the candidate, since MSI ignores everything past `X.Y.Z` when comparing versions.
 - **Silent install**: `msiexec /i ggshield-X.Y.Z-x86_64-pc-windows-msvc.msi /quiet`
 - **Silent uninstall**: `msiexec /x ggshield-X.Y.Z-x86_64-pc-windows-msvc.msi /quiet`

@@ -60,7 +60,7 @@ windows_build_chocolatey_package() {
     cp "$ROOT_DIR/scripts/chocolatey/ggshield.nuspec" choco-package
     cp "$ROOT_DIR/scripts/chocolatey/VERIFICATION.txt" choco-package/tools
     cp "$ROOT_DIR/LICENSE" choco-package/tools/LICENSE.txt
-    sed -i "s/__VERSION__/$VERSION/" choco-package/ggshield.nuspec
+    sed -i "s/__VERSION__/$SEMVER_VERSION/" choco-package/ggshield.nuspec
 
     # sigstore 4.x's _store dirs are named with %-encoded URLs (https%3A%2F%2F...)
     # that break Chocolatey's server-side .nupkg extraction; ggshield uses its own
@@ -71,12 +71,12 @@ windows_build_chocolatey_package() {
     # Isolated + non-fatal: validate to a temp dir, then uninstall before the real pack.
     info "Validating chocolatey package metadata (chocolatey/home#399)"
     choco install chocolatey-community-validation.extension -y || true
-    choco pack choco-package/* --version "$VERSION" --outdir "$(mktemp -d)" || true
+    choco pack choco-package/* --version "$SEMVER_VERSION" --outdir "$(mktemp -d)" || true
     choco uninstall chocolatey-community-validation.extension -y || true
 
-    choco pack choco-package/* --version $VERSION --outdir $DIST_DIR
+    choco pack choco-package/* --version "$SEMVER_VERSION" --outdir "$DIST_DIR"
 
-    info "Chocolatey package created in $DIST_DIR/ggshield.$VERSION.nupkg"
+    info "Chocolatey package created in $DIST_DIR/ggshield.$SEMVER_VERSION.nupkg"
 
     rm -rf choco-package
 
@@ -85,13 +85,17 @@ windows_build_chocolatey_package() {
 # cf https://docs.chocolatey.org/en-us/create/create-packages/#testing-your-package
 test_chocolatey_package() {
     pushd "$DIST_DIR"
-    choco install ggshield --debug --verbose --source . --noop
+    choco install ggshield --debug --verbose --source . --noop --pre
     popd
 }
 
 windows_build_msi_package() {
-    # MSI only supports X.Y.Z version format, strip any suffix (e.g. +sha)
-    local msi_version="${VERSION%%[+]*}"
+    # MSI only supports X.Y.Z version format: strip any suffix (rc1, +sha).
+    # A release candidate and the final release therefore share their MSI
+    # version; ggshield.wxs allows same-version upgrades so the final one still
+    # replaces the candidate.
+    local msi_version
+    msi_version=$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 
     local wxs_path
     wxs_path=$(cygpath -w "$SCRIPT_DIR/ggshield.wxs")

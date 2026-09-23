@@ -122,8 +122,9 @@ jobs:
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE_FLAG: ${{ contains(github.ref_name, 'rc') && '--prerelease' || '' }}
         run: |
-          gh release create --draft ${{ steps.tags.outputs.tag }}
+          gh release create --draft $PRERELEASE_FLAG ${{ steps.tags.outputs.tag }}
 
       - name: Upload release assets
         env:
@@ -141,6 +142,8 @@ jobs:
 
   update_downstream:
     needs: release
+    # Dependent repositories move to final releases only.
+    if: ${{ !contains(github.ref_name, 'rc') }}
     uses: ./.github/workflows/update-downstream.yml
     secrets:
       PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
@@ -162,6 +165,8 @@ jobs:
             ghcr.io/gitguardian/ggshield/ggshield
           tags: |
             type=ref,event=tag
+          flavor: |
+            latest=${{ !contains(github.ref_name, 'rc') }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -187,16 +192,13 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
-            gitguardian/ggshield:latest
-            ghcr.io/gitguardian/ggshield/ggshield:latest
+          tags: ${{ steps.meta.outputs.tags }}
 
   push_to_cloudsmith:
     needs: build_release_assets
     runs-on: ubuntu-22.04
     environment: release
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && !contains(github.ref_name, 'rc')
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
