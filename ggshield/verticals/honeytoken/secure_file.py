@@ -122,6 +122,10 @@ def atomic_write_via_fd(dir_fd: int, name: str, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(content)
+            # Commit the data before the rename publishes it: a crash in between would
+            # otherwise leave a zero-length file where the user's real config was.
+            handle.flush()
+            os.fsync(handle.fileno())
         os.rename(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
     except BaseException:
         try:
@@ -129,11 +133,21 @@ def atomic_write_via_fd(dir_fd: int, name: str, content: str) -> None:
         except OSError:
             pass
         raise
+    _fsync_quietly(dir_fd)
     ffd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
     try:
         os.fchmod(ffd, mode)
     finally:
         os.close(ffd)
+
+
+def _fsync_quietly(fd: int) -> None:
+    """Persist a directory entry (the rename) — best effort, some filesystems refuse
+    fsync on directories and the data itself is already durable."""
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
 
 
 def unlink_via_fd(dir_fd: int, name: str) -> None:
@@ -169,6 +183,8 @@ def atomic_write_path(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
         # Swap first (temp keeps mkstemp's 0600 while holding the secret), then chmod.
         os.replace(tmp, path)
         os.chmod(path, mode)

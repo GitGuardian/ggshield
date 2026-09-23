@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from ggshield.__main__ import cli
@@ -465,3 +466,183 @@ def test_foreign_profile_without_force_fails(
         _section(Path("home/.aws/credentials"), "prod-backup")["aws_access_key_id"]
         == "USER_OWN"
     )
+
+
+# --- kubeconfig placement through the CLI --------------------------------------------
+
+
+def _kubeconfig_text(subdomain: str, bearer: str) -> str:
+    user = f"kubernetes-admin-{subdomain}"
+    return yaml.safe_dump(
+        {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [
+                {
+                    "name": subdomain,
+                    "cluster": {"server": f"https://{subdomain}.orionfleet.io"},
+                }
+            ],
+            "users": [{"name": user, "user": {"token": bearer}}],
+            "contexts": [
+                {
+                    "name": f"{user}@{subdomain}",
+                    "context": {"cluster": subdomain, "user": user},
+                }
+            ],
+        },
+        sort_keys=False,
+    )
+
+
+def _kube_deployment(
+    action: str, *, dep_id: str, subdomain: str, bearer: str
+) -> Dict[str, Any]:
+    return {
+        "id": dep_id,
+        "action": action,
+        "method": "kubeconfig",
+        "config": {"filename": "config"},
+        "token": {
+            "kubeconfig": _kubeconfig_text(subdomain, bearer),
+            "context_name": f"kubernetes-admin-{subdomain}@{subdomain}",
+        },
+    }
+
+
+def _kube_doc(path: Path) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def test_plant_kubeconfig_writes_context(cli_fs_runner: CliRunner, monkeypatch) -> None:
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _kube_deployment(
+                        "write", dep_id="dep-k", subdomain="abc123", bearer="s3cret"
+                    )
+                ]
+            }
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-k", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli,
+        [
+            "honeytoken",
+            "plant",
+            "--type",
+            "kubeconfig",
+            "--method",
+            "kubeconfig",
+            "--user-dir",
+            "home",
+        ],
+    )
+
+    assert_invoke_ok(result)
+    mock.assert_all_requests_happened()
+    doc = _kube_doc(Path("home/.kube/config"))
+    assert [ctx["name"] for ctx in doc["contexts"]] == [
+        "kubernetes-admin-abc123@abc123"
+    ]
+    assert doc["users"][0]["user"]["token"] == "s3cret"
+    assert "current-context" not in doc
+    assert "1 written, 0 skipped, 0 removed" in result.output
+
+
+def test_plant_kubeconfig_rotation_removes_old_then_writes_new(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # The revoked decoy is already on disk; one reconcile returns delete(old) + write(new)
+    # for the same file — deletes run first, then the write.
+    kube_dir = Path("home/.kube")
+    kube_dir.mkdir(parents=True)
+    (kube_dir / "config").write_text(
+        _kubeconfig_text("old111", "old-bearer"), encoding="utf-8"
+    )
+
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _kube_deployment(
+                        "delete",
+                        dep_id="dep-old",
+                        subdomain="old111",
+                        bearer="old-bearer",
+                    ),
+                    _kube_deployment(
+                        "write",
+                        dep_id="dep-new",
+                        subdomain="new222",
+                        bearer="new-bearer",
+                    ),
+                ]
+            }
+        ),
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-old", create_json_response({}, 200))
+    )
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-new", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "kubeconfig", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    mock.assert_all_requests_happened()
+    doc = _kube_doc(kube_dir / "config")
+    assert [ctx["name"] for ctx in doc["contexts"]] == [
+        "kubernetes-admin-new222@new222"
+    ]
+    assert "old-bearer" not in (kube_dir / "config").read_text(encoding="utf-8")
+    assert "1 written, 0 skipped, 1 removed" in result.output
+
+
+def test_plant_applies_every_live_deployment_whatever_the_type(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # Reconcile returns the endpoint's whole desired state: an AWS profile and a
+    # kubeconfig context are both materialized in one run, `--type` only steered creation.
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {
+                "deployments": [
+                    _deployment("write", dep_id="dep-a", token=("AKIAEXAMPLE", "s3")),
+                    _kube_deployment(
+                        "write", dep_id="dep-k", subdomain="abc123", bearer="s3cret"
+                    ),
+                ]
+            }
+        ),
+    )
+    for dep_id in ("dep-a", "dep-k"):
+        mock.add_request(
+            ExpectedRequest(
+                "PATCH", f"{ENDPOINT}/{dep_id}", create_json_response({}, 200)
+            )
+        )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "kubeconfig", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    mock.assert_all_requests_happened()
+    assert Path("home/.aws/credentials").exists()
+    assert Path("home/.kube/config").exists()
+    assert "2 written" in result.output

@@ -118,14 +118,27 @@ def _load_doc(text: Optional[str], where: Path) -> Dict[str, Any]:
     try:
         doc = yaml.safe_load(text)
     except yaml.YAMLError as exc:
+        # Never interpolate the exception itself: PyYAML's message embeds the offending
+        # source line, and in a kubeconfig that is typically a ``token:`` line — a user's
+        # real bearer would end up on stderr / in the fleet agent's logs.
         raise PlacementError(
-            f"could not parse {where}: not a valid kubeconfig/YAML file ({exc})"
+            f"could not parse {where}: not a valid kubeconfig/YAML file "
+            f"({_yaml_error_location(exc)})"
         )
     if doc is None:
         return {}
     if not isinstance(doc, dict):
         raise PlacementError(f"could not parse {where}: kubeconfig is not a mapping")
     return doc
+
+
+def _yaml_error_location(exc: yaml.YAMLError) -> str:
+    """The parser's problem statement and position only — nothing copied from the file."""
+    problem = getattr(exc, "problem", None) or "parse error"
+    mark = getattr(exc, "problem_mark", None)
+    if mark is None:
+        return str(problem)
+    return f"{problem} at line {mark.line + 1}, column {mark.column + 1}"
 
 
 def _dump(doc: Dict[str, Any]) -> str:
@@ -152,12 +165,23 @@ def _mapping(value: Any) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _same_name(item: Any, name: Optional[str]) -> bool:
+    return isinstance(item, dict) and item.get("name") == name
+
+
 def _upsert(items: List[Dict[str, Any]], entry: Dict[str, Any]) -> None:
-    for index, item in enumerate(items):
-        if isinstance(item, dict) and item.get("name") == entry.get("name"):
-            items[index] = entry
-            return
-    items.append(entry)
+    """Replace the first same-named entry in place (keeps the file order) and drop any
+    later duplicate: kubectl resolves names by first match, so extra copies are dead
+    weight — and a stale copy of *our* user would keep an old bearer alive on disk."""
+    name = entry.get("name")
+    first = next((i for i, item in enumerate(items) if _same_name(item, name)), None)
+    if first is None:
+        items.append(entry)
+        return
+    items[first] = entry
+    items[first + 1 :] = [
+        item for item in items[first + 1 :] if not _same_name(item, name)
+    ]
 
 
 # --- decisions (shared by both I/O backends) --------------------------------------
@@ -235,17 +259,20 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
     carries our bearer. Returns the outcome; ``REMOVED`` means the caller must persist.
     """
     contexts = _named_list(doc, "contexts")
-    ours = _find(contexts, ident.context_name)
-    if ours is None:
+    same_named = [ctx for ctx in contexts if _same_name(ctx, ident.context_name)]
+    if not same_named:
         return RemoveOutcome.ALREADY_ABSENT
 
-    # The context sharing our name must actually be ours (same cluster + user) — a real
-    # context that merely reuses the name is left untouched.
-    inner = _mapping(ours.get("context"))
-    if (
-        inner.get("cluster") != ident.cluster_name
-        or inner.get("user") != ident.user_name
-    ):
+    # Only the same-named contexts that are actually ours (same cluster + user) go; a
+    # real context that merely reuses the name is left untouched. Every copy of ours is
+    # removed — a duplicated entry must not survive and keep the decoy reachable.
+    ours = [
+        ctx
+        for ctx in same_named
+        if _mapping(ctx.get("context")).get("cluster") == ident.cluster_name
+        and _mapping(ctx.get("context")).get("user") == ident.user_name
+    ]
+    if not ours:
         return RemoveOutcome.FOREIGN_KEPT
 
     existing_user = _find(_named_list(doc, "users"), ident.user_name)
@@ -259,8 +286,8 @@ def _decide_remove(doc: Dict[str, Any], ident: _Identity) -> RemoveOutcome:
     ):
         return RemoveOutcome.FOREIGN_KEPT
 
-    # Drop exactly the context object we matched (not every same-named entry).
-    doc["contexts"] = [ctx for ctx in contexts if ctx is not ours]
+    # Drop our context object(s) by identity — a foreign same-named context stays.
+    doc["contexts"] = [ctx for ctx in contexts if not any(ctx is o for o in ours)]
     # Drop the cluster/user only if no remaining context still references them (a real
     # context may legitimately share the name, e.g. the common `kubernetes-admin` user).
     still_used_clusters = {

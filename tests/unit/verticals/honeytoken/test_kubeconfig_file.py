@@ -384,3 +384,209 @@ def test_force_refuses_a_user_referenced_by_a_real_context(tmp_path):
 
     # The real credential is left intact.
     assert _load(path)["users"][0]["user"]["token"] == "real-admin-token"
+
+
+# --- review round 2: secret hygiene, duplicates, realistic files ---------------------
+
+
+def _scoped_kubeconfig(subdomain: str, bearer: str) -> str:
+    """The production shape: user scoped to the cluster (``kubernetes-admin-<sub>``)."""
+    user = f"kubernetes-admin-{subdomain}"
+    context = f"{user}@{subdomain}"
+    return yaml.safe_dump(
+        {
+            "apiVersion": "v1",
+            "kind": "Config",
+            "clusters": [
+                {
+                    "name": subdomain,
+                    "cluster": {"server": f"https://{subdomain}.orionfleet.io"},
+                }
+            ],
+            "users": [{"name": user, "user": {"token": bearer}}],
+            "contexts": [
+                {"name": context, "context": {"cluster": subdomain, "user": user}}
+            ],
+        },
+        sort_keys=False,
+    )
+
+
+def _scoped_token(subdomain: str, bearer: str) -> KubeconfigToken:
+    return KubeconfigToken(
+        _scoped_kubeconfig(subdomain, bearer),
+        f"kubernetes-admin-{subdomain}@{subdomain}",
+    )
+
+
+def test_scoped_user_name_round_trips(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    token = _scoped_token("e284abc", "s3cret")
+
+    assert write_kubeconfig(path, token, force=False) is WriteOutcome.WROTE
+    assert write_kubeconfig(path, token, force=False) is WriteOutcome.ALREADY_CURRENT
+    doc = _load(path)
+    assert _names(doc, "users") == {"kubernetes-admin-e284abc"}
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("where", ["on_disk", "generated"])
+def test_parse_error_never_leaks_the_bearer(tmp_path, where):
+    # PyYAML's error message embeds the offending source line; a kubeconfig's broken line
+    # is typically the `token:` one, so the message must be built from position only.
+    real_bearer = "REAL-USER-PROD-BEARER-MUST-NOT-LEAK"
+    broken = f"users:\n- name: me\n  user:\n    token: {real_bearer}: oops\n"
+    path = tmp_path / ".kube" / "config"
+    if where == "on_disk":
+        path.parent.mkdir(parents=True)
+        path.write_text(broken, encoding="utf-8")
+        token = _token("abc123", "s3cret")
+    else:
+        token = KubeconfigToken(broken, "whatever")
+
+    with pytest.raises(PlacementError) as excinfo:
+        write_kubeconfig(path, token, force=False)
+
+    message = str(excinfo.value)
+    assert real_bearer not in message
+    assert "line 4" in message
+
+
+def test_remove_drops_every_duplicate_of_our_context(tmp_path):
+    # A hand-edited file can hold two copies of our context; both must go, and the
+    # cluster/user (with the live bearer) must not survive through the duplicate.
+    path = tmp_path / ".kube" / "config"
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+    doc = _load(path)
+    doc["contexts"].append(dict(doc["contexts"][0]))
+    doc["clusters"].append({"name": "real", "cluster": {"server": "https://real"}})
+    doc["users"].append({"name": "real-user", "user": {"token": "real"}})
+    doc["contexts"].append(
+        {"name": "real", "context": {"cluster": "real", "user": "real-user"}}
+    )
+    path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    outcome = remove_kubeconfig(path, token)
+
+    assert outcome is RemoveOutcome.REMOVED
+    after = _load(path)
+    assert _names(after, "contexts") == {"real"}
+    assert _names(after, "clusters") == {"real"}
+    assert _names(after, "users") == {"real-user"}
+    assert "s3cret" not in path.read_text(encoding="utf-8")
+
+
+def test_remove_keeps_a_foreign_context_sharing_our_name_next_to_ours(tmp_path):
+    path = tmp_path / ".kube" / "config"
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+    doc = _load(path)
+    doc["clusters"].append({"name": "other", "cluster": {"server": "https://other"}})
+    doc["users"].append({"name": "other-user", "user": {"token": "other"}})
+    # Same name as ours, but pointing at a real cluster/user → not ours, must stay.
+    doc["contexts"].append(
+        {
+            "name": "kubernetes-admin@abc123",
+            "context": {"cluster": "other", "user": "other-user"},
+        }
+    )
+    path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    outcome = remove_kubeconfig(path, token)
+
+    assert outcome is RemoveOutcome.REMOVED
+    after = _load(path)
+    assert [ctx["context"]["cluster"] for ctx in after["contexts"]] == ["other"]
+    assert _names(after, "clusters") == {"other"}
+    assert _names(after, "users") == {"other-user"}
+
+
+def test_write_dedupes_a_stale_duplicate_of_our_user(tmp_path):
+    # Two same-named users (one stale) → one entry left, carrying the current bearer.
+    path = tmp_path / ".kube" / "config"
+    write_kubeconfig(path, _token("abc123", "old"), force=False)
+    doc = _load(path)
+    doc["users"].append(dict(doc["users"][0]))
+    path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    outcome = write_kubeconfig(path, _token("abc123", "new"), force=True)
+
+    assert outcome is WriteOutcome.WROTE
+    after = _load(path)
+    assert [u["user"]["token"] for u in after["users"]] == ["new"]
+    assert "old" not in path.read_text(encoding="utf-8")
+
+
+def test_realistic_kubectl_file_is_preserved_and_idempotent(tmp_path):
+    # An EKS-style kubectl-generated file: exec auth, big CA blob, preferences,
+    # extensions, namespace, current-context — everything must survive in content and
+    # the second plant must be a no-op.
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    arn = "arn:aws:eks:eu-west-1:123456789012:cluster/prod"
+    real = {
+        "apiVersion": "v1",
+        "kind": "Config",
+        "preferences": {"colors": True},
+        "current-context": arn,
+        "clusters": [
+            {
+                "name": arn,
+                "cluster": {
+                    "server": "https://ABCDEF.gr7.eu-west-1.eks.amazonaws.com",
+                    "certificate-authority-data": "A" * 1800,
+                    "extensions": [{"name": "client.authentication.k8s.io/exec"}],
+                },
+            }
+        ],
+        "users": [
+            {
+                "name": arn,
+                "user": {
+                    "exec": {
+                        "apiVersion": "client.authentication.k8s.io/v1beta1",
+                        "command": "aws",
+                        "args": ["eks", "get-token", "--cluster-name", "prod"],
+                        "env": None,
+                    }
+                },
+            }
+        ],
+        "contexts": [
+            {
+                "name": arn,
+                "context": {"cluster": arn, "user": arn, "namespace": "payments"},
+            }
+        ],
+    }
+    path.write_text(yaml.safe_dump(real, sort_keys=False), encoding="utf-8")
+    token = _scoped_token("abc123", "s3cret")
+
+    assert write_kubeconfig(path, token, force=False) is WriteOutcome.WROTE
+    assert write_kubeconfig(path, token, force=False) is WriteOutcome.ALREADY_CURRENT
+
+    after = _load(path)
+    for key in ("clusters", "users", "contexts"):
+        assert after[key][0] == real[key][0]
+    assert after["preferences"] == {"colors": True}
+    assert after["current-context"] == arn
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+    restored = _load(path)
+    for key in ("clusters", "users", "contexts"):
+        assert restored[key] == real[key]
+
+
+def test_remove_proceeds_when_on_disk_user_carries_no_token(tmp_path):
+    # Our user entry was hand-edited to exec auth (no `token:`): nothing to verify the
+    # bearer against, so the context is still ours by cluster+user and is removed.
+    path = tmp_path / ".kube" / "config"
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+    doc = _load(path)
+    doc["users"][0]["user"] = {"exec": {"command": "aws"}}
+    path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+    assert not path.exists()
