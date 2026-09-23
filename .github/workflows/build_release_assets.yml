@@ -14,6 +14,19 @@ on:
         description: 'Code-sign the binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
+    secrets:
+      GITGUARDIAN_API_KEY:
+        required: false
+      GITGUARDIAN_API_URL:
+        required: false
+      TEST_KNOWN_SECRET:
+        required: false
+      TEST_UNKNOWN_SECRET:
+        required: false
+      TEST_GG_VALID_TOKEN:
+        required: false
+      TEST_GG_VALID_TOKEN_IGNORE_SHA:
+        required: false
   workflow_dispatch:
     inputs:
       release_mode:
@@ -70,6 +83,7 @@ jobs:
     name: Build packages
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
+    environment: ${{ inputs.sign && 'signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -211,6 +225,12 @@ jobs:
         if: startsWith(matrix.os, 'macos-') && inputs.sign
         run: |
           set -euo pipefail
+          for name in MACOS_P12_FILE MACOS_P12_PASSWORD MACOS_API_KEY_FILE ; do
+            if [ -z "${!name}" ] ; then
+              echo "sign: true, but $name is not readable here" >&2
+              exit 1
+            fi
+          done
           SECRETS_DIR=$TMPDIR/secrets
           mkdir "$SECRETS_DIR"
           # Prepare our secret files
@@ -233,7 +253,21 @@ jobs:
       - name: Setup Windows environment
         if: startsWith(matrix.os, 'windows-') && inputs.sign
         shell: bash
+        env:
+          WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_CLIENT_CERT_FILE_B64: ${{ secrets.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
         run: |
+          set -euo pipefail
+          for name in WINDOWS_CERT_FINGERPRINT SM_API_KEY SM_HOST SM_CLIENT_CERT_FILE_B64 SM_CLIENT_CERT_PASSWORD ; do
+            if [ -z "${!name}" ] ; then
+              echo "sign: true, but $name is not readable here" >&2
+              exit 1
+            fi
+          done
+
           signtool_install_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
           smctl_install_dir="/c/Program Files/DigiCert/DigiCert Keylocker Tools"
 
@@ -249,16 +283,18 @@ jobs:
           echo "$smctl_install_dir" >> $GITHUB_PATH
 
           # Create our certificate file
-          cert_file="$TMPDIR/cert.p12"
-          echo "${{ secrets.SM_CLIENT_CERT_FILE }}" | base64 --decode > "$cert_file"
+          SECRETS_DIR=$(cygpath -m "$RUNNER_TEMP")/secrets
+          mkdir -p "$SECRETS_DIR"
+          cert_file="$SECRETS_DIR/cert.p12"
+          echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > "$cert_file"
 
           # Add secrets to env
           cat >> $GITHUB_ENV <<EOF
-          WINDOWS_CERT_FINGERPRINT=${{ secrets.WINDOWS_CERT_FINGERPRINT }}
-          SM_API_KEY=${{ secrets.SM_API_KEY }}
-          SM_HOST=${{ secrets.SM_HOST }}
+          WINDOWS_CERT_FINGERPRINT=$WINDOWS_CERT_FINGERPRINT
+          SM_API_KEY=$SM_API_KEY
+          SM_HOST=$SM_HOST
           SM_CLIENT_CERT_FILE=$cert_file
-          SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_CLIENT_CERT_PASSWORD=$SM_CLIENT_CERT_PASSWORD
           EOF
 
       - name: Install Windows dependencies
