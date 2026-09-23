@@ -11,7 +11,13 @@ env:
 jobs:
   build_release_assets:
     uses: ./.github/workflows/build_release_assets.yml
-    secrets: inherit
+    secrets:
+      GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+      GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
+      TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
+      TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
+      TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
+      TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
     with:
       release_mode: true
       sign: true
@@ -21,7 +27,6 @@ jobs:
   # `push_to_pypi` below can download them.
   build_platform_wheels:
     uses: ./.github/workflows/wheels.yml
-    secrets: inherit
     with:
       sign: true
 
@@ -137,7 +142,8 @@ jobs:
   update_downstream:
     needs: release
     uses: ./.github/workflows/update-downstream.yml
-    secrets: inherit
+    secrets:
+      PAT_GITHUB: ${{ secrets.PAT_GITHUB }}
     with:
       version: ${{ needs.release.outputs.tag }}
 

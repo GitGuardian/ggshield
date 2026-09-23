@@ -13,6 +13,10 @@ on:
         description: 'Version to update to'
         required: true
         type: string
+    secrets:
+      PAT_GITHUB:
+        description: 'Token that can push a branch and open a PR on the downstream repositories'
+        required: true
 
 jobs:
   update-ggshield-version:
