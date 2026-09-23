@@ -36,6 +36,15 @@ pub(crate) const VAULT: ProviderDef = ProviderDef {
             },
         ),
         (
+            "read_metadata",
+            Endpoint {
+                method: Method::Get,
+                path: "/v1/${mount}/metadata/${path}",
+                query: &[],
+                secret: None,
+            },
+        ),
+        (
             // Latest version only, mirroring `vault kv delete`.
             "delete_secret",
             Endpoint {

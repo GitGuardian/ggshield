@@ -301,14 +301,28 @@ impl Http {
         Ok(Some((fields, version)))
     }
 
+    // A soft delete keeps `current_version` in metadata; only a never-written
+    // secret takes CAS 0, which still fails if one is created concurrently.
+    fn read_vault_current_version(&self, params: &BTreeMap<String, String>) -> Result<u64> {
+        let body = match self.fetch_value("read_metadata", params) {
+            Ok(body) => body,
+            Err(error) if SecretError::is_secret_not_found(&error) => return Ok(0),
+            Err(error) => return Err(error),
+        };
+        dot_path(&body, "data.current_version")
+            .and_then(Value::as_u64)
+            .context("no 'data.current_version' in KV v2 metadata response")
+    }
+
     fn set_vault_secrets(
         &self,
         params: &BTreeMap<String, String>,
         fields: &BTreeMap<String, SecretString>,
     ) -> Result<()> {
-        // Version 0 means "create only if still absent", so a secret created
-        // between our read and write fails the CAS check too.
-        let (mut merged, version) = self.read_vault_secret_version(params)?.unwrap_or_default();
+        let (mut merged, version) = match self.read_vault_secret_version(params)? {
+            Some(current) => current,
+            None => (BTreeMap::new(), self.read_vault_current_version(params)?),
+        };
         for (key, value) in fields {
             merged.insert(key.clone(), value.clone());
         }
@@ -814,6 +828,90 @@ mod tests {
             Some(addr) => unsafe { std::env::set_var("VAULT_ADDR", addr) },
             None => unsafe { std::env::remove_var("VAULT_ADDR") },
         }
+    }
+
+    static TEST_VAULT: ProviderDef = ProviderDef {
+        auth: Auth::Token {
+            token_env: "GG_TEST_CAS_VAULT_TOKEN",
+            token_file_env: None,
+            token_file: None,
+            header: "X-Vault-Token",
+        },
+        ..crate::providers::VAULT
+    };
+
+    /// Answers one request per connection with each canned response and sends back each request.
+    fn serve(responses: Vec<(u16, &'static str)>) -> (String, std::sync::mpsc::Receiver<String>) {
+        use std::io::{BufRead, BufReader, Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = format!("http://{}", listener.local_addr().unwrap());
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for (status, body) in responses {
+                let (stream, _) = listener.accept().unwrap();
+                let mut reader = BufReader::new(stream);
+                let mut request = String::new();
+                let mut content_length = 0;
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if let Some((name, value)) = line.split_once(':')
+                        && name.eq_ignore_ascii_case("content-length")
+                    {
+                        content_length = value.trim().parse().unwrap();
+                    }
+                    if line == "\r\n" {
+                        break;
+                    }
+                    request.push_str(&line);
+                }
+                let mut request_body = vec![0; content_length];
+                reader.read_exact(&mut request_body).unwrap();
+                request.push_str(&String::from_utf8(request_body).unwrap());
+                sender.send(request).unwrap();
+                write!(
+                    reader.get_mut(),
+                    "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\n\
+                     Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+            }
+        });
+        (addr, receiver)
+    }
+
+    #[test]
+    fn set_after_a_soft_delete_uses_the_metadata_current_version_as_cas() {
+        let (addr, server) = serve(vec![
+            (404, r#"{"errors":[]}"#),
+            (200, r#"{"data":{"current_version":3}}"#),
+            (200, r#"{"data":{"version":4}}"#),
+        ]);
+        // SAFETY: uniquely-named var, removed below; no other test reads it.
+        unsafe { std::env::set_var("GG_TEST_CAS_VAULT_TOKEN", "token") };
+        let http = Http {
+            definition: &TEST_VAULT,
+            agent: ureq::Agent::new_with_config(
+                ureq::Agent::config_builder()
+                    .http_status_as_error(false)
+                    .build(),
+            ),
+        };
+        let fields = BTreeMap::from([("KEY".to_string(), SecretString::from("value"))]);
+        http.set_vault_secrets(
+            &params(&[("VAULT_ADDR", &addr), ("mount", "secret"), ("path", "app")]),
+            &fields,
+        )
+        .unwrap();
+        unsafe { std::env::remove_var("GG_TEST_CAS_VAULT_TOKEN") };
+
+        let received: Vec<_> = server.try_iter().collect();
+        assert!(received[0].starts_with("GET /v1/secret/data/app "));
+        assert!(received[1].starts_with("GET /v1/secret/metadata/app "));
+        assert!(received[2].starts_with("POST /v1/secret/data/app "));
+        assert!(received[2].contains(r#""cas":3"#), "{}", received[2]);
     }
 
     #[test]
