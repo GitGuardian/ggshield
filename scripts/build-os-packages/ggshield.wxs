@@ -7,7 +7,10 @@
     Scope="perMachine"
     Compressed="yes"
   >
-    <MajorUpgrade DowngradeErrorMessage="A newer version of ggshield is already installed." />
+    <MajorUpgrade
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of ggshield is already installed."
+    />
 
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 

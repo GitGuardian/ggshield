@@ -25,6 +25,10 @@ from ggshield.core.check_updates import (
         ("1.2.3", "1.2.2", None),
         ("1.2.3", "1.1.3", None),
         ("1.2.3", "0.2.3", None),
+        ("1.55.0rc1", "1.55.0", "1.55.0"),
+        ("1.55.0rc1", "1.54.0", None),
+        ("1.55.0", "1.55.0rc1", None),
+        ("1.55.0rc1", "1.55.0rc2", "1.55.0rc2"),
     ),
 )
 def test_check_for_updates(

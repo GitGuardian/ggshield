@@ -1,8 +1,9 @@
 import logging
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 import requests
+from packaging.version import InvalidVersion, Version
 
 from ggshield import __version__
 from ggshield.core.dirs import get_cache_dir
@@ -24,8 +25,11 @@ GGSHIELD_GITHUB_RELEASES_URL = (
 )
 
 
-def _split_version(version: str) -> Tuple[int, ...]:
-    return tuple([int(x) for x in version.split(".")])
+def _parse_version(version: str) -> Version:
+    try:
+        return Version(version)
+    except InvalidVersion:
+        raise ValueError(f"'{version}' is not a valid version number")
 
 
 def load_last_check_time() -> Optional[float]:
@@ -113,12 +117,12 @@ def check_for_updates() -> Optional[str]:
         data = resp.json()
         latest_version: str = data["tag_name"][1:]
 
-        current_version_split = _split_version(__version__)
-        latest_version_split = _split_version(latest_version)
+        current_version = _parse_version(__version__)
+        latest_parsed_version = _parse_version(latest_version)
     except Exception as e:
         logger.warning("Failed to parse response: %s", repr(e))
         return None
 
-    if current_version_split < latest_version_split:
+    if current_version < latest_parsed_version:
         return latest_version
     return None

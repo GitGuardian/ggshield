@@ -82,7 +82,11 @@ read_version() {
     if [ -n "$VERSION_SUFFIX" ] ; then
         VERSION="${VERSION}${VERSION_SUFFIX}"
     fi
+    SEMVER_VERSION=$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+)rc/\1-rc/')
     info "VERSION=$VERSION"
+    if [ "$SEMVER_VERSION" != "$VERSION" ] ; then
+        info "SEMVER_VERSION=$SEMVER_VERSION"
+    fi
 }
 
 init_system_vars() {
@@ -567,7 +571,7 @@ create_linux_packages() {
         info "Building $format"
 
         PYINSTALLER_OUTPUT_DIR=$PYINSTALLER_OUTPUT_DIR \
-        VERSION=$VERSION \
+        VERSION=$SEMVER_VERSION \
         NFPM_ARCH=$NFPM_ARCH \
             nfpm package \
                 --packager $format \
