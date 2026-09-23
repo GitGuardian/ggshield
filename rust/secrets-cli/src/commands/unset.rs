@@ -1,9 +1,15 @@
 use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail, ensure};
-use ggshield_secrets::{Provider, SecretError, SecretStore, user_scope_path};
+use ggshield_secrets::{
+    DEFAULT_PROJECT_PATH, Provider, SecretError, SecretStore, repo_scope_path, system_scope_path,
+    user_scope_path,
+};
 
-use crate::commands::shared::{ScopeArgs, confirm, field_count, resolve_provider, write_path};
+use crate::commands::shared::{
+    Scope, ScopeArgs, confirm, field_count, resolve_provider, write_path,
+};
 use crate::env::validate_env_key;
 
 /// Remove a provider secret, or selected fields from it.
@@ -82,8 +88,6 @@ fn delete_from_file(
         return Ok(());
     }
 
-    let shadowed = user_scope_names(store, path, &plan.targets);
-
     if !yes {
         eprintln!(
             "{} will be deleted from {path}: {}. Comments, blank lines and every other value are \
@@ -109,45 +113,46 @@ fn delete_from_file(
         outcome.removed.join(", ")
     );
 
-    // A user-scope value still resolves after this delete, so a rotated leaked
+    // Another scope's value still resolves after this delete, so a rotated leaked
     // credential would keep being injected by `run`.
-    let unmasked = shadowed
-        .iter()
-        .filter(|name| outcome.removed.contains(name))
-        .cloned()
-        .collect::<Vec<_>>();
-    if !unmasked.is_empty() {
-        let (verb, whose) = if unmasked.len() == 1 {
-            ("is", "its value")
-        } else {
-            ("are", "their values")
-        };
+    for (scope, names) in other_scopes_setting(store, path, &outcome.removed) {
+        let verb = if names.len() == 1 { "is" } else { "are" };
         eprintln!(
-            "note: {} {verb} still set by the user-scope file, so reads here now resolve to \
-             {whose}. Use --global to delete there too",
-            unmasked.join(", ")
+            "note: {} {verb} still set in the {scope} scope. Use --{scope} to delete there too",
+            names.join(", ")
         );
     }
     Ok(())
 }
 
-/// Best effort: a notice, not a guard. Never decrypts.
-fn user_scope_names(store: &SecretStore, path: &str, targets: &[String]) -> Vec<String> {
-    let Ok(user_path) = user_scope_path() else {
-        return Vec::new();
-    };
-    let user_path = user_path.to_string_lossy().into_owned();
-    if user_path == path {
-        return Vec::new();
-    }
-    let Ok(names) = store.field_names(&user_path) else {
-        return Vec::new();
-    };
-    targets
-        .iter()
-        .filter(|target| names.contains(target))
-        .cloned()
-        .collect()
+/// Most specific first, as reads resolve them. Best effort: a notice, not a guard. Never
+/// decrypts.
+fn other_scopes_setting(
+    store: &SecretStore,
+    path: &str,
+    names: &[String],
+) -> Vec<(Scope, Vec<String>)> {
+    [
+        (Scope::Project, Some(PathBuf::from(DEFAULT_PROJECT_PATH))),
+        (Scope::Local, repo_scope_path(Path::new("."))),
+        (Scope::Global, user_scope_path().ok()),
+        (Scope::System, system_scope_path()),
+    ]
+    .into_iter()
+    .filter_map(|(scope, scope_path)| {
+        let scope_path = scope_path?.to_string_lossy().into_owned();
+        if scope_path == path {
+            return None;
+        }
+        let set = store.field_names(&scope_path).ok()?;
+        let still = names
+            .iter()
+            .filter(|name| set.contains(name))
+            .cloned()
+            .collect::<Vec<_>>();
+        (!still.is_empty()).then_some((scope, still))
+    })
+    .collect()
 }
 
 fn delete_from_provider(

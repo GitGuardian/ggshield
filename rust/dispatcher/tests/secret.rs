@@ -993,7 +993,7 @@ fn del_says_when_a_user_scope_value_is_left_showing_through() {
     let output = workspace.run(&["unset", "--provider", "file", "--yes", "TOKEN"]);
     assert_ok(&output);
     assert!(
-        stderr(&output).contains("still set by the user-scope file"),
+        stderr(&output).contains("TOKEN is still set in the global scope"),
         "{}",
         stderr(&output)
     );
@@ -1016,7 +1016,7 @@ fn del_says_nothing_about_the_user_scope_when_nothing_shows_through() {
     let output = workspace.run(&["unset", "--provider", "file", "--yes", "TOKEN"]);
     assert_ok(&output);
     assert!(
-        !stderr(&output).contains("user-scope"),
+        !stderr(&output).contains("still set"),
         "{}",
         stderr(&output)
     );
@@ -3277,6 +3277,38 @@ fn show_scope_with_a_scope_flag_labels_values_with_that_scope() {
         assert_ok(&output);
         assert_eq!(stdout(&output).trim(), line);
     }
+}
+
+#[test]
+fn unset_names_every_other_scope_that_still_sets_the_name() {
+    let workspace = Workspace::new();
+    make_repository(&workspace);
+    for flag in ["--global", "--local", "--project"] {
+        workspace.set(
+            &["set", "--provider", "file", flag, "--plain", "API_KEY"],
+            "fake-leaked-value",
+        );
+    }
+
+    let output = workspace.run(&[
+        "unset",
+        "--provider",
+        "file",
+        "--project",
+        "--yes",
+        "API_KEY",
+    ]);
+    assert_ok(&output);
+    let printed = stderr(&output);
+    assert!(
+        printed.contains("API_KEY is still set in the local scope. Use --local"),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("API_KEY is still set in the global scope. Use --global"),
+        "{printed}"
+    );
+    assert!(!printed.contains("project scope"), "{printed}");
 }
 
 #[test]
