@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use ggshield_secrets::{Provider, SecretStore, credential_env_vars};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::commands::shared::{resolve_provider, secret_path};
+use crate::commands::shared::{ensure_explicit_path_exists, resolve_provider, secret_path};
 use crate::env::{validate_env_key, validate_env_value};
 
 #[derive(clap::Args)]
@@ -36,6 +36,9 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     let paths = if args.secrets.is_empty() {
         vec![secret_path(provider, None, None)?]
     } else {
+        for path in &args.secrets {
+            ensure_explicit_path_exists(provider, path)?;
+        }
         args.secrets.clone()
     };
 

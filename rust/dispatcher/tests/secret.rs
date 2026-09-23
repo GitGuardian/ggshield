@@ -393,6 +393,49 @@ fn a_user_scope_value_resolves_into_a_project_that_does_not_define_it() {
 }
 
 #[test]
+fn a_mistyped_path_is_an_error_even_when_other_scopes_exist() {
+    let workspace = Workspace::new();
+    assert_ok(&workspace.set(
+        &[
+            "set",
+            "--provider",
+            "file",
+            "--global",
+            "--plain",
+            "SHARED_KEY",
+        ],
+        "from-user",
+    ));
+
+    for args in [
+        &["get", "--provider", "file", "--path", ".env.prodution"][..],
+        &["list", "--provider", "file", "--path", ".env.prodution"],
+        &[
+            "run",
+            "--provider",
+            "file",
+            "--path",
+            ".env.prodution",
+            "--",
+            "printenv",
+            "SHARED_KEY",
+        ],
+    ] {
+        let output = workspace.run(args);
+        assert!(!output.status.success(), "{args:?}: {}", stdout(&output));
+        assert!(
+            stderr(&output).contains(".env.prodution"),
+            "{args:?}: {}",
+            stderr(&output)
+        );
+    }
+
+    let output = workspace.run(&["run", "--provider", "file", "--", "printenv", "SHARED_KEY"]);
+    assert_ok(&output);
+    assert_eq!(stdout(&output).trim(), "from-user");
+}
+
+#[test]
 fn the_project_scope_wins_over_the_user_scope() {
     let workspace = Workspace::new();
     assert_ok(&workspace.set(

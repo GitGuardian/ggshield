@@ -3,7 +3,9 @@ use std::io::{IsTerminal, Write};
 use anyhow::Result;
 use ggshield_secrets::{Provider, SecretStore};
 
-use crate::commands::shared::{ScopeArgs, resolve_provider, secret_path};
+use crate::commands::shared::{
+    ScopeArgs, ensure_explicit_path_exists, resolve_provider, secret_path,
+};
 use crate::output::show;
 
 #[derive(clap::Args)]
@@ -35,7 +37,11 @@ pub(crate) struct Args {
 
 pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
+    let explicit_path = args.path.is_some();
     let path = secret_path(provider, args.path, args.scope.get())?;
+    if explicit_path {
+        ensure_explicit_path_exists(provider, &path)?;
+    }
     let one_scope = args.scope.get().is_some();
     // `get` inspects what the provider holds; the environment must not shadow it.
     let store = SecretStore::builder(provider).env_override(false).build()?;

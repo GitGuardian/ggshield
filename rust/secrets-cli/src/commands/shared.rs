@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use ggshield_secrets::{
-    DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, system_scope_path,
+    DEFAULT_PROJECT_PATH, Provider, SecretError, SecretStore, repo_scope_path, system_scope_path,
     user_scope_path,
 };
 
@@ -97,6 +97,23 @@ pub(crate) fn secret_path(
     scope: Option<Scope>,
 ) -> Result<String> {
     resolve_path(provider, path, scope, Default_::Project)
+}
+
+/// A read of a `--path` that names no file must fail: the other scopes would
+/// otherwise be read in its place, and a typo would go unnoticed.
+pub(crate) fn ensure_explicit_path_exists(provider: Provider, path: &str) -> Result<()> {
+    if provider != Provider::File {
+        return Ok(());
+    }
+    match std::fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(SecretError::SecretNotFound {
+                path: path.to_string(),
+            }
+            .into())
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Like [`secret_path`], but defaults to the repository's file so worktrees

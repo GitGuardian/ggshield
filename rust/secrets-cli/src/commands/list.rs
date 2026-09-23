@@ -3,7 +3,9 @@ use std::io::Write;
 use anyhow::Result;
 use ggshield_secrets::{Provider, SecretStore};
 
-use crate::commands::shared::{ScopeArgs, resolve_provider, secret_path};
+use crate::commands::shared::{
+    ScopeArgs, ensure_explicit_path_exists, resolve_provider, secret_path,
+};
 
 /// List the names a secret sets, without their values.
 ///
@@ -31,7 +33,11 @@ pub(crate) struct Args {
 pub(crate) fn execute(args: Args) -> Result<()> {
     let provider = resolve_provider(args.provider)?;
     let one_scope = args.scope.get().is_some();
+    let explicit_path = args.path.is_some();
     let path = secret_path(provider, args.path, args.scope.get())?;
+    if explicit_path {
+        ensure_explicit_path_exists(provider, &path)?;
+    }
     let store = SecretStore::builder(provider).env_override(false).build()?;
 
     let names: Vec<(String, Option<String>)> = if provider == Provider::File && !one_scope {
