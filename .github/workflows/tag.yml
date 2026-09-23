@@ -18,6 +18,14 @@ jobs:
       TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
       TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
       TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
+      MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
+      MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+      MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
+      WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+      SM_API_KEY: ${{ secrets.SM_API_KEY }}
+      SM_HOST: ${{ secrets.SM_HOST }}
+      SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
+      SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
     with:
       release_mode: true
       sign: true
@@ -27,6 +35,14 @@ jobs:
   # `push_to_pypi` below can download them.
   build_platform_wheels:
     uses: ./.github/workflows/wheels.yml
+    secrets:
+      MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
+      MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+      WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+      SM_API_KEY: ${{ secrets.SM_API_KEY }}
+      SM_HOST: ${{ secrets.SM_HOST }}
+      SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
+      SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
     with:
       sign: true
 
