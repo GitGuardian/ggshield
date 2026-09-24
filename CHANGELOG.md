@@ -1,5 +1,137 @@
 # Changelog
 
+<a id='changelog-1.55.0'></a>
+
+## 1.55.0 — 2026-09-24
+
+### Added
+
+- ggshield now supports Amazon Kiro, both the IDE and the CLI.
+  `ggshield machine setup` installs the secret-scanning hooks in
+  `~/.kiro/hooks/`, and MCP servers, tool calls and past usage are reported
+  like they are for every other assistant.
+
+- ggshield now supports Junie CLI, JetBrains' terminal coding agent.
+  `ggshield machine setup` installs the secret-scanning hooks in
+  `~/.junie/config.json`, and MCP servers and past usage are reported like they
+  are for every other assistant. Junie inside a JetBrains IDE is not covered:
+  it embeds Junie over ACP, which invokes no hooks.
+
+- The time ggshield waits for the GitGuardian API to answer, until now fixed at 60 seconds, can be changed with the `api_timeout` config key or the `GITGUARDIAN_API_TIMEOUT` environment variable, which takes precedence. It accepts 1 to 3600 seconds. Raise it if a large scan fails with a read timeout.
+
+### Changed
+
+- The README now warns, at the top, that upgrading to 1.54.0 on macOS triggers
+  a Keychain prompt for `ggshield-py`, the second binary that reads the saved
+  token, and that clicking **Always Allow** settles it for good.
+
+- The Linux rpm now owns its bundle directories, so upgrades no longer leave
+  empty `*.dist-info` directories behind.
+
+- When the AI hook finds a secret in a tool output on Claude Code or Codex, the
+  output is now withheld from the assistant instead of being passed to it with a
+  warning attached. The assistant reads the block message in place of the output,
+  so the secret stays out of its context and out of the session transcript on
+  disk, and the message no longer tells you to revoke a credential the assistant
+  never read. Agents with no way to replace a tool output are unchanged and keep
+  reporting the secret as leaked.
+- On Codex, a blocked tool output was already hidden from the assistant, but the
+  message still said the secret had been exposed and told you to revoke it. It
+  now reports the output as withheld.
+- Mistral Vibe behaves the same way as Codex and now reports a blocked tool
+  output as withheld rather than leaked.
+
+- The Docker image now ships bytecode for the standard library, so ggshield starts
+  faster in containers.
+
+- `secret scan pre-receive` no longer checks for a new ggshield version unless
+  `--check-for-updates` is passed.
+
+- The API key check fetches server metadata and token scopes concurrently instead of
+  one after the other, saving a round trip on every scan.
+
+- ggshield now requires `py-gitguardian` 1.35.0.
+
+### Fixed
+
+- Report the raw `mcp_{server}_{tool}` name VSCode gives us when the server cannot
+  be identified from the local configuration, instead of guessing a server name that
+  the API cannot match. The API splits the name against the whole inventory.
+
+- The Linux rpm package could crash on startup after an in-place upgrade,
+  because empty `*.dist-info` directories were left behind. They are now
+  removed during the upgrade.
+
+- `ggshield auth login` can now be interrupted with Ctrl+C on Windows while it
+  waits for the browser callback. The local callback server used to block
+  indefinitely, so the interrupt was only noticed once the login completed.
+
+- The AI hook no longer rejects a hook event whose payload starts with a UTF-8
+  BOM, which Cursor on Windows prepends. Prompts and tool calls were reaching
+  the agent unscanned.
+
+- Installing the AI hook for Codex now says that Codex will not run the hook
+  until it is approved in the Codex hook review, so the install no longer looks
+  complete while nothing is being scanned.
+
+- `ggshield machine doctor` and the AI discovery no longer report an assistant as
+  unprotected when its hook command points at a live binary that a next upgrade
+  would break. Only a missing or dead command now reads as not installed, and the
+  command found in the settings file is reported either way.
+
+- The AI hook no longer mistakes another assistant for Claude Code when the
+  transcript path merely contains "claude". A Cursor session working in a
+  project directory such as `claude-tools` was answered in Claude Code's output
+  format, which Cursor ignores, so a blocked tool call ran anyway. Every
+  assistant is now identified by a field only it sends, and Claude Code answers
+  for what remains, whatever directory it keeps its transcripts in.
+
+- A scan request that times out waiting for the server's response now fails immediately instead of being retried for several minutes. The server has already accepted the request by the time this happens, so retrying only made it redo the same (possibly large) scan up to six times while the user waited.
+
+- Commit scans (`secret scan repo`, `commit-range`, `changes`, `ci`, `pre-push`,
+  `pre-receive`) processed batches one at a time, ignoring `GG_MAX_WORKERS`.
+  Batches now run in parallel, which can speed up large scans considerably.
+
+- When two ggshield AI hooks are configured for the same event, the second one no
+  longer exits without a verdict. Both now answer with the same decision, and the
+  event still costs a single scan.
+
+- The AI hook no longer stops recognising Copilot CLI when its hook payload
+  carries a field ggshield has not seen before. Copilot CLI was identified by
+  an exact set of payload keys, so the first release adding any field would
+  have left its payloads claimed by no assistant at all, and an unrecognised
+  payload exits without a verdict and lets the tool call through unscanned.
+
+- `ggshield --no-check-for-updates <command>` was ignored when the option came before
+  the subcommand.
+
+- Running a command without an API key for a self-hosted instance now says how to
+  authenticate against that instance, instead of reporting `Unknown instance`.
+
+- `ggshield` no longer hangs when the working directory contains a `.env` FIFO
+  with no writer attached, as mounted by 1Password Environments.
+
+- `ggshield machine setup` and `ggshield machine doctor` no longer treat a global
+  or system git hook generated by an older ggshield as correctly configured. Those
+  hooks skip the repository's own hook in linked worktrees. Generated hooks now
+  carry a version stamp; `doctor` fails on an outdated one and `setup` rewrites the
+  block it generated, leaving any other line in the file untouched.
+
+- `ggshield machine setup` now exits non-zero when a non-ggshield git hook is
+  already present, instead of reporting success on a machine with no ggshield hook.
+
+- `ggshield machine doctor` and `ggshield machine setup` now judge only the hooks
+  directory `core.hooksPath` actually points at. Leftover files in the directory
+  ggshield installs into used to sway the verdict, and `setup` could repair such a
+  hook and report success without ever pointing git at it.
+
+### Security
+
+- The Docker image now installs its Python dependencies from `uv.lock` instead
+  of re-resolving the version ranges in `pyproject.toml` at build time. The
+  image therefore gets the same hash-verified versions as CI, and the rolling
+  `exclude-newer = "3 days"` quarantine now applies to it too.
+
 <a id='changelog-1.54.0'></a>
 
 ## 1.54.0 — 2026-08-26
