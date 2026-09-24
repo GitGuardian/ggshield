@@ -163,30 +163,6 @@ def _git_rev_parse(option: str, wd: Path) -> Optional[str]:
     return _git_rev_parse_absolute(option=option, wd_absolute=wd.resolve())
 
 
-def get_new_branch_ci_commits(
-    branch: str, wd: Path, remote: str = "origin"
-) -> List[str]:
-    """
-    Returns a list of commits that only exist on the given branch.
-    This is intended to be used for new branches only, in a CI env.
-    """
-    # https://stackoverflow.com/q/14848274
-    refs_format = f"refs/remotes/{remote}/"
-    all_branches = git(
-        [
-            "for-each-ref",
-            "--format=%(refname)",
-            refs_format,
-        ],
-        cwd=wd,
-    ).splitlines()
-    other_branches = (b for b in all_branches if b != f"{refs_format}{branch}")
-
-    return git(
-        ["log", "HEAD", "--not", *other_branches, "--format=format:%H"], cwd=wd
-    ).splitlines()
-
-
 def simplify_git_url(url: str) -> str:
     """
     Removes elements from the git remote url.
@@ -412,23 +388,6 @@ def get_list_commit_SHA(
         # but returns an empty range, example git rev-list HEAD...
 
     return commit_list
-
-
-def get_last_commit_sha_of_branch(branch_name: str) -> Optional[str]:
-    """
-    Returns the last commit sha of the given branch, or None
-    if no commit could be found
-    """
-    # The branch is not directly available in CI env
-    # We need to get commits through remotes
-    last_target_commit = get_list_commit_SHA(branch_name, max_count=1)
-
-    # Unable to find a commit on this branch
-    # Consider it empty
-    if not last_target_commit:
-        return None
-
-    return last_target_commit[0]
 
 
 def get_repository_url_from_path(wd: Path) -> Optional[str]:

@@ -327,7 +327,6 @@ jobs:
       - name: Scan commits for hardcoded secrets
         uses: ./actions-unstable/secret
         env:
-          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
           GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
           GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
