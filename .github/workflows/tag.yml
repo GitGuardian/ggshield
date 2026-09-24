@@ -49,6 +49,9 @@ jobs:
   push_to_pypi:
     needs: [build_release_assets, build_platform_wheels]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
     # Gated: publishing waits for a second person to approve the deployment.
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
@@ -78,8 +81,6 @@ jobs:
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
           # A release now uploads eight files from two jobs instead of two from
           # one. PyPI takes them one at a time and refuses a filename it already
           # has, so a failure partway through leaves the rest unpublished and a
