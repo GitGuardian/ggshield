@@ -82,9 +82,8 @@ def test_write_creates_kubeconfig_with_our_context(tmp_path):
     doc = _load(path)
     assert _names(doc, "contexts") == {"kubernetes-admin@abc123"}
     assert doc["users"][0]["user"]["token"] == "s3cret"
-    # We never claim current-context — hijacking the active context would make the user's
-    # next bare `kubectl` trip our own decoy (self-trip).
-    assert "current-context" not in doc
+    # A fresh file gets our context as current-context, like any real kubeconfig.
+    assert doc["current-context"] == "kubernetes-admin@abc123"
 
 
 def test_write_is_idempotent(tmp_path):
@@ -253,8 +252,8 @@ def test_write_into_kubectl_empty_null_lists(tmp_path):
     assert outcome is WriteOutcome.WROTE
     doc = _load(path)
     assert _names(doc, "contexts") == {"kubernetes-admin@abc123"}
-    # An empty current-context is not hijacked (no self-trip).
-    assert not doc.get("current-context")
+    # No other context and an empty current-context: effectively a fresh file → claimed.
+    assert doc["current-context"] == "kubernetes-admin@abc123"
 
 
 def test_remove_on_kubectl_empty_null_lists_is_already_absent(tmp_path):
@@ -296,12 +295,52 @@ def test_malformed_yaml_raises_placement_error(tmp_path, op):
             remove_kubeconfig(path, token)
 
 
-def test_write_does_not_claim_current_context_on_a_fresh_file(tmp_path):
+def test_write_does_not_claim_current_context_next_to_a_real_context(tmp_path):
+    # A real context without an active one: the owner unset it on purpose, and claiming
+    # it would make their next bare `kubectl` trip our own decoy.
     path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [{"name": "prod", "cluster": {"server": "https://real"}}],
+                "users": [{"name": "alice", "user": {"token": "real-tok"}}],
+                "contexts": [
+                    {
+                        "name": "alice@prod",
+                        "context": {"cluster": "prod", "user": "alice"},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
     write_kubeconfig(path, _token("abc123", "s3cret"), force=False)
 
     assert "current-context" not in _load(path)
+
+
+def test_remove_drops_the_current_context_we_claimed(tmp_path):
+    # The owner's own top-level key keeps the file alive after our entries are gone; the
+    # current-context we set must not survive as a dangling pointer.
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        yaml.safe_dump({"apiVersion": "v1", "kind": "Config", "preferences": {"x": 1}}),
+        encoding="utf-8",
+    )
+    token = _token("abc123", "s3cret")
+    write_kubeconfig(path, token, force=False)
+    assert _load(path)["current-context"] == "kubernetes-admin@abc123"
+
+    assert remove_kubeconfig(path, token) is RemoveOutcome.REMOVED
+
+    doc = _load(path)
+    assert "current-context" not in doc
+    assert doc["preferences"] == {"x": 1}
 
 
 # --- remove leaves a foreign context that only shares our name ---------------------

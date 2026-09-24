@@ -11,8 +11,11 @@ Merge/remove is by entry *name*, orphan-aware, and verify-before-remove:
   different content, refuse without ``--force`` rather than clobber it; a cluster/user
   that a *foreign* context still references is refused even with ``--force`` (it is a
   real principal — a same-named *context* is only a binding and ``--force`` does replace
-  it). We never claim ``current-context`` — hijacking the active context would trip
-  the decoy on the owner's own ``kubectl``. All three identical → no-op.
+  it). ``current-context`` is claimed only when the file holds no other context and
+  none is set (a fresh file) — a real kubeconfig always has one, and without it the
+  stolen file's bare ``kubectl`` talks to localhost instead of the decoy; an existing
+  active context is never hijacked (it would trip the decoy on the owner's own
+  ``kubectl``). All three identical → no-op.
 - remove: drop our context only when it is actually ours (same cluster+user) and the
   on-disk user still carries *our* bearer (a rotated/foreign token is left untouched);
   then drop the cluster/user it referenced only if no *other* context still uses them.
@@ -237,8 +240,9 @@ def _decide_write(
       foreign context) → refuse even with ``force``: overwriting destroys the real
       credential, and reusing it would funnel that user's token to our capture edge
     - any other of our names present with different content → refuse unless ``force``
-    - never claim ``current-context``: the decoy is reachable by name, and hijacking the
-      active context would make the legitimate user's next ``kubectl`` trip our own decoy
+    - claim ``current-context`` only on a fresh file (no other context, none set): a
+      real kubeconfig always has one; hijacking an existing active context would make
+      the legitimate user's next ``kubectl`` trip our own decoy
     """
     doc.setdefault("apiVersion", "v1")
     doc.setdefault("kind", "Config")
@@ -275,9 +279,14 @@ def _decide_write(
     if collisions and not force:
         raise ForceRefusal(collisions[0][1].get("name") or ident.context_name, path)
 
+    fresh = not any(
+        not _same_name(ctx, ident.context_name) for ctx in doc["contexts"]
+    ) and not doc.get("current-context")
     _upsert(doc["clusters"], ident.cluster_entry)
     _upsert(doc["users"], ident.user_entry)
     _upsert(doc["contexts"], ident.context_entry)
+    if fresh:
+        doc["current-context"] = ident.context_name
     return WriteOutcome.WROTE
 
 

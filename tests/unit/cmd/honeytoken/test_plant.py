@@ -556,7 +556,7 @@ def test_plant_kubeconfig_writes_context(cli_fs_runner: CliRunner, monkeypatch) 
         "kubernetes-admin-abc123@abc123"
     ]
     assert doc["users"][0]["user"]["token"] == "s3cret"
-    assert "current-context" not in doc
+    assert doc["current-context"] == "kubernetes-admin-abc123@abc123"
     assert "1 written, 0 skipped, 0 removed" in result.output
 
 
