@@ -298,6 +298,22 @@ jobs:
             rust/target
           key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
 
+      # The shell hook tests skip a missing shell unless GITGUARDIAN_REQUIRE_SHELLS is set.
+      # Ubuntu 22.04 ships fish 3.3; the PPA gives a current one.
+      - name: Install zsh and fish (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-add-repository -y ppa:fish-shell/release-4
+          sudo apt-get update
+          sudo apt-get install -y zsh fish
+          echo "GITGUARDIAN_REQUIRE_SHELLS=1" >> "$GITHUB_ENV"
+
+      - name: Install fish (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install fish
+          echo "GITGUARDIAN_REQUIRE_SHELLS=1" >> "$GITHUB_ENV"
+
       - name: Lint
         run: cargo clippy --workspace --all-targets -- -D warnings
 
