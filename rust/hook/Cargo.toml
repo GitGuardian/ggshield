@@ -15,12 +15,16 @@ ggshield-config = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ureq = { workspace = true }
+rustls = { workspace = true }
+rustls-platform-verifier = { workspace = true }
+webpki-root-certs = { workspace = true }
 regex = { workspace = true }
 sha2 = { workspace = true }
 toml = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+rcgen = { workspace = true }
 
 [lints]
 workspace = true

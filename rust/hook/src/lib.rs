@@ -19,6 +19,7 @@ mod message;
 mod notify;
 mod output;
 mod payload;
+mod tls;
 mod verdict_cache;
 mod vibe;
 
