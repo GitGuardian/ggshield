@@ -94,8 +94,8 @@ impl SecretStore {
         Ok((fields, warnings))
     }
 
-    /// With env override on (the default), an env var named `field` wins
-    /// without contacting the provider.
+    /// With [`env_override`](SecretStoreBuilder::env_override) on, an env var
+    /// named `field` wins without contacting the provider.
     pub fn get_secret(&self, path: &str, field: &str) -> Result<SecretString> {
         if self.env_override
             && let Some(value) = env_override_value(field)
@@ -569,7 +569,7 @@ pub struct SecretStoreBuilder {
 }
 
 impl SecretStoreBuilder {
-    /// Whether an env var named like a field overrides the provider (default: `true`).
+    /// Whether an env var named like a field overrides the provider (default: `false`).
     ///
     /// `env_override(true)` is rejected for the `file` provider.
     pub fn env_override(mut self, enabled: bool) -> Self {
@@ -630,7 +630,7 @@ impl SecretStoreBuilder {
                 agent,
                 namespace,
             })),
-            env_override: self.env_override.unwrap_or(true),
+            env_override: self.env_override.unwrap_or(false),
         })
     }
 }
@@ -831,9 +831,9 @@ mod tests {
     }
 
     #[test]
-    fn a_remote_provider_still_defaults_to_env_override() {
+    fn env_override_is_off_unless_a_caller_opts_in() {
         let store = SecretStore::builder(Provider::Vault).build().unwrap();
-        assert!(store.env_override);
+        assert!(!store.env_override);
     }
 
     fn params(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -977,7 +977,10 @@ mod tests {
     fn get_secret_short_circuits_on_env_override_without_network() {
         // SAFETY: uniquely-named var, removed below; no other test reads it.
         unsafe { std::env::set_var("GG_TEST_SHORTCIRCUIT_FIELD", "local-value") };
-        let store = SecretStore::builder(Provider::Vault).build().unwrap();
+        let store = SecretStore::builder(Provider::Vault)
+            .env_override(true)
+            .build()
+            .unwrap();
         let value = store
             .get_secret("secret/whatever", "GG_TEST_SHORTCIRCUIT_FIELD")
             .unwrap();
@@ -988,10 +991,7 @@ mod tests {
         // SAFETY: no other test reads VAULT_ADDR; restored below.
         let previous_addr = std::env::var("VAULT_ADDR").ok();
         unsafe { std::env::set_var("VAULT_ADDR", "http://127.0.0.1:9") };
-        let store = SecretStore::builder(Provider::Vault)
-            .env_override(false)
-            .build()
-            .unwrap();
+        let store = SecretStore::builder(Provider::Vault).build().unwrap();
         assert!(
             store
                 .get_secret("secret/whatever", "GG_TEST_SHORTCIRCUIT_FIELD")
