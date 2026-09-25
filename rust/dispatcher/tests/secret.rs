@@ -2759,7 +2759,7 @@ fn a_dotenv_cannot_change_how_the_shell_runs_commands() {
     );
     let output = workspace.shell("bash", &program);
     let out = stdout(&output);
-    assert!(out.contains("pc=[_ggshield_hook]"), "{out}");
+    assert!(out.contains("pc=[_ggshield_hook_trigger]"), "{out}");
     assert!(out.contains("key=[fine]"), "{out}");
     assert!(!canary.exists(), "a dotenv value was executed by the shell");
 
@@ -3831,4 +3831,31 @@ fn an_unreadable_trust_store_still_unloads_the_previous_directory() {
     assert!(block.contains("unset API_KEY;"), "{block}");
     assert!(block.contains("could not check"), "{block}");
     assert!(!block.contains("OTHER"), "{block}");
+}
+
+/// bash has no chpwd hook: `--hook pwd` must still skip the fork while `$PWD` is unchanged.
+#[test]
+fn the_bash_pwd_hook_runs_only_when_the_directory_changes() {
+    if !has_shell("bash") {
+        return;
+    }
+    let workspace = Workspace::new();
+    let first = workspace.home.path().join("first");
+    let second = workspace.home.path().join("second");
+    std::fs::create_dir_all(&first).unwrap();
+    std::fs::create_dir_all(&second).unwrap();
+
+    for (hook, expected) in [("pwd", 2), ("prompt", 4)] {
+        let script = stdout(&workspace.run(&["activate", "bash", "--hook", hook, "--no-hook-env"]));
+        let program = format!(
+            "{script}\nexport GITGUARDIAN_SHELL_OUTPUT=debug\n\
+             cd {}\neval \"$PROMPT_COMMAND\"\neval \"$PROMPT_COMMAND\"\neval \"$PROMPT_COMMAND\"\n\
+             cd {}\neval \"$PROMPT_COMMAND\"\n",
+            first.display(),
+            second.display()
+        );
+        let output = workspace.shell("bash", &program);
+        let runs = stderr(&output).matches("no dotenv file").count();
+        assert_eq!(runs, expected, "--hook {hook}:\n{}", stderr(&output));
+    }
 }

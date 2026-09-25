@@ -323,19 +323,36 @@ fn hook_installation(shell: Shell, hook: Hook) -> String {
             format!("{removal}{array}+=(_ggshield_hook)\n")
         }
 
+        // bash has no chpwd hook, so `pwd` compares `$PWD` on each prompt before forking.
         // `PROMPT_COMMAND` may be a string (bash < 5.1) or an array. Trailing separators
         // are trimmed first: appending to `...;` would yield `;;`, a syntax error on every prompt.
-        (Shell::Bash, _) => format!(
-            r#"{removal}if [[ "$(\builtin declare -p PROMPT_COMMAND 2>&1)" == "declare -a"* ]]; then
-  PROMPT_COMMAND=(${{PROMPT_COMMAND[@]+"${{PROMPT_COMMAND[@]}}"}} _ggshield_hook)
+        (Shell::Bash, _) => {
+            let mode = match hook {
+                Hook::Prompt => "prompt",
+                _ => "pwd",
+            };
+            format!(
+                r#"{removal}__ggshield_hook_mode={mode}
+__ggshield_pwd=
+_ggshield_hook_trigger() {{
+  local __ggshield_status=$?
+  if [[ $__ggshield_hook_mode != pwd || $__ggshield_pwd != "$PWD" ]]; then
+    __ggshield_pwd=$PWD
+    _ggshield_hook
+  fi
+  \builtin return $__ggshield_status
+}}
+if [[ "$(\builtin declare -p PROMPT_COMMAND 2>&1)" == "declare -a"* ]]; then
+  PROMPT_COMMAND=(${{PROMPT_COMMAND[@]+"${{PROMPT_COMMAND[@]}}"}} _ggshield_hook_trigger)
 else
   while [[ -n ${{PROMPT_COMMAND:-}} && ${{PROMPT_COMMAND}} == *[$' \t\n;'] ]]; do
     PROMPT_COMMAND=${{PROMPT_COMMAND%?}}
   done
-  PROMPT_COMMAND="${{PROMPT_COMMAND:+${{PROMPT_COMMAND}}; }}_ggshield_hook"
+  PROMPT_COMMAND="${{PROMPT_COMMAND:+${{PROMPT_COMMAND}}; }}_ggshield_hook_trigger"
 fi
 "#
-        ),
+            )
+        }
 
         (Shell::Fish, Hook::Prompt) => format!(
             "{removal}function _ggshield_hook_trigger --on-event fish_prompt\n  \
@@ -383,19 +400,19 @@ chpwd_functions=("${(@)chpwd_functions:#_ggshield_hook}")
         .to_string(),
 
         // Only the shape this file writes (hook last) is unhooked from a string; editing
-        // the middle would turn `a; _ggshield_hook; b` into `a; ; b`, a syntax error.
-        Shell::Bash => r#"if [[ ${PROMPT_COMMAND[*]:-} == *'_ggshield_hook'* ]]; then
+        // the middle would turn `a; _ggshield_hook_trigger; b` into `a; ; b`, a syntax error.
+        Shell::Bash => r#"if [[ ${PROMPT_COMMAND[*]:-} == *'_ggshield_hook_trigger'* ]]; then
   if [[ "$(\builtin declare -p PROMPT_COMMAND 2>&1)" == "declare -a"* ]]; then
     __ggshield_kept=()
     for __ggshield_one in "${PROMPT_COMMAND[@]}"; do
-      if [[ $__ggshield_one != _ggshield_hook ]]; then
+      if [[ $__ggshield_one != _ggshield_hook_trigger ]]; then
         __ggshield_kept+=("$__ggshield_one")
       fi
     done
     PROMPT_COMMAND=(${__ggshield_kept[@]+"${__ggshield_kept[@]}"})
     \builtin unset __ggshield_kept __ggshield_one
   else
-    PROMPT_COMMAND=${PROMPT_COMMAND%_ggshield_hook}
+    PROMPT_COMMAND=${PROMPT_COMMAND%_ggshield_hook_trigger}
     while [[ -n ${PROMPT_COMMAND:-} && ${PROMPT_COMMAND} == *[$' \t\n;'] ]]; do
       PROMPT_COMMAND=${PROMPT_COMMAND%?}
     done
@@ -1949,7 +1966,7 @@ mod tests {
         );
         let bash = hook_script(Shell::Bash, Hook::None, true);
         assert!(
-            bash.contains("PROMPT_COMMAND=${PROMPT_COMMAND%_ggshield_hook}"),
+            bash.contains("PROMPT_COMMAND=${PROMPT_COMMAND%_ggshield_hook_trigger}"),
             "{bash}"
         );
         let fish = hook_script(Shell::Fish, Hook::None, true);
@@ -1982,18 +1999,25 @@ mod tests {
         let script = hook_script(Shell::Bash, Hook::Pwd, false);
         assert!(script.contains("declare -a"));
         assert!(script.contains(
-            r#"PROMPT_COMMAND=(${PROMPT_COMMAND[@]+"${PROMPT_COMMAND[@]}"} _ggshield_hook)"#
+            r#"PROMPT_COMMAND=(${PROMPT_COMMAND[@]+"${PROMPT_COMMAND[@]}"} _ggshield_hook_trigger)"#
         ));
         // A trailing `;` is trimmed so the append cannot produce `;;`.
         assert!(
             script.contains(r#"PROMPT_COMMAND=${PROMPT_COMMAND%?}"#),
             "{script}"
         );
-        assert!(
-            script.contains(
-                r#"PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND}; }_ggshield_hook""#
-            )
-        );
+        assert!(script.contains(
+            r#"PROMPT_COMMAND="${PROMPT_COMMAND:+${PROMPT_COMMAND}; }_ggshield_hook_trigger""#
+        ));
+    }
+
+    #[test]
+    fn bash_picks_its_mode_from_the_hook() {
+        let pwd = hook_script(Shell::Bash, Hook::Pwd, false);
+        assert!(pwd.contains("__ggshield_hook_mode=pwd\n"), "{pwd}");
+        assert!(pwd.contains(r#"$__ggshield_pwd != "$PWD""#), "{pwd}");
+        let prompt = hook_script(Shell::Bash, Hook::Prompt, false);
+        assert!(prompt.contains("__ggshield_hook_mode=prompt\n"), "{prompt}");
     }
 
     #[test]
