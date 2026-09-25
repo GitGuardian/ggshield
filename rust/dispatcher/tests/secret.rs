@@ -266,6 +266,25 @@ fn an_unknown_provider_is_rejected() {
     assert!(stderr(&output).contains("invalid value 'nope'"));
 }
 
+/// Exit 1 is ggshield's SCAN_FOUND_PROBLEMS, and a backtrace is not an error message.
+#[test]
+fn a_failed_verb_exits_128_with_its_error_chain_on_one_line() {
+    let workspace = Workspace::new();
+    let output = workspace.run_with(
+        None,
+        &[("RUST_BACKTRACE", "1"), ("VAULT_TOKEN", "fake-token")],
+        &["get", "--provider", "vault", "--path", "secret/app"],
+    );
+    assert_eq!(output.status.code(), Some(128), "{}", stderr(&output));
+    let stderr = stderr(&output);
+    assert!(
+        stderr.starts_with("Error: no value for '${VAULT_ADDR}'"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("backtrace"), "{stderr}");
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+}
+
 #[test]
 fn set_encrypts_by_default_and_get_reads_it_back() {
     let workspace = Workspace::new();

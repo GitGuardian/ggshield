@@ -26,13 +26,17 @@ fn main() {
     dispatch::delegate(&args);
 }
 
+/// ggshield's `UNEXPECTED_ERROR`: 1 means `SCAN_FOUND_PROBLEMS`.
+const UNEXPECTED_ERROR: i32 = 128;
+
 /// Unlike the hook there is no Python fallback: these verbs exist only here.
 fn run_secret_verb(args: &[std::ffi::OsString]) -> i32 {
     match ggshield_secrets_cli::run(args) {
         Ok(()) => 0,
         Err(error) => {
-            eprintln!("Error: {error:?}");
-            1
+            // `{:#}`, not `{:?}`: the chain on one line, without a RUST_BACKTRACE dump.
+            eprintln!("Error: {error:#}");
+            UNEXPECTED_ERROR
         }
     }
 }
