@@ -51,6 +51,11 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         !(args.remove_source && args.input.is_none()),
         "--remove-source needs a file to remove; the entries came from stdin"
     );
+    if args.remove_source
+        && let Some(input) = args.input.as_deref()
+    {
+        refuse_removing_a_symlink(input)?;
+    }
     let path = write_path(provider, args.path, args.scope.get())?;
     if let Some(input) = args.input.as_deref() {
         refuse_importing_a_file_into_itself(input, &path)?;
@@ -71,7 +76,7 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     // Only after the write succeeded, or the values are lost.
     if let Some(input) = args.input.as_deref() {
         if args.remove_source {
-            std::fs::remove_file(input).with_context(|| format!("removing {}", input.display()))?;
+            remove_if_unchanged(input, &contents)?;
             eprintln!("removed {}", input.display());
         } else {
             eprintln!(
@@ -82,6 +87,32 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Removing a link would leave the values in its target while saying they were removed.
+fn refuse_removing_a_symlink(input: &Path) -> Result<()> {
+    let is_link =
+        std::fs::symlink_metadata(input).is_ok_and(|metadata| metadata.file_type().is_symlink());
+    ensure!(
+        !is_link,
+        "{} is a symbolic link; --remove-source would delete the link and leave the values in \
+         its target. Import the target instead, or drop --remove-source",
+        input.display()
+    );
+    Ok(())
+}
+
+/// An editor saving between the read and here would lose values that were never imported.
+fn remove_if_unchanged(input: &Path, imported: &str) -> Result<()> {
+    let current =
+        std::fs::read(input).with_context(|| format!("re-reading {}", input.display()))?;
+    ensure!(
+        current == imported.as_bytes(),
+        "{} changed after it was read, so it was not removed: it may hold values that were not \
+         imported. Check it, then import it again or remove it yourself",
+        input.display()
+    );
+    std::fs::remove_file(input).with_context(|| format!("removing {}", input.display()))
 }
 
 /// Refuse `import --path .env .env`, which would otherwise read a file, write
@@ -117,5 +148,37 @@ fn read_import_input(input: Option<&Path>) -> Result<String> {
                 .context("reading stdin")?;
             Ok(contents)
         }
+    }
+}
+
+#[cfg(test)]
+// A failed unwrap is the assertion failing; the lint targets shipped code.
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_source_edited_after_the_read_is_kept() {
+        let directory = tempfile::tempdir().unwrap();
+        let input = directory.path().join(".env");
+        std::fs::write(&input, "A=1\nB=2\n").unwrap();
+        let error = remove_if_unchanged(&input, "A=1\n").unwrap_err();
+        assert!(error.to_string().contains("not removed"), "{error}");
+        assert!(input.exists());
+        remove_if_unchanged(&input, "A=1\nB=2\n").unwrap();
+        assert!(!input.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn remove_source_refuses_a_symlink() {
+        let directory = tempfile::tempdir().unwrap();
+        let target = directory.path().join("real.env");
+        std::fs::write(&target, "A=1\n").unwrap();
+        let link = directory.path().join(".env");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        let error = refuse_removing_a_symlink(&link).unwrap_err();
+        assert!(error.to_string().contains("symbolic link"), "{error}");
+        refuse_removing_a_symlink(&target).unwrap();
     }
 }
