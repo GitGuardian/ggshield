@@ -59,6 +59,7 @@ fn commented_env_var(raw: &str) -> Option<String> {
     Some(key)
 }
 
+/// Never quotes the line: `postgres://u:pass@h/db?sslmode=require` would print the password.
 fn not_an_assignment(raw: &str, line_number: usize) -> anyhow::Error {
     let content = raw.trim();
     let candidate = content
@@ -66,10 +67,11 @@ fn not_an_assignment(raw: &str, line_number: usize) -> anyhow::Error {
         .unwrap_or(content)
         .trim_start();
     if let Some((key, _)) = candidate.split_once('=')
-        && let Err(error) = validate_env_key(key.trim())
+        && validate_env_key(key.trim()).is_err()
     {
-        // Flattened: the caller prints with `{}`, which would hide a context layer.
-        return anyhow::anyhow!("line {line_number}: {error}");
+        return anyhow::anyhow!(
+            "line {line_number}: the text before '=' is not a valid env var name"
+        );
     }
     anyhow::anyhow!("line {line_number} is not a KEY=value assignment")
 }
@@ -235,6 +237,14 @@ mod tests {
             error.to_string().contains("not a KEY=value assignment"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn parse_dotenv_does_not_echo_an_invalid_line() {
+        let error = parse_dotenv("A=1\npostgres://u:S3cret@h/db?sslmode=require\n").unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("line 2"), "{message}");
+        assert!(!message.contains("S3cret"), "the value leaked: {message}");
     }
 
     #[test]
