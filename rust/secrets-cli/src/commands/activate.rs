@@ -14,7 +14,7 @@ use ggshield_secrets::{
     DEFAULT_PROJECT_PATH, Provider, SecretStore, repo_scope_path, system_scope_path, trust,
     user_scope_path,
 };
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::{ExposeSecret, SecretBox, SecretString};
 
 use crate::env::{validate_env_key, validate_env_value};
 
@@ -181,18 +181,23 @@ fn parent_process_name() -> Option<String> {
 /// The shell can be left out, in which case it is detected from the calling
 /// process, falling back to $SHELL.
 ///
-/// Values are decrypted on entering a directory that has a dotenv file, and
-/// unset again on leaving it. The machine-wide user-scope file
+/// Values are decrypted on entering a directory that has a dotenv file (or, in
+/// a repository without one, the repository's store), and unset again on
+/// leaving it. The machine-wide user-scope file
 /// (`ggshield secret set --global`) is loaded alongside the project's own, so
 /// anything in it reaches every shell that enters a project directory.
 ///
-/// Variables that change how the shell runs commands — PROMPT_COMMAND,
-/// BASH_ENV, LD_PRELOAD, GIT_SSH_COMMAND and the like — are never exported,
-/// whatever a file says; the hook names the ones it refused.
-///
 /// A dotenv file is loaded only after you approve it with `ggshield trust`, and
 /// any edit revokes that approval, so a freshly cloned `.env` cannot reach your
-/// shell unread. `get` and `run` need no approval: naming the file is the consent.
+/// shell unread. The repository's store needs the same approval, with `ggshield
+/// trust --local`, since a copied directory or an extracted archive can carry
+/// one. `get` and `run` need no approval: naming the file is the consent.
+///
+/// Trust is the boundary: approve only what you have read. On top of it, the
+/// hook refuses, and names, variables known to change how the shell or the
+/// tools it runs behave — PROMPT_COMMAND, BASH_ENV, LD_PRELOAD, NODE_OPTIONS,
+/// GIT_*, XDG_*, fish_* and the like — and the shell's own special parameters
+/// (OPTIND, UID, status...). That list is best effort, never complete.
 ///
 /// Set GITGUARDIAN_SHELL_OUTPUT=none to silence the one-line report, or =debug
 /// to see why a directory was skipped.
@@ -518,17 +523,23 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
 
     // Entering a directory is not consent the way naming a file to `get`/`run` is.
     // Not a prompt: a y/n on every `cd` gets answered without reading.
-    if found.needs_trust && !trust::is_trusted(&found.path)? {
-        report_always(
-            shell,
-            &format!(
-                "{} is not trusted, so nothing was loaded. Read it, then run `ggshield \
-                 trust` in that directory",
-                found.path.display()
-            ),
-        );
-        return emit_state(&unsets, &found, Vec::new(), "", shell);
-    }
+    let snapshot = match trusted_snapshot(&found) {
+        Ok(Ok(snapshot)) => snapshot,
+        Ok(Err(untrusted)) => {
+            for path in untrusted {
+                report_always(shell, &untrusted_message(&found, &path));
+            }
+            return emit_state(&unsets, &found, Vec::new(), "", shell);
+        }
+        // Still emitted: the previous directory's unsets are in `unsets`.
+        Err(error) => {
+            report_always(
+                shell,
+                &format!("could not check whether this directory is trusted: {error:#}"),
+            );
+            return emit_state(&unsets, &found, Vec::new(), "", shell);
+        }
+    };
 
     if let Some(refusal) = foreign_repo_store(&found.directory) {
         report_always(shell, &refusal);
@@ -544,6 +555,15 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
             return emit_state(&unsets, &found, Vec::new(), "", shell);
         }
     };
+    // Trust covers the bytes read before the load; the load reads the files again.
+    if !snapshot.unchanged() {
+        report_always(
+            shell,
+            "a trusted file changed while it was being loaded, so nothing was loaded. It will be \
+             checked again at the next prompt",
+        );
+        return emit_state(&unsets, &found, Vec::new(), "", shell);
+    }
     for advisory in &loaded.advisories {
         report(shell, advisory);
     }
@@ -631,6 +651,77 @@ fn emit(unsets: &str, state: &str, exports: &str, shell: Shell) -> Result<()> {
     Ok(())
 }
 
+/// The trust-gated files as they were when their trust was checked.
+struct Snapshot(Vec<(PathBuf, Option<SecretBox<[u8]>>)>);
+
+impl Snapshot {
+    fn unchanged(&self) -> bool {
+        self.0.iter().all(|(path, before)| {
+            let now = read_bytes(path).ok().flatten();
+            match (before, now) {
+                (Some(before), Some(now)) => before.expose_secret() == now.expose_secret(),
+                (None, None) => true,
+                _ => false,
+            }
+        })
+    }
+}
+
+fn read_bytes(path: &Path) -> Result<Option<SecretBox<[u8]>>> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok(Some(SecretBox::from(bytes.into_boxed_slice()))),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error).with_context(|| format!("reading {}", path.display())),
+    }
+}
+
+/// The project's dotenv and the repository store both need approval: a copied
+/// directory or an extracted archive carries a store owned by whoever unpacked
+/// it. The machine-wide files are the user's own. `Err` lists what is not trusted.
+fn trusted_snapshot(found: &Found) -> Result<std::result::Result<Snapshot, Vec<PathBuf>>> {
+    let mut gated = vec![found.path.clone()];
+    if let Some(store) = repo_scope_path(&found.directory)
+        && store != found.path
+        && std::fs::symlink_metadata(&store).is_ok()
+    {
+        gated.push(store);
+    }
+
+    let mut snapshot = Vec::new();
+    let mut untrusted = Vec::new();
+    for path in gated {
+        let before = read_bytes(&path)?;
+        if !trust::is_trusted(&path)? {
+            untrusted.push(path);
+            continue;
+        }
+        snapshot.push((path, before));
+    }
+    if untrusted.is_empty() {
+        Ok(Ok(Snapshot(snapshot)))
+    } else {
+        Ok(Err(untrusted))
+    }
+}
+
+fn untrusted_message(found: &Found, path: &Path) -> String {
+    let is_store = repo_scope_path(&found.directory).as_deref() == Some(path);
+    if is_store {
+        format!(
+            "the repository store {} is not trusted, so nothing was loaded: a copied directory or \
+             an extracted archive can carry one. Check it with `ggshield secret list --local`, \
+             then run `ggshield trust --local`",
+            path.display()
+        )
+    } else {
+        format!(
+            "{} is not trusted, so nothing was loaded. Read it, then run `ggshield trust` in that \
+             directory",
+            path.display()
+        )
+    }
+}
+
 struct Loaded {
     fields: BTreeMap<String, SecretString>,
     advisories: Vec<String>,
@@ -670,9 +761,6 @@ struct Found {
     directory: PathBuf,
     path: PathBuf,
     fingerprint: u64,
-    /// False for the repository's own store: `git clone` never transfers it, and
-    /// [`foreign_repo_store`] catches a copied or extracted one.
-    needs_trust: bool,
     /// Recorded like any other outcome so the message appears once.
     refusal: Option<String>,
 }
@@ -693,7 +781,6 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                     fingerprint: layers_fingerprint(directory, &metadata) ^ trust_fingerprint(),
                     path,
                     refusal: None,
-                    needs_trust: true,
                 });
             }
             // A virtualenv is commonly named `.env`: it is no dotenv file, not a refusal.
@@ -713,7 +800,6 @@ fn nearest_dotenv(shell: Shell) -> Option<Found> {
                         path.display()
                     )),
                     path,
-                    needs_trust: true,
                 });
             }
             Err(_) => {}
@@ -740,10 +826,9 @@ fn repo_store(cwd: &Path) -> Option<Found> {
     Some(Found {
         // The shell's directory, not the store's: one store serves every worktree.
         directory: cwd.to_path_buf(),
-        fingerprint: layers_fingerprint(cwd, &metadata),
+        fingerprint: layers_fingerprint(cwd, &metadata) ^ trust_fingerprint(),
         path,
         refusal: None,
-        needs_trust: false,
     })
 }
 

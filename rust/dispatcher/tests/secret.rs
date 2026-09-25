@@ -135,6 +135,11 @@ impl Workspace {
         assert!(output.status.success(), "trust failed: {}", stderr(&output));
     }
 
+    fn trust_store(&self) {
+        let output = self.run(&["trust", "--local"]);
+        assert!(output.status.success(), "trust failed: {}", stderr(&output));
+    }
+
     #[cfg(unix)]
     fn trust_file(&self, path: &std::path::Path) {
         let output = self.run(&["trust", "--path", &path.display().to_string()]);
@@ -3422,6 +3427,7 @@ fn the_hook_loads_the_repository_store_when_the_checkout_has_no_dotenv() {
         &["set", "--provider", "file", "SHARED"],
         "fake-shared-value",
     );
+    workspace.trust_store();
 
     let block = stdout(&workspace.run(&["hook-env", "bash"]));
     assert!(
@@ -3430,18 +3436,65 @@ fn the_hook_loads_the_repository_store_when_the_checkout_has_no_dotenv() {
     );
 }
 
+/// Owned by whoever unpacked it: an archive or a `cp -r` carries a store that passes any owner check.
 #[test]
-fn the_repository_store_needs_no_trust_decision() {
+fn the_repository_store_loads_only_once_it_is_trusted() {
     let workspace = Workspace::new();
-    make_repository(&workspace);
-    workspace.set(
-        &["set", "--provider", "file", "SHARED"],
-        "fake-shared-value",
+    let store = make_repository(&workspace);
+    std::fs::create_dir_all(store.parent().unwrap()).unwrap();
+    std::fs::write(&store, "PLANTED=fake-planted-value\n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let private = std::fs::Permissions::from_mode(0o700);
+        std::fs::set_permissions(store.parent().unwrap(), private).unwrap();
+        std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    let first = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(
+        !first.contains("PLANTED"),
+        "loaded without consent: {first}"
+    );
+    assert!(first.contains("not trusted"), "{first}");
+    assert!(first.contains("ggshield trust --local"), "{first}");
+
+    workspace.trust_store();
+    let output = workspace.run_with(
+        None,
+        &[(STATE_VAR, &state_value(&first))],
+        &["hook-env", "bash"],
+    );
+    assert_ok(&output);
+    assert!(
+        stdout(&output).contains("export PLANTED='fake-planted-value'"),
+        "trusting an unchanged store did not load it: {}",
+        stdout(&output)
     );
 
+    std::fs::write(&store, "PLANTED=fake-edited-value\n").unwrap();
     let block = stdout(&workspace.run(&["hook-env", "bash"]));
-    assert!(!block.contains("not trusted"), "{block}");
-    assert!(block.contains("export SHARED="), "{block}");
+    assert!(
+        block.contains("not trusted"),
+        "an edit kept approval: {block}"
+    );
+    assert!(!block.contains("fake-edited-value"), "{block}");
+}
+
+/// The store is merged under a checkout's `.env`, so trusting the `.env` alone is not enough.
+#[test]
+fn a_trusted_dotenv_does_not_carry_an_untrusted_repository_store_in() {
+    let workspace = Workspace::new();
+    let store = make_repository(&workspace);
+    workspace.set(&["set", "--provider", "file", "SHARED"], "fake-v1");
+    workspace.write_project(".env", "PROJECT_KEY=p\n");
+    workspace.trust_project();
+    std::fs::write(&store, "SHARED=fake-swapped\n").unwrap();
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    assert!(!block.contains("PROJECT_KEY="), "{block}");
+    assert!(!block.contains("fake-swapped"), "{block}");
+    assert!(block.contains("ggshield trust --local"), "{block}");
 }
 
 /// `set` writes the repository store by default, which a checkout's `.env` merges.
@@ -3452,6 +3505,7 @@ fn the_hook_notices_a_value_set_in_the_repository_store_beside_a_dotenv() {
     workspace.set(&["set", "--provider", "file", "SHARED"], "fake-v1");
     workspace.write_project(".env", "PROJECT_KEY=p\n");
     workspace.trust_project();
+    workspace.trust_store();
 
     let first = stdout(&workspace.run(&["hook-env", "bash"]));
     assert!(first.contains("export SHARED='fake-v1'"), "{first}");
@@ -3461,6 +3515,7 @@ fn the_hook_notices_a_value_set_in_the_repository_store_beside_a_dotenv() {
         &["set", "--provider", "file", "--yes", "SHARED"],
         "fake-v2-rotated",
     ));
+    workspace.trust_store();
 
     let output = workspace.run_with(
         None,
@@ -3491,6 +3546,7 @@ fn the_hook_refuses_a_repository_store_others_can_write() {
         &["set", "--provider", "file", "SHARED"],
         "fake-shared-value",
     );
+    workspace.trust_store();
     let chmod = |path: &Path, mode: u32| {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
     };
@@ -3528,6 +3584,7 @@ fn a_dotenv_directory_falls_through_to_the_repository_store() {
         &["set", "--provider", "file", "SHARED"],
         "fake-shared-value",
     );
+    workspace.trust_store();
     std::fs::create_dir_all(workspace.project_file(".env").join("bin")).unwrap();
 
     let block = stdout(&workspace.run(&["hook-env", "bash"]));
@@ -3747,4 +3804,31 @@ fn the_state_is_recorded_before_anything_is_exported() {
     let state = block.find(&format!("export {STATE_VAR}=")).unwrap();
     let export = block.find("export API_KEY=").unwrap();
     assert!(state < export, "{block}");
+}
+
+/// A trust check that fails must still unload the directory the shell just left.
+#[test]
+fn an_unreadable_trust_store_still_unloads_the_previous_directory() {
+    let workspace = Workspace::new();
+    workspace.write_project(".env", "API_KEY=fake-left-value\n");
+    workspace.trust_project();
+    let state = state_value(&stdout(&workspace.run(&["hook-env", "bash"])));
+
+    let other = workspace.home.path().join("other");
+    std::fs::create_dir_all(&other).unwrap();
+    std::fs::write(other.join(".env"), "OTHER=fake-other\n").unwrap();
+    let trust_store = workspace.user_scope_file().with_file_name("trusted");
+    std::fs::remove_file(&trust_store).unwrap();
+    std::fs::create_dir_all(&trust_store).unwrap();
+
+    let output = workspace.run_with(
+        Some(&other),
+        &[(STATE_VAR, &state), ("API_KEY", "fake-left-value")],
+        &["hook-env", "bash"],
+    );
+    assert_ok(&output);
+    let block = stdout(&output);
+    assert!(block.contains("unset API_KEY;"), "{block}");
+    assert!(block.contains("could not check"), "{block}");
+    assert!(!block.contains("OTHER"), "{block}");
 }
