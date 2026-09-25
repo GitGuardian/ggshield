@@ -13,9 +13,15 @@ fn bare_safe(ch: char) -> bool {
         )
 }
 
+/// zsh expands `=cmd` to the command's path at the start of an assignment's
+/// value and after each `:`, and aborts the `source` when there is no such command.
+fn zsh_equals_expands(value: &str) -> bool {
+    value.starts_with('=') || value.contains(":=")
+}
+
 /// Prefers `prefer`'s quoting style when it can represent the value.
 pub(super) fn render_value(value: &str, prefer: Quote) -> (String, Quote) {
-    let bare_ok = !value.is_empty() && value.chars().all(bare_safe);
+    let bare_ok = !value.is_empty() && value.chars().all(bare_safe) && !zsh_equals_expands(value);
     let single_ok = !value.contains('\'');
 
     match prefer {
@@ -221,6 +227,67 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn a_value_zsh_would_expand_as_a_command_path_is_quoted() {
+        for value in ["=ls", "==ls", "=nope", "a:=ls", "x:y:=z"] {
+            let (rendered, quote) = render_value(value, Quote::None);
+            assert_ne!(
+                quote,
+                Quote::None,
+                "{value:?} was written bare as {rendered:?}"
+            );
+        }
+        for value in ["a=b", "abc==", "k=v,x=y"] {
+            assert_eq!(render_value(value, Quote::None).1, Quote::None, "{value:?}");
+        }
+    }
+
+    /// Sourced for real: every rendering must read back unchanged in each shell.
+    #[cfg(unix)]
+    #[test]
+    fn rendered_values_are_inert_when_sourced_by_a_shell() {
+        let values = [
+            "=ls", "==nope", "a:=ls", "~root", "a:~root", "$HOME", "`id`", "it's", "50%", "a=b",
+            "-=x",
+        ];
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("rendered.env");
+        let mut contents = String::new();
+        for (index, value) in values.iter().enumerate() {
+            let (rendered, _) = render_value(value, Quote::None);
+            contents.push_str(&format!("V{index}={rendered}\n"));
+        }
+        std::fs::write(&file, contents).unwrap();
+        let probe: String = (0..values.len())
+            .map(|index| format!("printf '%s\\n' \"$V{index}\"; "))
+            .collect();
+        for (shell, flags) in [
+            ("sh", &[][..]),
+            ("bash", &["--norc"][..]),
+            ("zsh", &["-f"][..]),
+        ] {
+            let Ok(output) = std::process::Command::new(shell)
+                .args(flags)
+                .arg("-c")
+                .arg(format!(". '{}' && {probe}", file.display()))
+                .output()
+            else {
+                assert!(
+                    std::env::var_os("GITGUARDIAN_REQUIRE_SHELLS").is_none(),
+                    "{shell} is not installed"
+                );
+                continue;
+            };
+            let expected: String = values.iter().map(|value| format!("{value}\n")).collect();
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                expected,
+                "{shell}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
     }
 
