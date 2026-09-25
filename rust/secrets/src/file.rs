@@ -24,7 +24,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail, ensure};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::dotenv::{Document, QuoteProblem, is_valid_key};
+use crate::dotenv::{Document, Line, QuoteProblem, is_valid_key};
 use crate::error::SecretError;
 use crypto::Cipher;
 use envelope::{ValueKind, classify};
@@ -549,6 +549,21 @@ impl FileBackend {
             }
             None => {}
         }
+        if only.is_none() {
+            let skipped = unparsed_assignment_lines(&document);
+            if !skipped.is_empty() {
+                outcome.warnings.push(format!(
+                    "{path}: left line{} {} in plaintext: an assignment to a name that is not a \
+                     valid variable name is not encrypted",
+                    if skipped.len() == 1 { "" } else { "s" },
+                    skipped
+                        .iter()
+                        .map(usize::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                ));
+            }
+        }
 
         // Loaded lazily: minting the device key must not happen for a pass with nothing to seal.
         let mut cipher: Option<Arc<dyn Cipher + Send + Sync>> = None;
@@ -945,6 +960,21 @@ fn refuse_enclosed_assignments(path: &str, document: &Document, key: &str) -> Re
         );
     }
     Ok(())
+}
+
+/// 1-based numbers of lines like `MY-KEY=x` that parse as no entry, so `encrypt` never sees them.
+fn unparsed_assignment_lines(document: &Document) -> Vec<usize> {
+    let mut found = Vec::new();
+    let mut number = 1;
+    for line in document.lines() {
+        if let Line::Other(raw) = line
+            && raw.contains('=')
+        {
+            found.push(number);
+        }
+        number += line.raw().matches('\n').count().max(1);
+    }
+    found
 }
 
 /// Must be cryptographic: it gates whether a prepared delete may still be written.
@@ -1802,6 +1832,30 @@ mod tests {
             .encrypt_in_place(&plain.project_path(), None, false)
             .expect("no cipher is needed when nothing is plaintext");
         assert!(outcome.encrypted.is_empty(), "{outcome:?}");
+    }
+
+    #[test]
+    fn encrypting_warns_about_lines_it_could_not_encrypt() {
+        let fixture = Fixture::new();
+        fixture.write_project("MY-KEY=secret\nAPI_KEY=value\nspring.datasource.password=x\n");
+        let outcome = encrypt_all(&fixture);
+        assert_eq!(outcome.encrypted, ["API_KEY"]);
+        assert!(
+            outcome
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("lines 1, 3 in plaintext")),
+            "{:?}",
+            outcome.warnings
+        );
+        assert!(
+            !outcome
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("secret")),
+            "a warning quoted a value: {:?}",
+            outcome.warnings
+        );
     }
 
     /// Sealing an empty value would device-lock a placeholder.
