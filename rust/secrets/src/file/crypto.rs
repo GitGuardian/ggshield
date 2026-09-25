@@ -121,8 +121,9 @@ impl Keyset {
 
     /// Parse a blob from [`Keyset::to_bytes`], borrowing so no key is copied.
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let stored: StoredKeyset<'_> =
-            serde_json::from_slice(bytes).context("the stored keyset is not valid JSON")?;
+        // Fixed messages: a parse error quotes the input, which here is key material.
+        let stored: StoredKeyset<'_> = serde_json::from_slice(bytes)
+            .map_err(|_| anyhow::anyhow!("the stored keyset is not valid JSON"))?;
         let current =
             KeyId::from_hex(stored.current).context("the stored keyset has an invalid key id")?;
         let mut keys = BTreeMap::new();
@@ -131,7 +132,7 @@ impl Keyset {
             let decoded = Zeroizing::new(
                 URL_SAFE_NO_PAD
                     .decode(encoded)
-                    .context("the stored keyset has an unreadable key")?,
+                    .map_err(|_| anyhow::anyhow!("the stored keyset has an unreadable key"))?,
             );
             let mut key: MasterKey = Zeroizing::new([0; KEY_LEN]);
             if decoded.len() != KEY_LEN {
@@ -457,6 +458,18 @@ mod tests {
             let error = Keyset::from_bytes(blob).unwrap_err();
             let message = format!("{error:#}");
             assert!(message.contains("keyset"), "{message}");
+        }
+    }
+
+    #[test]
+    fn a_malformed_keyset_error_quotes_none_of_the_blob() {
+        for blob in [
+            &br#"{"current":"aabbccdd","keys":"fake-key-material"}"#[..],
+            br#"{"current":"aabbccdd","keys":{"aabbccdd":"fake!key!material"}}"#,
+        ] {
+            let message = format!("{:#}", Keyset::from_bytes(blob).unwrap_err());
+            assert!(!message.contains("fake"), "{message}");
+            assert!(!message.contains("offset"), "{message}");
         }
     }
 
