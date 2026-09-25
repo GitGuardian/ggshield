@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
+use super::ownership::is_owned_by_current_user;
 use super::{USER_SCOPE_DIR, USER_SCOPE_FILE};
 
 /// The repo-scope file for the repository containing `start`, or `None` when
@@ -26,11 +27,11 @@ fn common_git_dir(start: &Path) -> Option<PathBuf> {
     if let Some(common) = env_path("GIT_COMMON_DIR") {
         return Some(common);
     }
-    let git_dir = match env_path("GIT_DIR") {
-        Some(git_dir) => git_dir,
-        None => discover(start)?,
-    };
-    Some(resolve_common(&git_dir))
+    if let Some(git_dir) = env_path("GIT_DIR") {
+        return Some(resolve_common(&git_dir));
+    }
+    let common = resolve_common(&discover(start)?);
+    is_owned_by_current_user(&common).then_some(common)
 }
 
 fn env_path(name: &str) -> Option<PathBuf> {
@@ -42,12 +43,21 @@ fn env_path(name: &str) -> Option<PathBuf> {
 }
 
 /// Walk up from `start` looking for `.git`, as git itself does.
+///
+/// A `.git` another user owns ends the search with no repository, as git's `safe.directory`
+/// check does: anyone can create `/tmp/.git` (or `C:\.git`) above someone else's directory.
 fn discover(start: &Path) -> Option<PathBuf> {
     let start = std::fs::canonicalize(start).unwrap_or_else(|_| start.to_path_buf());
     for directory in start.ancestors() {
         let candidate = directory.join(".git");
         let metadata = std::fs::symlink_metadata(&candidate).ok();
         match metadata {
+            Some(metadata)
+                if (metadata.is_dir() || metadata.is_file())
+                    && !is_owned_by_current_user(&candidate) =>
+            {
+                return None;
+            }
             Some(metadata) if metadata.is_dir() => return Some(candidate),
             // Worktrees and submodules: a `.git` file holding `gitdir: <path>`.
             Some(metadata) if metadata.is_file() => {
@@ -56,7 +66,8 @@ fn discover(start: &Path) -> Option<PathBuf> {
                 if pointer.is_empty() {
                     return None;
                 }
-                return Some(directory.join(pointer));
+                let git_dir = directory.join(pointer);
+                return is_owned_by_current_user(&git_dir).then_some(git_dir);
             }
             _ => {}
         }
@@ -169,6 +180,33 @@ mod tests {
                 .join("gitguardian")
                 .join("secrets.env")
         );
+    }
+
+    /// The pointed-to directory is checked too: `/` belongs to root, not to this user.
+    #[cfg(unix)]
+    #[test]
+    fn a_gitdir_owned_by_another_user_is_not_a_repository() {
+        // SAFETY: `geteuid` has no preconditions.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::write(temp.path().join(".git"), "gitdir: /\n").unwrap();
+        assert!(scope_path(temp.path()).is_none());
+    }
+
+    /// A worktree whose repository directory another user owns is not trusted either.
+    #[cfg(unix)]
+    #[test]
+    fn a_commondir_owned_by_another_user_is_not_a_repository() {
+        // SAFETY: `geteuid` has no preconditions.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let git_dir = repository(temp.path());
+        std::fs::write(git_dir.join("commondir"), "/\n").unwrap();
+        assert!(scope_path(temp.path()).is_none());
     }
 
     #[test]

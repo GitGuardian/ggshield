@@ -1,4 +1,4 @@
-//! File ACLs on Windows, where `std::fs::Permissions` is only the read-only flag.
+//! File ACLs and owners on Windows, where `std::fs::Permissions` is only the read-only flag.
 
 use std::fs::File;
 use std::io;
@@ -9,14 +9,17 @@ use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::Foundation::{CloseHandle, ERROR_SUCCESS, HANDLE, LocalFree, WIN32_ERROR};
 use windows_sys::Win32::Security::Authorization::{
-    EXPLICIT_ACCESS_W, GetSecurityInfo, NO_MULTIPLE_TRUSTEE, SE_FILE_OBJECT, SET_ACCESS,
-    SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_SID, TRUSTEE_IS_USER, TRUSTEE_W,
+    EXPLICIT_ACCESS_W, GetNamedSecurityInfoW, GetSecurityInfo, NO_MULTIPLE_TRUSTEE, SE_FILE_OBJECT,
+    SET_ACCESS, SetEntriesInAclW, SetNamedSecurityInfoW, TRUSTEE_IS_SID, TRUSTEE_IS_USER,
+    TRUSTEE_W,
 };
 use windows_sys::Win32::Security::{
-    ACL, DACL_SECURITY_INFORMATION, GetSecurityDescriptorControl, GetTokenInformation,
-    NO_INHERITANCE, OBJECT_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
-    PSECURITY_DESCRIPTOR, PSID, SE_DACL_PROTECTED, TOKEN_QUERY, TOKEN_USER, TokenUser,
-    UNPROTECTED_DACL_SECURITY_INFORMATION,
+    ACL, CheckTokenMembership, CreateWellKnownSid, DACL_SECURITY_INFORMATION, EqualSid,
+    GetSecurityDescriptorControl, GetTokenInformation, NO_INHERITANCE, OBJECT_SECURITY_INFORMATION,
+    OWNER_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
+    SE_DACL_PROTECTED, SECURITY_MAX_SID_SIZE, TOKEN_QUERY, TOKEN_USER, TokenUser,
+    UNPROTECTED_DACL_SECURITY_INFORMATION, WELL_KNOWN_SID_TYPE, WinBuiltinAdministratorsSid,
+    WinLocalSystemSid,
 };
 use windows_sys::Win32::Storage::FileSystem::FILE_ALL_ACCESS;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
@@ -109,6 +112,69 @@ pub(crate) fn restrict_to_current_user(path: &Path) -> io::Result<()> {
     result
 }
 
+/// Who owns `path`, as far as a trust decision cares.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Owner {
+    CurrentUser,
+    Administrators,
+    System,
+    Other,
+}
+
+pub(crate) fn owner_of(path: &Path) -> io::Result<Owner> {
+    let wide = wide(path);
+    let mut owner: PSID = null_mut();
+    let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
+    // SAFETY: `wide` is NUL-terminated; out-pointers are valid.
+    let status = unsafe {
+        GetNamedSecurityInfoW(
+            wide.as_ptr(),
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            &mut owner,
+            null_mut(),
+            null_mut(),
+            null_mut(),
+            &mut descriptor,
+        )
+    };
+    check(status)?;
+    let result = classify_owner(owner);
+    // SAFETY: allocated by GetNamedSecurityInfoW, freed exactly once; `owner` points into it.
+    unsafe { LocalFree(descriptor) };
+    result
+}
+
+fn classify_owner(owner: PSID) -> io::Result<Owner> {
+    let user = CurrentUser::query()?;
+    // SAFETY: both SIDs are valid for the duration of each call.
+    if unsafe { EqualSid(owner, user.sid()) } != 0 {
+        return Ok(Owner::CurrentUser);
+    }
+    let mut administrators = well_known_sid(WinBuiltinAdministratorsSid)?;
+    if unsafe { EqualSid(owner, administrators.as_mut_ptr().cast()) } != 0 {
+        return Ok(Owner::Administrators);
+    }
+    let mut system = well_known_sid(WinLocalSystemSid)?;
+    if unsafe { EqualSid(owner, system.as_mut_ptr().cast()) } != 0 {
+        return Ok(Owner::System);
+    }
+    Ok(Owner::Other)
+}
+
+/// Whether this process's token has the Administrators group enabled (it is elevated).
+pub(crate) fn is_administrator() -> io::Result<bool> {
+    let mut administrators = well_known_sid(WinBuiltinAdministratorsSid)?;
+    let mut member = 0;
+    // SAFETY: a null token means the caller's own; the SID buffer is valid.
+    if unsafe { CheckTokenMembership(null_mut(), administrators.as_mut_ptr().cast(), &mut member) }
+        == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(member != 0)
+}
+
 fn set_dacl(path: &Path, acl: *const ACL, extra: OBJECT_SECURITY_INFORMATION) -> io::Result<()> {
     let wide = wide(path);
     // SAFETY: `wide` is NUL-terminated and `acl` is valid (or null, a null DACL) for the call.
@@ -124,6 +190,16 @@ fn set_dacl(path: &Path, acl: *const ACL, extra: OBJECT_SECURITY_INFORMATION) ->
         )
     };
     check(status)
+}
+
+fn well_known_sid(kind: WELL_KNOWN_SID_TYPE) -> io::Result<Vec<u8>> {
+    let mut buffer = vec![0u8; SECURITY_MAX_SID_SIZE as usize];
+    let mut size = SECURITY_MAX_SID_SIZE;
+    // SAFETY: `buffer` holds `size` bytes, the documented maximum for any SID.
+    if unsafe { CreateWellKnownSid(kind, null_mut(), buffer.as_mut_ptr().cast(), &mut size) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(buffer)
 }
 
 /// The process token's `TOKEN_USER`, in a buffer aligned for it.
@@ -194,6 +270,19 @@ fn check(status: WIN32_ERROR) -> io::Result<()> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_we_create_is_owned_by_us() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("owned");
+        std::fs::write(&path, "").unwrap();
+        // An elevated token creates files owned by Administrators.
+        let owner = owner_of(&path).unwrap();
+        assert!(
+            matches!(owner, Owner::CurrentUser | Owner::Administrators),
+            "{owner:?}"
+        );
+    }
 
     #[test]
     fn a_restricted_file_keeps_a_protected_dacl_through_a_copy() {

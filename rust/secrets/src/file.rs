@@ -11,6 +11,7 @@ pub(crate) mod atomic;
 pub(crate) mod crypto;
 pub(crate) mod envelope;
 pub(crate) mod keystore;
+mod ownership;
 mod repo;
 pub mod trust;
 #[cfg(windows)]
