@@ -14,15 +14,27 @@ use anyhow::{Context, Result, bail};
 /// Permissions for a private file we create. Existing files keep their own.
 #[cfg(unix)]
 const NEW_FILE_MODE: u32 = 0o600;
+/// The system scope is read by every user and written by root alone.
+#[cfg(unix)]
+const SHARED_FILE_MODE: u32 = 0o644;
 
 /// `File::lock` blocks forever; a stuck holder must surface as an error, not a hang.
 const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const LOCK_POLL: std::time::Duration = std::time::Duration::from_millis(20);
 
+/// Who may read a file (and its directory) that this module creates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Visibility {
+    Private,
+    /// Every user of the machine: the system scope.
+    Shared,
+}
+
 /// A dotenv file read while holding its sidecar lock.
 pub(crate) struct LockedFile {
     _lock: File,
     path: PathBuf,
+    visibility: Visibility,
     /// `None` when there was no file yet.
     snapshot: Option<Snapshot>,
 }
@@ -48,14 +60,19 @@ impl std::fmt::Debug for LockedFile {
 impl LockedFile {
     /// Lock `path` for rewriting; a directory created on the way is private.
     pub(crate) fn open(path: &Path) -> Result<Self> {
+        Self::open_as(path, Visibility::Private)
+    }
+
+    pub(crate) fn open_as(path: &Path, visibility: Visibility) -> Result<Self> {
         let directory = parent_directory(path);
-        create_private_dir_all(directory)
+        create_dir_all_as(directory, visibility)
             .with_context(|| format!("creating {}", directory.display()))?;
         let lock = lock_sidecar(&lock_path(path))?;
         let snapshot = read_snapshot(path)?;
         Ok(LockedFile {
             _lock: lock,
             path: path.to_path_buf(),
+            visibility,
             snapshot,
         })
     }
@@ -161,16 +178,30 @@ fn ensure_regular_handle(file: &File, path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Private whatever the umask: the shell hook refuses a group-writable repository store.
-fn create_private_dir_all(path: &Path) -> std::io::Result<()> {
+/// Private is never looser than 0700: the shell hook refuses a group-writable repository store.
+fn create_dir_all_as(path: &Path, visibility: Visibility) -> std::io::Result<()> {
     let mut builder = std::fs::DirBuilder::new();
     builder.recursive(true);
     #[cfg(unix)]
     {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+        let created = !path.exists();
+        builder.mode(match visibility {
+            Visibility::Private => 0o700,
+            Visibility::Shared => 0o755,
+        });
+        builder.create(path)?;
+        // A restrictive umask (root's is often 077) would hide the system scope from everyone.
+        if created && visibility == Visibility::Shared {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))?;
+        }
+        Ok(())
     }
-    builder.create(path)
+    #[cfg(not(unix))]
+    {
+        let _ = visibility;
+        builder.create(path)
+    }
 }
 
 /// Read `path`, or `None` when it does not exist.
@@ -317,7 +348,7 @@ pub(crate) fn replace_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
         .rand_bytes(RANDOM_NAME_LEN)
         .tempfile_in(directory)
         .with_context(|| format!("creating a temporary file in {}", directory.display()))?;
-    apply_new_file_permissions(&temp)?;
+    apply_new_file_permissions(&temp, Visibility::Private)?;
     temp.write_all(bytes).context("writing the file")?;
     temp.flush().context("writing the file")?;
     temp.as_file().sync_all().context("flushing to disk")?;
@@ -342,7 +373,7 @@ fn write_atomically(locked: &LockedFile, contents: &str) -> Result<()> {
         .with_context(|| format!("creating a temporary file in {}", directory.display()))?;
     match &locked.snapshot {
         Some(snapshot) => apply_snapshot_permissions(&temp, snapshot)?,
-        None => apply_new_file_permissions(&temp)?,
+        None => apply_new_file_permissions(&temp, locked.visibility)?,
     }
     temp.write_all(contents.as_bytes())
         .context("writing the updated file")?;
@@ -502,21 +533,38 @@ fn apply_snapshot_permissions(_temp: &tempfile::NamedTempFile, _snapshot: &Snaps
 }
 
 #[cfg(unix)]
-fn apply_new_file_permissions(temp: &tempfile::NamedTempFile) -> Result<()> {
+fn apply_new_file_permissions(
+    temp: &tempfile::NamedTempFile,
+    visibility: Visibility,
+) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
+    let mode = match visibility {
+        Visibility::Private => NEW_FILE_MODE,
+        Visibility::Shared => SHARED_FILE_MODE,
+    };
     temp.as_file()
-        .set_permissions(std::fs::Permissions::from_mode(NEW_FILE_MODE))
+        .set_permissions(std::fs::Permissions::from_mode(mode))
         .context("setting file permissions")
 }
 
+/// A shared file inherits its directory's ACL, which under ProgramData lets users read.
 #[cfg(windows)]
-fn apply_new_file_permissions(temp: &tempfile::NamedTempFile) -> Result<()> {
-    super::win_security::restrict_to_current_user(temp.path())
-        .context("restricting the file to the current user")
+fn apply_new_file_permissions(
+    temp: &tempfile::NamedTempFile,
+    visibility: Visibility,
+) -> Result<()> {
+    match visibility {
+        Visibility::Private => super::win_security::restrict_to_current_user(temp.path())
+            .context("restricting the file to the current user"),
+        Visibility::Shared => Ok(()),
+    }
 }
 
 #[cfg(not(any(unix, windows)))]
-fn apply_new_file_permissions(_temp: &tempfile::NamedTempFile) -> Result<()> {
+fn apply_new_file_permissions(
+    _temp: &tempfile::NamedTempFile,
+    _visibility: Visibility,
+) -> Result<()> {
     Ok(())
 }
 
@@ -644,6 +692,24 @@ mod tests {
             "the rewrite fell back to the directory's ACL"
         );
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "A=2\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_shared_file_and_its_directory_are_readable_by_everyone() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let store = directory.path().join("gitguardian");
+        let path = store.join("secrets.env");
+        LockedFile::open_as(&path, Visibility::Shared)
+            .unwrap()
+            .replace("A=1\n")
+            .unwrap();
+
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&store), 0o755);
+        assert_eq!(mode(&path), 0o644);
     }
 
     /// An editor's rename over the path after locking makes the write refuse, not clobber.

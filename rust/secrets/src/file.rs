@@ -2,8 +2,8 @@
 //!
 //! Scopes, most specific winning per variable: system (`/etc/gitguardian/secrets.env`), user
 //! (`<config dir>/gitguardian/secrets.env`), repo (`<common git dir>/gitguardian/secrets.env`) and
-//! project (`./.env` or `--path`). The system scope is for plaintext: a sealed value there is
-//! readable only by the user whose keyring sealed it.
+//! project (`./.env` or `--path`). The system scope is world-readable and plaintext only: a sealed
+//! value there would be readable only by the user whose keyring sealed it.
 //!
 //! Key material is zeroized; plaintext values are not, they live in ordinary `String`s.
 
@@ -295,8 +295,8 @@ impl FileBackend {
         &self,
         project_path: &str,
     ) -> Result<(BTreeMap<String, SecretString>, ReadWarnings)> {
-        let layers = self.layers(Path::new(project_path))?;
-        self.resolve(project_path, layers)
+        let (layers, skipped) = self.layers(Path::new(project_path))?;
+        self.resolve(project_path, layers, skipped)
     }
 
     /// Every value in one file, with no other scope merged in.
@@ -312,30 +312,28 @@ impl FileBackend {
             }],
             None => Vec::new(),
         };
-        self.resolve(path, layers)
+        self.resolve(path, layers, Vec::new())
     }
 
     fn resolve(
         &self,
         project_path: &str,
         layers: Vec<Layer>,
+        skipped: Vec<String>,
     ) -> Result<(BTreeMap<String, SecretString>, ReadWarnings)> {
         if layers.is_empty() {
-            return Err(SecretError::SecretNotFound {
-                path: project_path.to_string(),
-            }
-            .into());
+            return Err(not_found(project_path, &skipped));
         }
         // A stray quote loses variables at parse time, so reads must report it too.
-        let advisories = layers
-            .iter()
-            .flat_map(|layer| {
+        let advisories = skipped
+            .into_iter()
+            .chain(layers.iter().flat_map(|layer| {
                 layer
                     .document
                     .quote_problems()
                     .into_iter()
                     .map(|problem| format!("{}: {problem}", layer.path.display()))
-            })
+            }))
             .collect();
         let (fields, unreadable) = self.decrypt(&merge(&layers))?;
         Ok((
@@ -349,7 +347,7 @@ impl FileBackend {
 
     /// Which scope each visible field's value came from; decrypts nothing.
     pub(crate) fn field_scopes(&self, project_path: &str) -> Result<BTreeMap<String, String>> {
-        let layers = self.layers(Path::new(project_path))?;
+        let (layers, _) = self.layers(Path::new(project_path))?;
         Ok(merge(&layers)
             .into_iter()
             .map(|(field, resolved)| (field.to_string(), resolved.scope.to_string()))
@@ -358,12 +356,9 @@ impl FileBackend {
 
     /// One value; decrypts only that field, so an unrelated unreadable entry cannot fail it.
     pub(crate) fn get_secret(&self, project_path: &str, field: &str) -> Result<SecretString> {
-        let layers = self.layers(Path::new(project_path))?;
+        let (layers, skipped) = self.layers(Path::new(project_path))?;
         if layers.is_empty() {
-            return Err(SecretError::SecretNotFound {
-                path: project_path.to_string(),
-            }
-            .into());
+            return Err(not_found(project_path, &skipped));
         }
         let merged = merge(&layers);
         let Some(resolved) = merged.get(field) else {
@@ -381,10 +376,13 @@ impl FileBackend {
                     })
                 })
                 .collect::<Vec<_>>();
-            let error: anyhow::Error = SecretError::FieldNotFound {
+            let mut error: anyhow::Error = SecretError::FieldNotFound {
                 field: field.to_string(),
             }
             .into();
+            if !skipped.is_empty() {
+                error = error.context(skipped.join("; "));
+            }
             if problems.is_empty() {
                 return Err(error);
             }
@@ -430,6 +428,9 @@ impl FileBackend {
             }
         }
 
+        if self.is_system_path(path) && !matches!(self.encryption, Encryption::Plaintext) {
+            bail!("{}", SEALED_SYSTEM_VALUE);
+        }
         let cipher = self.write_cipher()?;
         if cipher.is_none() {
             // An encrypted value becomes a marker, so only plaintext can be misread as a reference.
@@ -438,7 +439,7 @@ impl FileBackend {
             }
         }
 
-        let mut locked = atomic::LockedFile::open(Path::new(path))?;
+        let mut locked = atomic::LockedFile::open_as(Path::new(path), self.visibility_of(path))?;
         let contents = locked.read()?;
         let mut document = Document::parse(&contents);
         if let Some(expected) = expected_existing {
@@ -506,6 +507,9 @@ impl FileBackend {
             .is_err_and(|error| error.kind() == std::io::ErrorKind::NotFound)
         {
             return Ok(EncryptOutcome::default());
+        }
+        if self.is_system_path(path) {
+            bail!("{}", SEALED_SYSTEM_VALUE);
         }
 
         let mut locked = atomic::LockedFile::open(Path::new(path))?;
@@ -645,7 +649,7 @@ impl FileBackend {
              never a whole file"
         );
 
-        let mut locked = atomic::LockedFile::open(Path::new(path))?;
+        let mut locked = atomic::LockedFile::open_as(Path::new(path), self.visibility_of(path))?;
         let contents = locked.read()?;
 
         // Any change invalidates the plan: a `set` since the prompt would otherwise have its
@@ -699,12 +703,25 @@ impl FileBackend {
         Ok(outcome)
     }
 
-    /// The scope files that exist, least specific first.
-    fn layers(&self, project_path: &Path) -> Result<Vec<Layer>> {
+    fn is_system_path(&self, path: &str) -> bool {
+        self.system_path.as_deref() == Some(Path::new(path))
+    }
+
+    fn visibility_of(&self, path: &str) -> atomic::Visibility {
+        if self.is_system_path(path) {
+            atomic::Visibility::Shared
+        } else {
+            atomic::Visibility::Private
+        }
+    }
+
+    /// The scope files that exist, least specific first, and why any were skipped.
+    fn layers(&self, project_path: &Path) -> Result<(Vec<Layer>, Vec<String>)> {
         let mut layers = Vec::new();
+        let mut skipped = Vec::new();
         if let Some(system_path) = self.system_path.as_deref()
             && system_path != project_path
-            && let Some(contents) = atomic::read_to_string(system_path)?
+            && let Some(contents) = read_implicit_layer(Scope::System, system_path, &mut skipped)?
         {
             layers.push(Layer {
                 scope: Scope::System,
@@ -714,7 +731,7 @@ impl FileBackend {
         }
         if let Some(user_path) = self.user_path.as_deref()
             && user_path != project_path
-            && let Some(contents) = atomic::read_to_string(user_path)?
+            && let Some(contents) = read_implicit_layer(Scope::Global, user_path, &mut skipped)?
         {
             layers.push(Layer {
                 scope: Scope::Global,
@@ -726,7 +743,7 @@ impl FileBackend {
         if let Some(repo_path) = repo::scope_path(project_directory(project_path))
             && repo_path != project_path
             && self.user_path.as_deref() != Some(repo_path.as_path())
-            && let Some(contents) = atomic::read_to_string(&repo_path)?
+            && let Some(contents) = read_implicit_layer(Scope::Local, &repo_path, &mut skipped)?
         {
             layers.push(Layer {
                 scope: Scope::Local,
@@ -743,7 +760,51 @@ impl FileBackend {
                 path: project_path.to_path_buf(),
             });
         }
-        Ok(layers)
+        Ok((layers, skipped))
+    }
+}
+
+/// Refused before the keyring is touched, so no device key is minted for nothing.
+const SEALED_SYSTEM_VALUE: &str = "the system scope is shared by every user of this machine, and \
+     an encrypted value there could be read only by the user whose keyring sealed it. Store it \
+     with --plain, or use --global for a value only you need";
+
+/// A scope file the user did not name: one they cannot read is skipped, not fatal, so a
+/// root-only `/etc/gitguardian` cannot break every other user's reads.
+fn read_implicit_layer(
+    scope: Scope,
+    path: &Path,
+    skipped: &mut Vec<String>,
+) -> Result<Option<String>> {
+    match atomic::read_to_string(path) {
+        Err(error) if is_permission_denied(&error) => {
+            skipped.push(format!(
+                "skipped the {scope} scope file {}: permission denied",
+                path.display()
+            ));
+            Ok(None)
+        }
+        other => other,
+    }
+}
+
+fn is_permission_denied(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        cause
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|error| error.kind() == std::io::ErrorKind::PermissionDenied)
+    })
+}
+
+fn not_found(path: &str, skipped: &[String]) -> anyhow::Error {
+    let error: anyhow::Error = SecretError::SecretNotFound {
+        path: path.to_string(),
+    }
+    .into();
+    if skipped.is_empty() {
+        error
+    } else {
+        error.context(skipped.join("; "))
     }
 }
 
@@ -2142,6 +2203,120 @@ mod tests {
     }
 
     /// What `get --global` asks: what this file sets, not what a command would see.
+    fn system_path(fixture: &Fixture) -> String {
+        fixture
+            .backend
+            .system_path
+            .as_ref()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn fields(pairs: &[(&str, &str)]) -> BTreeMap<String, SecretString> {
+        pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), SecretString::from(value.to_string())))
+            .collect()
+    }
+
+    #[test]
+    fn a_sealed_value_is_refused_in_the_system_scope() {
+        let fixture = Fixture::new();
+        let error = fixture
+            .backend
+            .set_secrets(
+                &system_path(&fixture),
+                &fields(&[("API_KEY", FAKE_VALUE)]),
+                None,
+            )
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("--plain"), "{error:#}");
+        assert!(!fixture.backend.system_path.as_ref().unwrap().exists());
+
+        fixture.write_system("API_KEY=plain\n");
+        let error = fixture
+            .backend
+            .encrypt_in_place(&system_path(&fixture), None, false)
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("--plain"), "{error:#}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_plaintext_system_value_is_written_readable_by_everyone() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut fixture = Fixture::new().plaintext();
+        let store = fixture.directory.path().join("etc-gitguardian");
+        let path = store.join("secrets.env");
+        fixture.backend.system_path = Some(path.clone());
+        fixture
+            .backend
+            .set_secrets(path.to_str().unwrap(), &fields(&[("PORT", "80")]), None)
+            .unwrap();
+
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&store), 0o755);
+        assert_eq!(mode(&path), 0o644);
+    }
+
+    /// Root's `/etc/gitguardian` at 0700 must not break every other user's reads.
+    #[cfg(unix)]
+    #[test]
+    fn an_unreadable_system_scope_is_skipped_with_a_warning() {
+        use std::os::unix::fs::PermissionsExt;
+
+        // Root reads it regardless.
+        // SAFETY: `geteuid` has no preconditions.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let mut fixture = Fixture::new();
+        let store = fixture.directory.path().join("etc-gitguardian");
+        std::fs::create_dir(&store).unwrap();
+        std::fs::write(store.join("secrets.env"), "SYSTEM=1\n").unwrap();
+        fixture.backend.system_path = Some(store.join("secrets.env"));
+        fixture.write_project("PROJECT=1\n");
+        std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let result = fixture.get_reporting();
+        let field = fixture.get_field("PROJECT");
+        std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+        let (fields, warnings) = result.unwrap();
+        assert_eq!(value(&fields, "PROJECT"), "1");
+        assert!(!fields.contains_key("SYSTEM"));
+        assert!(
+            warnings
+                .advisories
+                .iter()
+                .any(|line| line.contains("skipped the system scope file")),
+            "{warnings:?}"
+        );
+        assert!(warnings.unreadable.is_empty(), "{warnings:?}");
+        assert_eq!(field.unwrap().expose_secret(), "1");
+    }
+
+    /// A file the user named is still an error when they cannot read it.
+    #[cfg(unix)]
+    #[test]
+    fn an_unreadable_project_file_is_still_an_error() {
+        use std::os::unix::fs::PermissionsExt;
+
+        // SAFETY: `geteuid` has no preconditions.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let fixture = Fixture::new();
+        fixture.write_project("PROJECT=1\n");
+        let path = fixture.directory.path().join(".env");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+        let result = fixture.get_reporting();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(result.is_err());
+    }
+
     #[test]
     fn reading_one_file_merges_nothing_else_in() {
         let fixture = Fixture::new().plaintext();
