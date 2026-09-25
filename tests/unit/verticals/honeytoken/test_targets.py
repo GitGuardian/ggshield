@@ -207,7 +207,7 @@ def test_apply_perms_skips_symlinked_aws_dir(monkeypatch, tmp_path):
 def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path):
     """TOCTOU: swap `.aws` for a symlink to an attacker dir right after the dir fd is
     opened. The fchmod must hit the pinned (real) dir, never the attacker's."""
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     home = tmp_path / "home"
     real_aws = home / ".aws"
@@ -229,7 +229,7 @@ def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path)
             os.symlink(attacker, real_aws, target_is_directory=True)
         return fd
 
-    monkeypatch.setattr(aws_profile.os, "open", _swap_then_open)
+    monkeypatch.setattr(secure_file.os, "open", _swap_then_open)
     apply_perms_and_owner(path, Target("alice", home, uid=None), running_as_root=False)
 
     # fchmod(dir_fd, 0700) hit the pinned (moved-aside) real dir, not the attacker's.
@@ -240,14 +240,14 @@ def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path)
 def test_apply_perms_fails_closed_without_fd_support(tmp_path, monkeypatch):
     """POSIX without the no-follow/dir-fd backend → refuse rather than chmod/chown via
     path (which would be TOCTOU-prone)."""
-    from ggshield.verticals.honeytoken import aws_profile
-    from ggshield.verticals.honeytoken.aws_profile import PlacementError
+    from ggshield.verticals.honeytoken import secure_file
+    from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
     path = tmp_path / ".aws" / "credentials"
     path.parent.mkdir()
     path.write_text("x")
-    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
-    with pytest.raises(PlacementError):
+    monkeypatch.setattr(secure_file, "FD_HARDENED", False)
+    with pytest.raises(SecureFileError):
         apply_perms_and_owner(
             path, Target("a", tmp_path, uid=None), running_as_root=False
         )
@@ -269,3 +269,48 @@ def test_machine_info_for_uses_shared_helpers(monkeypatch):
         "username": "alice",
         "hostname": "host-1",
     }
+
+
+def test_apply_perms_root_without_uid_hands_the_file_to_the_home_owner(
+    monkeypatch, tmp_path
+):
+    # `--user-dir` without a passwd user (uid None): the rewritten file must not stay
+    # root-owned, so ownership falls back to whoever owns the home directory.
+    home = tmp_path / "home"
+    path = home / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text("x")
+    owner = os.stat(home).st_uid
+    fchowns = []
+    chowns = []
+    monkeypatch.setattr(os, "fchown", lambda fd, u, g: fchowns.append((u, g)))
+    monkeypatch.setattr(
+        os, "chown", lambda p, u, g, **kw: chowns.append((str(p), u, g))
+    )
+    monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=4242))
+
+    apply_perms_and_owner(path, Target("alice", home, uid=None), running_as_root=True)
+
+    assert fchowns == [(owner, 4242)]
+    assert chowns == [(path.name, owner, 4242)]
+
+
+def test_apply_perms_reports_a_failed_chown_instead_of_swallowing_it(
+    monkeypatch, tmp_path
+):
+    from ggshield.verticals.honeytoken.secure_file import SecureFileError
+
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir()
+    path.write_text("x")
+
+    def _refuse(*args, **kwargs):
+        raise PermissionError("EPERM")
+
+    monkeypatch.setattr(os, "fchown", _refuse)
+    monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=2002))
+
+    with pytest.raises(SecureFileError, match="hand .* back to uid 1001"):
+        apply_perms_and_owner(
+            path, Target("bob", tmp_path, uid=1001), running_as_root=True
+        )

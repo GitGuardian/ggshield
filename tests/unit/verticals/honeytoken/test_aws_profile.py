@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from ggshield.verticals.honeytoken.aws_profile import (
-    FD_HARDENED,
     ForceRefusal,
     PlacementError,
     RemoveOutcome,
@@ -22,6 +21,7 @@ from ggshield.verticals.honeytoken.endpoint_deployments import (
     HoneytokenCreds,
     PlacementConfig,
 )
+from ggshield.verticals.honeytoken.secure_file import FD_HARDENED
 
 
 def _creds(access_id: str, secret: str) -> HoneytokenCreds:
@@ -417,7 +417,7 @@ def test_write_rejects_symlinked_credentials_file(tmp_path):
 def test_write_keeps_temp_private_until_swap(tmp_path, monkeypatch):
     """Even when the existing file is permissive (0644), the temp stays 0600 until the
     rename swap — the secret never sits in a group/world-readable temp."""
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     path = tmp_path / "credentials"
     path.write_text(
@@ -434,7 +434,7 @@ def test_write_keeps_temp_private_until_swap(tmp_path, monkeypatch):
         )
         return real_rename(src, dst, src_dir_fd=src_dir_fd, dst_dir_fd=dst_dir_fd)
 
-    monkeypatch.setattr(aws_profile.os, "rename", _spy_rename)
+    monkeypatch.setattr(secure_file.os, "rename", _spy_rename)
     write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
 
     assert modes_at_swap == [0o600]  # temp private at swap time
@@ -446,7 +446,7 @@ def test_write_is_immune_to_aws_dir_swap_after_open(tmp_path, monkeypatch):
     """TOCTOU: swap `.aws` for a symlink to an attacker dir right after the dir fd is
     opened. The write must follow the fd to the original real dir, never the attacker's.
     """
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     home = tmp_path / "home"
     real_aws = home / ".aws"
@@ -466,7 +466,7 @@ def test_write_is_immune_to_aws_dir_swap_after_open(tmp_path, monkeypatch):
             os.symlink(attacker, real_aws, target_is_directory=True)
         return fd
 
-    monkeypatch.setattr(aws_profile.os, "open", _swap_then_open)
+    monkeypatch.setattr(secure_file.os, "open", _swap_then_open)
     write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
 
     # Landed in the original (moved-aside) real dir via the fd — never the attacker's.
@@ -478,9 +478,9 @@ def test_write_is_immune_to_aws_dir_swap_after_open(tmp_path, monkeypatch):
 def test_write_fails_closed_on_posix_without_fd_support(tmp_path, monkeypatch):
     """On POSIX we refuse rather than fall back to TOCTOU-prone path operations when the
     no-follow / dir-fd backend isn't available."""
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
-    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
+    monkeypatch.setattr(secure_file, "FD_HARDENED", False)
     with pytest.raises(PlacementError):
         write_aws_profile(
             tmp_path / "credentials", "gg", _creds("K1", "S1"), force=False
@@ -489,11 +489,11 @@ def test_write_fails_closed_on_posix_without_fd_support(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX-only fail-closed guard")
 def test_remove_fails_closed_on_posix_without_fd_support(tmp_path, monkeypatch):
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     path = tmp_path / "credentials"
     path.write_text("[gg]\naws_access_key_id = K1\naws_secret_access_key = S1\n")
-    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
+    monkeypatch.setattr(secure_file, "FD_HARDENED", False)
     with pytest.raises(PlacementError):
         remove_aws_profile(path, "gg", None)
 
@@ -518,19 +518,19 @@ def test_write_refuses_section_missing_a_key_without_force(tmp_path):
 
 @pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW (POSIX)")
 def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
-    """If serializing the parser fails mid-write, the temp file is unlinked (no leak in
-    ``.aws``) and the original file is left intact."""
-    from configupdater import ConfigUpdater
+    """If the write fails mid-way, the temp file is unlinked (no leak in ``.aws``) and
+    the original file is left intact."""
+    from ggshield.verticals.honeytoken import secure_file
 
     path = tmp_path / ".aws" / "credentials"
     path.parent.mkdir(parents=True)
     original = "[default]\naws_access_key_id = USER\naws_secret_access_key = MINE\n"
     path.write_text(original)
 
-    def boom(self, *args, **kwargs):
+    def boom(*args, **kwargs):
         raise RuntimeError("disk full")
 
-    monkeypatch.setattr(ConfigUpdater, "write", boom)
+    monkeypatch.setattr(secure_file.os, "rename", boom)
 
     with pytest.raises(RuntimeError):
         write_aws_profile(path, "gg", _creds("K1", "S1"), force=False)
@@ -544,15 +544,15 @@ def test_write_cleans_up_temp_on_failure(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(not FD_HARDENED, reason="POSIX advisory lock")
-def test_open_aws_dir_fd_holds_exclusive_lock(tmp_path):
+def test_open_dir_fd_holds_exclusive_lock_on_the_aws_dir(tmp_path):
     """The dir fd carries an exclusive advisory lock, so a second acquirer is blocked."""
     import fcntl
 
-    from ggshield.verticals.honeytoken.aws_profile import open_aws_dir_fd
+    from ggshield.verticals.honeytoken.secure_file import open_dir_fd
 
     aws = tmp_path / ".aws"
     aws.mkdir()
-    dir_fd = open_aws_dir_fd(aws, create=False)
+    dir_fd = open_dir_fd(aws, create=False)
     try:
         probe = os.open(aws, os.O_RDONLY | os.O_DIRECTORY)
         try:
@@ -572,19 +572,19 @@ def test_concurrent_plants_do_not_lose_a_profile(tmp_path, monkeypatch):
     import threading
     import time
 
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     path = tmp_path / ".aws" / "credentials"
     path.parent.mkdir(parents=True)
 
     # Widen the RMW window so an unlocked race would reliably drop one update.
-    real_write = aws_profile._atomic_write_via_fd
+    real_write = secure_file.atomic_write_via_fd
 
     def slow_write(*args, **kwargs):
         time.sleep(0.3)
         return real_write(*args, **kwargs)
 
-    monkeypatch.setattr(aws_profile, "_atomic_write_via_fd", slow_write)
+    monkeypatch.setattr(secure_file, "atomic_write_via_fd", slow_write)
 
     start = threading.Barrier(2)
     errors = []
