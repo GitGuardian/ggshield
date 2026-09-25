@@ -324,18 +324,34 @@ impl FileBackend {
         if layers.is_empty() {
             return Err(not_found(project_path, &skipped));
         }
-        // A stray quote loses variables at parse time, so reads must report it too.
-        let advisories = skipped
-            .into_iter()
-            .chain(layers.iter().flat_map(|layer| {
+        // A stray quote loses variables at parse time, so reads must report it too. The fatal
+        // ones drop a variable outright, so they count as unreadable: `run` must not start
+        // without it.
+        let (fatal, heuristic): (Vec<_>, Vec<_>) = layers
+            .iter()
+            .flat_map(|layer| {
                 layer
                     .document
                     .quote_problems()
                     .into_iter()
-                    .map(|problem| format!("{}: {problem}", layer.path.display()))
-            }))
+                    .map(move |problem| (layer, problem))
+            })
+            .partition(|(_, problem)| problem.is_fatal());
+        let advisories = skipped
+            .into_iter()
+            .chain(
+                heuristic
+                    .iter()
+                    .map(|(layer, problem)| format!("{}: {problem}", layer.path.display())),
+            )
             .collect();
-        let (fields, unreadable) = self.decrypt(&merge(&layers))?;
+        let (fields, mut unreadable) = self.decrypt(&merge(&layers))?;
+        unreadable.extend(fatal.iter().map(|(layer, problem)| {
+            format!(
+                "{}: {problem}, so the variable there cannot be read",
+                layer.path.display()
+            )
+        }));
         Ok((
             fields,
             ReadWarnings {
@@ -1842,7 +1858,7 @@ mod tests {
         assert!(!fields.contains_key("API_KEY"), "{fields:?}");
         assert!(
             warnings
-                .advisories
+                .unreadable
                 .iter()
                 .any(|warning| warning.contains("API_KEY")),
             "{warnings:?}"
@@ -2311,6 +2327,21 @@ mod tests {
         );
         assert!(warnings.unreadable.is_empty(), "{warnings:?}");
         assert_eq!(field.unwrap().expose_secret(), "1");
+    }
+
+    /// A quote problem that drops a variable makes the read partial, which `run` refuses.
+    #[test]
+    fn a_quote_problem_that_drops_a_variable_counts_as_unreadable() {
+        let fixture = Fixture::new().plaintext();
+        for broken in ["API_KEY='abc'tail\n", "API_KEY='abc\n"] {
+            fixture.write_project(&format!("PORT=80\n{broken}"));
+            let (fields, warnings) = fixture.get_reporting().unwrap();
+            assert_eq!(value(&fields, "PORT"), "80");
+            assert!(!fields.contains_key("API_KEY"), "{broken:?}");
+            assert_eq!(warnings.unreadable.len(), 1, "{broken:?}: {warnings:?}");
+            assert!(warnings.unreadable[0].contains("line 2"), "{warnings:?}");
+            assert!(warnings.advisories.is_empty(), "{warnings:?}");
+        }
     }
 
     /// Another user who can write the system scope could set variables for everyone.
