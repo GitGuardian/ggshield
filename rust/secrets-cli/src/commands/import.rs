@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
 use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
-use ggshield_secrets::{Provider, SecretStore};
+use ggshield_secrets::{Provider, ReadWarnings, SecretStore};
+use secrecy::{ExposeSecret, SecretString};
 
 use crate::commands::shared::{
     ScopeArgs, confirm_existing_fields, field_count, resolve_provider, write_path,
@@ -61,7 +63,12 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         refuse_importing_a_file_into_itself(input, &path)?;
     }
     let contents = read_import_input(args.input.as_deref())?;
-    let fields = parse_dotenv(&contents)?;
+    let mut fields = parse_dotenv(&contents)?;
+    let sealed = sealed_fields(&fields);
+    if !sealed.is_empty() {
+        let opened = open_sealed(args.input.as_deref(), &sealed)?;
+        replace_sealed(&mut fields, &sealed, opened)?;
+    }
     let keys = fields.keys().cloned().collect::<Vec<_>>();
     let store = SecretStore::builder(provider)
         .env_override(false)
@@ -115,6 +122,64 @@ fn remove_if_unchanged(input: &Path, imported: &str) -> Result<()> {
     std::fs::remove_file(input).with_context(|| format!("removing {}", input.display()))
 }
 
+const SEALED_PREFIX: &str = "gitguardian:";
+
+/// Values `encrypt` sealed with this device's key.
+fn sealed_fields(fields: &BTreeMap<String, SecretString>) -> Vec<String> {
+    fields
+        .iter()
+        .filter(|(_, value)| value.expose_secret().starts_with(SEALED_PREFIX))
+        .map(|(key, _)| key.clone())
+        .collect()
+}
+
+fn open_sealed(
+    input: Option<&Path>,
+    sealed: &[String],
+) -> Result<(BTreeMap<String, SecretString>, ReadWarnings)> {
+    let Some(input) = input else {
+        bail!(
+            "encrypted values on stdin ({}); pass the file instead so they can be decrypted \
+             before import",
+            sealed.join(", ")
+        );
+    };
+    let input_path = input
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("{} is not valid UTF-8", input.display()))?;
+    SecretStore::builder(Provider::File)
+        .build()?
+        .get_secrets_from_file(input_path)
+        .with_context(|| format!("decrypting the encrypted values in {}", input.display()))
+}
+
+fn replace_sealed(
+    fields: &mut BTreeMap<String, SecretString>,
+    sealed: &[String],
+    (mut opened, warnings): (BTreeMap<String, SecretString>, ReadWarnings),
+) -> Result<()> {
+    let mut unopened = Vec::new();
+    for key in sealed {
+        match opened.remove(key) {
+            Some(value) if !value.expose_secret().starts_with(SEALED_PREFIX) => {
+                fields.insert(key.clone(), value);
+            }
+            _ => unopened.push(key.clone()),
+        }
+    }
+    if !unopened.is_empty() {
+        for warning in &warnings.unreadable {
+            eprintln!("warning: {warning}");
+        }
+        bail!(
+            "refusing to import: {} cannot be decrypted on this device, so only ciphertext \
+             would be imported",
+            unopened.join(", ")
+        );
+    }
+    Ok(())
+}
+
 /// Refuse `import --path .env .env`, which would otherwise read a file, write
 /// it back and — with `--remove-source` — delete what it just wrote.
 fn refuse_importing_a_file_into_itself(input: &Path, target: &str) -> Result<()> {
@@ -156,6 +221,41 @@ fn read_import_input(input: Option<&Path>) -> Result<String> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    fn fields(pairs: &[(&str, &str)]) -> BTreeMap<String, SecretString> {
+        pairs
+            .iter()
+            .map(|(key, value)| (key.to_string(), SecretString::from(value.to_string())))
+            .collect()
+    }
+
+    #[test]
+    fn sealed_values_are_replaced_by_their_plaintext() {
+        let mut imported = fields(&[("SEALED", "gitguardian:AAAA"), ("PLAIN", "p")]);
+        let sealed = sealed_fields(&imported);
+        assert_eq!(sealed, ["SEALED".to_string()]);
+        let opened = fields(&[("SEALED", "opened"), ("PLAIN", "p")]);
+        replace_sealed(&mut imported, &sealed, (opened, ReadWarnings::default())).unwrap();
+        assert_eq!(imported["SEALED"].expose_secret(), "opened");
+        assert_eq!(imported["PLAIN"].expose_secret(), "p");
+    }
+
+    /// Never push ciphertext only this device can open.
+    #[test]
+    fn a_sealed_value_that_cannot_be_decrypted_is_refused() {
+        let mut imported = fields(&[("SEALED", "gitguardian:AAAA"), ("PLAIN", "p")]);
+        let sealed = sealed_fields(&imported);
+        let opened = fields(&[("PLAIN", "p")]);
+        let error =
+            replace_sealed(&mut imported, &sealed, (opened, ReadWarnings::default())).unwrap_err();
+        assert!(error.to_string().contains("SEALED"), "{error}");
+    }
+
+    #[test]
+    fn sealed_values_on_stdin_are_refused() {
+        let error = open_sealed(None, &["SEALED".to_string()]).unwrap_err();
+        assert!(error.to_string().contains("pass the file"), "{error}");
+    }
 
     #[test]
     fn a_source_edited_after_the_read_is_kept() {
