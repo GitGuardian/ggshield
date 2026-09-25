@@ -40,6 +40,10 @@ _LAZY_COMMANDS = {
     "api-status": "ggshield.cmd.status:status_cmd",
     "honeytoken": "ggshield.cmd.honeytoken:honeytoken_group",
     "hmsl": "ggshield.cmd.hmsl:hmsl_group",
+    # Answered by the native executable; these are stubs for --help.
+    "run": "ggshield.cmd.secret.store:run_cmd",
+    "activate": "ggshield.cmd.secret.store:activate_cmd",
+    "trust": "ggshield.cmd.secret.store:trust_cmd",
 }
 
 

@@ -1,0 +1,30 @@
+[package]
+name = "ggshield-secrets-cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "The `ggshield secret` verbs that read, write and inject secrets natively."
+
+# Library only, no binary target: the dispatcher (../dispatcher) calls `run()`
+# for the verbs it recognises, exactly as it does for the hook.
+
+[dependencies]
+ggshield-secrets = { workspace = true, features = ["clap"] }
+ggshield-config = { workspace = true }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+rpassword = "7"
+secrecy = "0.10"
+
+# Restore default SIGPIPE handling so piping into `head` exits quietly.
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
