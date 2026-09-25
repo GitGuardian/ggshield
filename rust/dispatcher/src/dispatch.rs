@@ -52,6 +52,7 @@ pub fn is_native_secret(args: &[OsString]) -> bool {
 /// precedes the verb.
 pub fn wants_insecure_tls(args: &[OsString]) -> bool {
     let mut args = args.iter().map(|arg| arg.to_str());
+    let mut in_secret_group = false;
     while let Some(Some(arg)) = args.next() {
         match arg {
             "--insecure" | "--allow-self-signed" => return true,
@@ -59,6 +60,8 @@ pub fn wants_insecure_tls(args: &[OsString]) -> bool {
                 args.next();
             }
             _ if arg.starts_with('-') => {}
+            // Python repeats the common options on the group: `ggshield secret --insecure get`.
+            "secret" if !in_secret_group => in_secret_group = true,
             _ => return false,
         }
     }
@@ -286,7 +289,7 @@ mod tests {
 
     /// GIVEN root options before a secret verb, and the same words elsewhere
     /// WHEN they are checked for `--insecure`
-    /// THEN only a root `--insecure` or `--allow-self-signed` counts.
+    /// THEN only one before the verb, at the root or on the `secret` group, counts.
     #[test]
     fn only_a_root_insecure_flag_disables_tls_verification() {
         for case in [
@@ -294,6 +297,8 @@ mod tests {
             args(&["--allow-self-signed", "run", "--", "true"]),
             args(&["-v", "-c", "cfg.yaml", "--insecure", "secret", "list"]),
             args(&["--log-file=-", "--insecure", "activate"]),
+            args(&["secret", "--insecure", "get", "secret/app"]),
+            args(&["-v", "secret", "--allow-self-signed", "list"]),
         ] {
             assert!(wants_insecure_tls(&case), "{case:?}");
         }
@@ -302,6 +307,7 @@ mod tests {
             args(&["run", "--", "curl", "--insecure"]),
             args(&["--log-file", "--insecure", "run"]),
             args(&["secret", "set", "--insecure"]),
+            args(&["secret", "secret", "--insecure"]),
         ] {
             assert!(!wants_insecure_tls(&case), "{case:?}");
         }
