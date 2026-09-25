@@ -4,6 +4,9 @@
 //! file on disk. Creation runs under a lock and every store absorbs the
 //! existing keyset, because two racing first `set`s would otherwise each mint
 //! a master key and the loser's encrypted value would be unrecoverable.
+//!
+//! This blob is the only copy of the key: there is no export, backup or rotation, so
+//! resetting the credential store makes every encrypted value unrecoverable.
 
 use std::path::PathBuf;
 
