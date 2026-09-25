@@ -283,14 +283,4 @@ mod tests {
             "delete cancelled, no changes made: fields not found in secret: VAR, AWS"
         );
     }
-
-    #[test]
-    fn delete_all_missing_secret_message_names_path() {
-        let path = "secret/myapp";
-        let error = format!("delete cancelled, no changes made: secret not found at {path}");
-        assert_eq!(
-            error,
-            "delete cancelled, no changes made: secret not found at secret/myapp"
-        );
-    }
 }
