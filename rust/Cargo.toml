@@ -21,10 +21,10 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # auth_config.yaml (the token file). Maintained fork of the archived serde_yaml.
 serde_yaml_ng = "0.10"
 
-# Blocking HTTP + TLS. Not reqwest: one request per process, so an async runtime
-# is pure startup cost. `platform-verifier` uses the OS trust store, which
-# on-prem installs behind a corporate CA need.
-ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier", "json"] }
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+rustls-platform-verifier = "0.7"
+webpki-root-certs = "1"
 
 # `@file` extraction out of user prompts — mirrors _FILE_PATH_REGEX in hooks.py.
 regex = "1"
@@ -73,6 +73,8 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 tempfile = "3"
+
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 
 ggshield-common = { path = "common" }
 ggshield-config = { path = "config" }
