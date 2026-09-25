@@ -50,6 +50,8 @@ const ROOT_FLAGS: [&str; 7] = [
     "--no-check-for-updates",
 ];
 const ROOT_OPTIONS_WITH_VALUE: [&str; 4] = ["-c", "--config-path", "--log-file", "--instance"];
+/// Python repeats its common options on the `secret` group (`ggshield secret -v get`).
+const GROUP_OPTIONS_WITH_VALUE: [&str; 1] = ["--log-file"];
 
 struct Invocation {
     args: Vec<OsString>,
@@ -58,33 +60,45 @@ struct Invocation {
 
 /// `None` when a root option is missing its value: Python reports that better.
 fn split_root_options(args: &[OsString]) -> Option<Invocation> {
-    let mut index = 0;
     let mut config_path = None;
+    let index = skip_options(args, &ROOT_OPTIONS_WITH_VALUE, &mut config_path)?;
+    let mut args = args[index..].to_vec();
+    if args.first().and_then(|arg| arg.to_str()) == Some("secret") {
+        let skipped = skip_options(&args[1..], &GROUP_OPTIONS_WITH_VALUE, &mut config_path)?;
+        args.drain(1..1 + skipped);
+    }
+    Some(Invocation { args, config_path })
+}
+
+/// How many leading arguments are options from `ROOT_FLAGS` or `with_value`.
+fn skip_options(
+    args: &[OsString],
+    with_value: &[&str],
+    config_path: &mut Option<PathBuf>,
+) -> Option<usize> {
+    let mut index = 0;
     while let Some(arg) = args.get(index).and_then(|arg| arg.to_str()) {
         if ROOT_FLAGS.contains(&arg) {
             index += 1;
         } else if let Some((name, value)) = arg.split_once('=')
             && name.starts_with("--")
-            && ROOT_OPTIONS_WITH_VALUE.contains(&name)
+            && with_value.contains(&name)
         {
             if name == "--config-path" {
-                config_path = Some(PathBuf::from(value));
+                *config_path = Some(PathBuf::from(value));
             }
             index += 1;
-        } else if ROOT_OPTIONS_WITH_VALUE.contains(&arg) {
+        } else if with_value.contains(&arg) {
             let value = args.get(index + 1)?;
             if arg == "-c" || arg == "--config-path" {
-                config_path = Some(PathBuf::from(value));
+                *config_path = Some(PathBuf::from(value));
             }
             index += 2;
         } else {
             break;
         }
     }
-    Some(Invocation {
-        args: args[index..].to_vec(),
-        config_path,
-    })
+    Some(index)
 }
 
 fn is_native_verb(args: &[OsString]) -> bool {
@@ -165,5 +179,36 @@ mod tests {
         assert!(!is_native(&args(&["--instance"])));
         assert!(!is_native(&args(&["--unknown", "run"])));
         assert!(!is_native(&args(&["--debug", "secret", "scan"])));
+    }
+
+    #[test]
+    fn common_options_after_secret_are_skipped() {
+        assert!(is_native(&args(&["secret", "-v", "get", "KEY"])));
+        assert!(is_native(&args(&["secret", "--debug", "list"])));
+        assert!(is_native(&args(&[
+            "secret",
+            "--log-file",
+            "x.log",
+            "set",
+            "K"
+        ])));
+        assert!(is_native(&args(&[
+            "--debug",
+            "secret",
+            "--log-file=-",
+            "list"
+        ])));
+        let invocation =
+            split_root_options(&args(&["secret", "--debug", "-v", "get", "-v"])).expect("parses");
+        assert_eq!(invocation.args, args(&["secret", "get", "-v"]));
+        assert!(!is_native(&args(&["secret", "--debug", "scan"])));
+        assert!(!is_native(&args(&["secret", "--log-file"])));
+        // Root-only: Python rejects it on the group, and so should routing.
+        assert!(!is_native(&args(&[
+            "secret",
+            "--instance",
+            "https://x",
+            "get"
+        ])));
     }
 }
