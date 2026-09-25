@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::Value;
 
@@ -311,14 +311,50 @@ impl Http {
             .body_mut()
             .read_json()
             .context("parsing JSON response")?;
+        let version = dot_path(&body, "data.metadata.version")
+            .and_then(Value::as_u64)
+            .with_context(|| {
+                format!(
+                    "the read of {} has no 'data.metadata.version', so '{}' is not a KV v2 \
+                     mount; only KV v2 is supported",
+                    user_path(params),
+                    params.get("mount").map_or("", String::as_str)
+                )
+            })?;
         let fields = dot_path(&body, "data.data")
             .and_then(Value::as_object)
             .cloned()
             .context("no 'data.data' object in KV v2 read response")?;
-        let version = dot_path(&body, "data.metadata.version")
-            .and_then(Value::as_u64)
-            .context("no 'data.metadata.version' in KV v2 read response")?;
         Ok((Some(fields), version))
+    }
+
+    /// On a KV v1 mount the `data/` paths are ordinary secret names, so a write
+    /// would land beside the secret instead of failing.
+    fn ensure_vault_kv_v2(&self, params: &BTreeMap<String, String>) -> Result<()> {
+        let body = match self.fetch_value("mount_info", params) {
+            Ok(body) => body,
+            // Older Vaults lack the endpoint and some policies deny it; the
+            // read's metadata check still catches an existing v1 secret.
+            Err(error) if is_denied_or_missing(&error) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        let mount = dot_path(&body, "data.path")
+            .and_then(Value::as_str)
+            .or_else(|| params.get("mount").map(String::as_str))
+            .unwrap_or_default()
+            .trim_end_matches('/');
+        let engine = dot_path(&body, "data.type").and_then(Value::as_str);
+        let version = dot_path(&body, "data.options.version").and_then(Value::as_str);
+        match (engine, version) {
+            (Some("kv"), Some("2")) | (None, _) => Ok(()),
+            (Some("kv" | "generic"), _) => bail!(
+                "the Vault mount '{mount}' is KV version 1; only KV v2 is supported \
+                 (`vault kv enable-versioning {mount}` upgrades it)"
+            ),
+            (Some(engine), _) => {
+                bail!("the Vault mount '{mount}' is a '{engine}' secrets engine, not KV v2")
+            }
+        }
     }
 
     fn set_vault_secrets(
@@ -326,6 +362,7 @@ impl Http {
         params: &BTreeMap<String, String>,
         fields: &BTreeMap<String, SecretString>,
     ) -> Result<()> {
+        self.ensure_vault_kv_v2(params)?;
         let (current, version) = self.read_vault_secret(params)?;
         let mut merged = current.unwrap_or_default();
         for (key, value) in fields {
@@ -342,6 +379,7 @@ impl Http {
         params: &BTreeMap<String, String>,
         keys: &[String],
     ) -> Result<()> {
+        self.ensure_vault_kv_v2(params)?;
         if keys.is_empty() {
             return self.send_empty("delete_secret", params);
         }
@@ -569,6 +607,15 @@ impl SecretStoreBuilder {
             env_override: self.env_override.unwrap_or(true),
         })
     }
+}
+
+fn is_denied_or_missing(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        matches!(
+            cause.downcast_ref::<SecretError>(),
+            Some(SecretError::PermissionDenied { .. } | SecretError::SecretNotFound { .. })
+        )
+    })
 }
 
 fn env_override_value(field: &str) -> Option<SecretString> {
@@ -937,9 +984,69 @@ mod tests {
         serde_json::from_str(&request[request.find('{').unwrap()..]).unwrap()
     }
 
+    const KV_V2_MOUNT: &str =
+        r#"{"data":{"path":"secret/","type":"kv","options":{"version":"2"}}}"#;
+
+    fn serve_kv2(
+        mut responses: Vec<(u16, &'static str)>,
+    ) -> (String, std::sync::mpsc::Receiver<String>) {
+        responses.insert(0, (200, KV_V2_MOUNT));
+        serve(responses)
+    }
+
+    /// The requests after the mount preflight `serve_kv2` answers.
+    fn after_preflight(server: &std::sync::mpsc::Receiver<String>) -> Vec<String> {
+        let mut received: Vec<_> = server.try_iter().collect();
+        assert!(
+            received[0].starts_with("GET /v1/sys/internal/ui/mounts/secret/app "),
+            "{}",
+            received[0]
+        );
+        received.remove(0);
+        received
+    }
+
+    #[test]
+    fn a_write_to_a_kv_v1_mount_is_refused_before_touching_it() {
+        for mount in [
+            r#"{"data":{"path":"secret/","type":"kv","options":null}}"#,
+            r#"{"data":{"path":"secret/","type":"kv","options":{"version":"1"}}}"#,
+        ] {
+            let (addr, server) = serve(vec![(200, mount)]);
+            let error = test_http()
+                .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+                .unwrap_err();
+            assert!(format!("{error:#}").contains("KV version 1"), "{error:#}");
+            assert_eq!(server.try_iter().count(), 1);
+        }
+
+        let (addr, server) = serve(vec![(
+            200,
+            r#"{"data":{"path":"secret/","type":"transit","options":null}}"#,
+        )]);
+        let error = test_http()
+            .delete_vault_secrets(&secret_params(&addr), &[])
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("'transit'"), "{error:#}");
+        assert_eq!(server.try_iter().count(), 1);
+    }
+
+    #[test]
+    fn a_denied_mount_preflight_falls_back_to_the_read_metadata_check() {
+        let (addr, server) = serve(vec![
+            (403, r#"{"errors":["permission denied"]}"#),
+            (200, r#"{"data":{"KEY":"v1-shaped"}}"#),
+        ]);
+        let error = test_http()
+            .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("not a KV v2"), "{error:#}");
+        assert_eq!(server.try_iter().count(), 2, "nothing was written");
+    }
+
     #[test]
     fn set_keeps_the_json_type_of_the_fields_it_does_not_touch() {
-        let (addr, server) = serve(vec![
+        let (addr, server) = serve_kv2(vec![
             (
                 200,
                 r#"{"data":{"data":{"port":5432,"tls":true,"opts":{"a":1}},"metadata":{"version":2}}}"#,
@@ -950,7 +1057,7 @@ mod tests {
             .set_vault_secrets(&secret_params(&addr), &one_field("NEW", "x"))
             .unwrap();
 
-        let received: Vec<_> = server.try_iter().collect();
+        let received = after_preflight(&server);
         let body = request_body(&received[1]);
         assert_eq!(
             body["data"],
@@ -961,7 +1068,7 @@ mod tests {
 
     #[test]
     fn set_after_a_soft_delete_takes_the_cas_version_from_the_404_body() {
-        let (addr, server) = serve(vec![
+        let (addr, server) = serve_kv2(vec![
             (
                 404,
                 r#"{"data":{"data":null,"metadata":{"version":3,"deletion_time":"2026-01-01T00:00:00Z"}}}"#,
@@ -972,7 +1079,7 @@ mod tests {
             .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
             .unwrap();
 
-        let received: Vec<_> = server.try_iter().collect();
+        let received = after_preflight(&server);
         assert_eq!(received.len(), 2, "no metadata read: {received:?}");
         assert!(received[0].starts_with("GET /v1/secret/data/app "));
         assert!(received[1].starts_with("POST /v1/secret/data/app "));
@@ -983,7 +1090,7 @@ mod tests {
 
     #[test]
     fn set_of_a_never_written_secret_uses_cas_zero() {
-        let (addr, server) = serve(vec![
+        let (addr, server) = serve_kv2(vec![
             (404, r#"{"errors":[]}"#),
             (200, r#"{"data":{"version":1}}"#),
         ]);
@@ -991,14 +1098,14 @@ mod tests {
             .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
             .unwrap();
 
-        let received: Vec<_> = server.try_iter().collect();
+        let received = after_preflight(&server);
         assert_eq!(received.len(), 2, "{received:?}");
         assert_eq!(request_body(&received[1])["options"]["cas"], 0);
     }
 
     #[test]
     fn unsetting_the_last_field_soft_deletes_only_the_version_read() {
-        let (addr, server) = serve(vec![
+        let (addr, server) = serve_kv2(vec![
             (
                 200,
                 r#"{"data":{"data":{"ONLY":"x"},"metadata":{"version":5}}}"#,
@@ -1009,7 +1116,7 @@ mod tests {
             .delete_vault_secrets(&secret_params(&addr), &["ONLY".to_string()])
             .unwrap();
 
-        let received: Vec<_> = server.try_iter().collect();
+        let received = after_preflight(&server);
         assert!(
             received[1].starts_with("POST /v1/secret/delete/app "),
             "{}",
@@ -1023,7 +1130,7 @@ mod tests {
 
     #[test]
     fn unsetting_some_fields_rewrites_the_rest_with_cas() {
-        let (addr, server) = serve(vec![
+        let (addr, server) = serve_kv2(vec![
             (
                 200,
                 r#"{"data":{"data":{"A":"x","B":7},"metadata":{"version":5}}}"#,
@@ -1034,7 +1141,7 @@ mod tests {
             .delete_vault_secrets(&secret_params(&addr), &["A".to_string()])
             .unwrap();
 
-        let received: Vec<_> = server.try_iter().collect();
+        let received = after_preflight(&server);
         assert!(received[1].starts_with("POST /v1/secret/data/app "));
         let body = request_body(&received[1]);
         assert_eq!(body["data"], serde_json::json!({"B": 7}));
@@ -1043,7 +1150,7 @@ mod tests {
 
     #[test]
     fn a_denied_read_fails_the_set_instead_of_writing() {
-        let (addr, server) = serve(vec![(403, r#"{"errors":["permission denied"]}"#)]);
+        let (addr, server) = serve_kv2(vec![(403, r#"{"errors":["permission denied"]}"#)]);
         let error = test_http()
             .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
             .unwrap_err();
@@ -1054,7 +1161,7 @@ mod tests {
             ),
             "{error:#}"
         );
-        assert_eq!(server.try_iter().count(), 1);
+        assert_eq!(after_preflight(&server).len(), 1);
     }
 
     #[test]

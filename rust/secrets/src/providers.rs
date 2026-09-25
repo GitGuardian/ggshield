@@ -36,6 +36,16 @@ pub(crate) const VAULT: ProviderDef = ProviderDef {
             },
         ),
         (
+            // What `vault kv` asks to tell a KV v2 mount from a v1 one.
+            "mount_info",
+            Endpoint {
+                method: Method::Get,
+                path: "/v1/sys/internal/ui/mounts/${mount}/${path}",
+                query: &[],
+                secret: None,
+            },
+        ),
+        (
             // Latest version only, mirroring `vault kv delete`.
             "delete_secret",
             Endpoint {
