@@ -170,17 +170,31 @@ fn merge_secrets(
 
 /// On Unix, exec so signals, exit code and streams behave as if run directly.
 #[cfg(unix)]
-fn exec(mut child: std::process::Command, program: &str) -> Result<()> {
+fn exec(mut child: std::process::Command, program: &str) -> ! {
     use std::os::unix::process::CommandExt;
-    Err(child.exec()).with_context(|| format!("running {program}"))
+    let error = child.exec();
+    cannot_start(program, &error)
 }
 
 #[cfg(not(unix))]
-fn exec(mut child: std::process::Command, program: &str) -> Result<()> {
-    let status = child
-        .status()
-        .with_context(|| format!("running {program}"))?;
-    std::process::exit(status.code().unwrap_or(1));
+fn exec(mut child: std::process::Command, program: &str) -> ! {
+    match child.status() {
+        Ok(status) => std::process::exit(status.code().unwrap_or(1)),
+        Err(error) => cannot_start(program, &error),
+    }
+}
+
+/// Exits as a shell would, so a caller can tell this from the program's own failure.
+fn cannot_start(program: &str, error: &std::io::Error) -> ! {
+    eprintln!("Error: cannot run {program}: {error}");
+    std::process::exit(start_failure_code(error))
+}
+
+fn start_failure_code(error: &std::io::Error) -> i32 {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => 127,
+        _ => 126,
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +225,16 @@ mod tests {
         assert_eq!(collisions.len(), 1, "{collisions:?}");
         assert!(collisions[0].contains("'KEY'"), "{collisions:?}");
         assert!(collisions[0].contains("secret/b"), "{collisions:?}");
+    }
+
+    #[test]
+    fn a_program_that_cannot_start_exits_like_a_shell() {
+        use std::io::{Error, ErrorKind};
+        assert_eq!(start_failure_code(&Error::from(ErrorKind::NotFound)), 127);
+        assert_eq!(
+            start_failure_code(&Error::from(ErrorKind::PermissionDenied)),
+            126
+        );
     }
 
     #[test]
