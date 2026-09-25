@@ -365,6 +365,8 @@ fi
 
         // The wrapper is installed once and reads the mode, so re-sourcing never wraps
         // it twice; the marker check finds it even after the mode changes.
+        // `$?` is read-only: a failing no-op right before the original prompt hands
+        // themes (starship, oh-my-posh) the status of the user's last command.
         (Shell::Pwsh, _) => {
             let mode = match hook {
                 Hook::Prompt => "prompt",
@@ -374,10 +376,16 @@ fi
                 r#"{removal}if ("$function:prompt" -notlike '*__ggshield_hook_mode*') {{
   $global:__ggshield_original_prompt = $function:prompt
   function global:prompt {{
+    $__ggshield_succeeded = $?
     if ($global:__ggshield_hook_mode -ceq 'prompt' -or ($global:__ggshield_hook_mode -ceq 'pwd' -and $PWD.Path -cne $global:__ggshield_pwd)) {{
       $null = _ggshield_hook
     }}
     if ($global:__ggshield_original_prompt) {{
+      if ($__ggshield_succeeded) {{
+        $null = 1
+      }} else {{
+        Microsoft.PowerShell.Utility\Write-Error '' -ErrorAction Ignore
+      }}
       & $global:__ggshield_original_prompt
     }}
   }}
@@ -2018,6 +2026,19 @@ mod tests {
         assert!(pwd.contains(r#"$__ggshield_pwd != "$PWD""#), "{pwd}");
         let prompt = hook_script(Shell::Bash, Hook::Prompt, false);
         assert!(prompt.contains("__ggshield_hook_mode=prompt\n"), "{prompt}");
+    }
+
+    #[test]
+    fn powershell_hands_the_original_prompt_the_last_commands_status() {
+        let script = hook_script(Shell::Pwsh, Hook::Pwd, false);
+        let saved = script.find("$__ggshield_succeeded = $?").unwrap();
+        let hook = script.find("$null = _ggshield_hook").unwrap();
+        let failed = script.find("Write-Error '' -ErrorAction Ignore").unwrap();
+        let original = script.find("& $global:__ggshield_original_prompt").unwrap();
+        assert!(
+            saved < hook && hook < failed && failed < original,
+            "{script}"
+        );
     }
 
     #[test]
