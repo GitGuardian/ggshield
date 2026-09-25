@@ -1305,11 +1305,14 @@ fn no_key_material_is_ever_written_next_to_the_secrets() {
         FAKE_VALUE,
     ));
 
-    let names = std::fs::read_dir(workspace.project.path())
+    let mut names = std::fs::read_dir(workspace.project.path())
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
         .collect::<Vec<_>>();
-    assert_eq!(names, vec![".env".to_string()], "{names:?}");
+    names.sort();
+    assert_eq!(names, [".env", ".env.gitguardian-lock"], "{names:?}");
+    let project_lock = workspace.project.path().join(".env.gitguardian-lock");
+    assert_eq!(std::fs::metadata(&project_lock).unwrap().len(), 0);
 
     // The keyring stand-in is the whole master key in cleartext.
     let keyset = std::fs::read_to_string(workspace.home.path().join("keyset.json")).unwrap();
@@ -1325,7 +1328,11 @@ fn no_key_material_is_ever_written_next_to_the_secrets() {
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     beside.sort();
-    assert_eq!(beside, vec!["secrets.env".to_string()], "{beside:?}");
+    assert_eq!(
+        beside,
+        ["secrets.env", "secrets.env.gitguardian-lock"],
+        "{beside:?}"
+    );
     for name in &beside {
         let contents = std::fs::read(user_directory.join(name)).unwrap();
         assert!(
