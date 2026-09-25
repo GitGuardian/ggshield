@@ -26,6 +26,9 @@ enum Backend {
     File(FileBackend),
 }
 
+/// Raw, so a write keeps the JSON type of every field it does not touch.
+type VaultFields = serde_json::Map<String, Value>;
+
 #[derive(Debug, Clone)]
 struct Http {
     definition: &'static ProviderDef,
@@ -287,15 +290,16 @@ impl Http {
     fn read_vault_secret_version(
         &self,
         params: &BTreeMap<String, String>,
-    ) -> Result<Option<(BTreeMap<String, SecretString>, u64)>> {
+    ) -> Result<Option<(VaultFields, u64)>> {
         let body = match self.fetch_value("read_secret", params) {
             Ok(body) => body,
             Err(error) if SecretError::is_secret_not_found(&error) => return Ok(None),
             Err(error) => return Err(error),
         };
         let fields = dot_path(&body, "data.data")
-            .map(secret_fields)
-            .context("secret path 'data.data' not found in response")?;
+            .and_then(Value::as_object)
+            .cloned()
+            .context("no 'data.data' object in KV v2 read response")?;
         let version = dot_path(&body, "data.metadata.version")
             .and_then(Value::as_u64)
             .context("no 'data.metadata.version' in KV v2 read response")?;
@@ -322,12 +326,15 @@ impl Http {
     ) -> Result<()> {
         let (mut merged, version) = match self.read_vault_secret_version(params)? {
             Some(current) => current,
-            None => (BTreeMap::new(), self.read_vault_current_version(params)?),
+            None => (VaultFields::new(), self.read_vault_current_version(params)?),
         };
         for (key, value) in fields {
-            merged.insert(key.clone(), value.clone());
+            merged.insert(
+                key.clone(),
+                Value::String(value.expose_secret().to_string()),
+            );
         }
-        self.write_vault_secrets(params, &merged, version)
+        self.write_vault_secrets(params, merged, version)
     }
 
     fn delete_vault_secrets(
@@ -357,26 +364,17 @@ impl Http {
         if existing.is_empty() {
             self.send_empty("delete_secret", params)
         } else {
-            self.write_vault_secrets(params, &existing, version)
+            self.write_vault_secrets(params, existing, version)
         }
     }
 
     fn write_vault_secrets(
         &self,
         params: &BTreeMap<String, String>,
-        fields: &BTreeMap<String, SecretString>,
+        fields: VaultFields,
         cas_version: u64,
     ) -> Result<()> {
-        let data = fields
-            .iter()
-            .map(|(key, value)| {
-                (
-                    key.clone(),
-                    Value::String(value.expose_secret().to_string()),
-                )
-            })
-            .collect::<serde_json::Map<_, _>>();
-        let body = serde_json::json!({ "data": data, "options": { "cas": cas_version } });
+        let body = serde_json::json!({ "data": fields, "options": { "cas": cas_version } });
         self.send_json("write_secret", params, &body)
     }
 
@@ -895,6 +893,54 @@ mod tests {
         (addr, receiver)
     }
 
+    fn test_http() -> Http {
+        // SAFETY: uniquely-named var, only ever set to this value; no other test reads it.
+        unsafe { std::env::set_var("GG_TEST_CAS_VAULT_TOKEN", "token") };
+        Http {
+            definition: &TEST_VAULT,
+            agent: ureq::Agent::new_with_config(
+                ureq::Agent::config_builder()
+                    .http_status_as_error(false)
+                    .build(),
+            ),
+        }
+    }
+
+    fn secret_params(addr: &str) -> BTreeMap<String, String> {
+        params(&[("VAULT_ADDR", addr), ("mount", "secret"), ("path", "app")])
+    }
+
+    fn one_field(key: &str, value: &str) -> BTreeMap<String, SecretString> {
+        BTreeMap::from([(key.to_string(), SecretString::from(value))])
+    }
+
+    /// `serve` records headers then body, and no header holds a `{`.
+    fn request_body(request: &str) -> Value {
+        serde_json::from_str(&request[request.find('{').unwrap()..]).unwrap()
+    }
+
+    #[test]
+    fn set_keeps_the_json_type_of_the_fields_it_does_not_touch() {
+        let (addr, server) = serve(vec![
+            (
+                200,
+                r#"{"data":{"data":{"port":5432,"tls":true,"opts":{"a":1}},"metadata":{"version":2}}}"#,
+            ),
+            (200, r#"{"data":{"version":3}}"#),
+        ]);
+        test_http()
+            .set_vault_secrets(&secret_params(&addr), &one_field("NEW", "x"))
+            .unwrap();
+
+        let received: Vec<_> = server.try_iter().collect();
+        let body = request_body(&received[1]);
+        assert_eq!(
+            body["data"],
+            serde_json::json!({"port": 5432, "tls": true, "opts": {"a": 1}, "NEW": "x"})
+        );
+        assert_eq!(body["options"]["cas"], 2);
+    }
+
     #[test]
     fn set_after_a_soft_delete_uses_the_metadata_current_version_as_cas() {
         let (addr, server) = serve(vec![
@@ -902,23 +948,9 @@ mod tests {
             (200, r#"{"data":{"current_version":3}}"#),
             (200, r#"{"data":{"version":4}}"#),
         ]);
-        // SAFETY: uniquely-named var, removed below; no other test reads it.
-        unsafe { std::env::set_var("GG_TEST_CAS_VAULT_TOKEN", "token") };
-        let http = Http {
-            definition: &TEST_VAULT,
-            agent: ureq::Agent::new_with_config(
-                ureq::Agent::config_builder()
-                    .http_status_as_error(false)
-                    .build(),
-            ),
-        };
-        let fields = BTreeMap::from([("KEY".to_string(), SecretString::from("value"))]);
-        http.set_vault_secrets(
-            &params(&[("VAULT_ADDR", &addr), ("mount", "secret"), ("path", "app")]),
-            &fields,
-        )
-        .unwrap();
-        unsafe { std::env::remove_var("GG_TEST_CAS_VAULT_TOKEN") };
+        test_http()
+            .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+            .unwrap();
 
         let received: Vec<_> = server.try_iter().collect();
         assert!(received[0].starts_with("GET /v1/secret/data/app "));
