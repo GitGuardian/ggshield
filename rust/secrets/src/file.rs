@@ -13,6 +13,8 @@ pub(crate) mod envelope;
 pub(crate) mod keystore;
 mod repo;
 pub mod trust;
+#[cfg(windows)]
+mod win_security;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

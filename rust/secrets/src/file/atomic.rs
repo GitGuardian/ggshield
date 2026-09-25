@@ -1,51 +1,42 @@
 //! Atomic, locked rewrites of a dotenv file.
 //!
-//! `flock` lives on the inode and `rename` replaces the inode, so a lock is
-//! only trusted after checking the path still names the locked inode. The
-//! check repeats before the rename to catch an editor's save in between.
+//! The lock is a sidecar file beside the target, never the target itself: a rename replaces
+//! the target's inode, so a lock on it is lost, and on Windows a handle still open on the
+//! target makes the rename fail. The target is read only once the lock is held, so two
+//! writers never start from the same snapshot.
 
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, Write};
-use std::path::Path;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-/// Permissions for a file we create. Existing files keep their own.
+/// Permissions for a private file we create. Existing files keep their own.
 #[cfg(unix)]
 const NEW_FILE_MODE: u32 = 0o600;
-
-/// Retries when the file was replaced underneath the lock.
-const MAX_LOCK_ATTEMPTS: usize = 40;
 
 /// `File::lock` blocks forever; a stuck holder must surface as an error, not a hang.
 const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const LOCK_POLL: std::time::Duration = std::time::Duration::from_millis(20);
 
-#[cfg(unix)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct FileId {
-    device: u64,
-    inode: u64,
-}
-
-#[cfg(unix)]
-impl FileId {
-    fn of(metadata: &std::fs::Metadata) -> Self {
-        use std::os::unix::fs::MetadataExt;
-        FileId {
-            device: metadata.dev(),
-            inode: metadata.ino(),
-        }
-    }
-}
-
-/// A dotenv file held under an exclusive advisory lock.
+/// A dotenv file read while holding its sidecar lock.
 pub(crate) struct LockedFile {
-    file: File,
-    path: std::path::PathBuf,
+    _lock: File,
+    path: PathBuf,
+    /// `None` when there was no file yet.
+    snapshot: Option<Snapshot>,
 }
 
-// The path only: the handle's contents are the user's secrets.
+/// What was at the path, so the rewrite keeps its permissions and notices a concurrent edit.
+struct Snapshot {
+    contents: String,
+    #[cfg(unix)]
+    mode: u32,
+    #[cfg(windows)]
+    dacl: super::win_security::Dacl,
+}
+
+// The path only: the snapshot holds the user's secrets.
 impl std::fmt::Debug for LockedFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LockedFile")
@@ -55,101 +46,88 @@ impl std::fmt::Debug for LockedFile {
 }
 
 impl LockedFile {
-    /// Open `path` (creating it 0600) and lock the inode that is really there.
+    /// Lock `path` for rewriting; a directory created on the way is private.
     pub(crate) fn open(path: &Path) -> Result<Self> {
-        if let Some(parent) = path
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            create_private_dir_all(parent)
-                .with_context(|| format!("creating {}", parent.display()))?;
-        }
-
-        for _ in 0..MAX_LOCK_ATTEMPTS {
-            // Error message only; `open_for_update`'s `O_NOFOLLOW` is the real guard.
-            check_regular_file(path, "write")?;
-            let file = open_for_update(path)?;
-            ensure_regular_handle(&file, path)?;
-            ensure_not_hard_linked(&file, path)?;
-            lock_exclusive(&file, path)?;
-
-            if locked_the_file_at_the_path(&file, path)? {
-                return Ok(LockedFile {
-                    file,
-                    path: path.to_path_buf(),
-                });
-            }
-            // Another writer renamed over the path while we waited; this handle is stale.
-            drop(file);
-        }
-        bail!(
-            "gave up locking {} after {MAX_LOCK_ATTEMPTS} attempts: it is being rewritten \
-             continuously by other processes",
-            path.display()
-        )
+        let directory = parent_directory(path);
+        create_private_dir_all(directory)
+            .with_context(|| format!("creating {}", directory.display()))?;
+        let lock = lock_sidecar(&lock_path(path))?;
+        let snapshot = read_snapshot(path)?;
+        Ok(LockedFile {
+            _lock: lock,
+            path: path.to_path_buf(),
+            snapshot,
+        })
     }
 
+    /// Empty when the file does not exist yet.
     pub(crate) fn read(&mut self) -> Result<String> {
-        let mut contents = String::new();
-        self.file.rewind().ok();
-        self.file
-            .read_to_string(&mut contents)
-            .with_context(|| format!("reading {}", self.path.display()))?;
-        Ok(contents)
+        Ok(self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.contents.clone())
+            .unwrap_or_default())
     }
 
     /// Returns one message per leftover temporary collected. The sweep is here,
     /// not in `open`, so every deletion has a caller that reports it.
     pub(crate) fn replace(&self, contents: &str) -> Result<Vec<String>> {
         let collected = collect_stale_temporaries(&self.path);
-        write_atomically(&self.path, &self.file, contents)?;
+        write_atomically(self, contents)?;
         Ok(collected)
     }
 }
 
-/// Whether the locked `file` is still the inode `path` names.
-#[cfg(unix)]
-fn locked_the_file_at_the_path(file: &File, path: &Path) -> Result<bool> {
-    let locked = file
-        .metadata()
-        .with_context(|| format!("inspecting the locked {}", path.display()))?;
+/// No handle stays open on the target: Windows cannot rename over an open file.
+fn read_snapshot(path: &Path) -> Result<Option<Snapshot>> {
     match std::fs::symlink_metadata(path) {
-        Ok(current) => Ok(FileId::of(&current) == FileId::of(&locked)),
-        // Unlinked while we waited: whatever we hold is not the file any more.
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
-            Err(anyhow::Error::new(error).context(format!("inspecting {}", path.display())))
+            return Err(anyhow::Error::new(error).context(format!("inspecting {}", path.display())));
         }
     }
-}
-
-/// Windows has no inode identity; the advisory lock is all there is.
-#[cfg(not(unix))]
-fn locked_the_file_at_the_path(_file: &File, _path: &Path) -> Result<bool> {
-    Ok(true)
-}
-
-/// `O_NOFOLLOW` closes the race a `symlink_metadata` check alone leaves between
-/// the check and the open.
-fn open_for_update(path: &Path) -> Result<File> {
-    let mut options = OpenOptions::new();
-    options.read(true).write(true).create(true);
+    // Error message only; `open_for_read`'s `O_NOFOLLOW` is the real guard.
+    check_regular_file(path, "write")?;
+    let mut file = open_for_read(path)?;
+    ensure_regular_handle(&file, path)?;
+    ensure_not_hard_linked(&file, path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .with_context(|| format!("reading {}", path.display()))?;
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(NEW_FILE_MODE);
-        options.custom_flags(libc::O_NOFOLLOW);
-    }
-    options.open(path).map_err(|error| {
+    let mode = {
+        use std::os::unix::fs::PermissionsExt;
+        file.metadata()
+            .with_context(|| format!("inspecting {}", path.display()))?
+            .permissions()
+            .mode()
+            & 0o7777
+    };
+    #[cfg(windows)]
+    let dacl = super::win_security::Dacl::of(&file)
+        .with_context(|| format!("reading the permissions of {}", path.display()))?;
+    Ok(Some(Snapshot {
+        contents,
         #[cfg(unix)]
-        if error.raw_os_error() == Some(libc::ELOOP) {
-            return anyhow::anyhow!(
-                "{} is a symbolic link; refusing to write through it",
-                path.display()
-            );
-        }
-        anyhow::Error::new(error).context(format!("opening {}", path.display()))
-    })
+        mode,
+        #[cfg(windows)]
+        dacl,
+    }))
+}
+
+fn parent_directory(path: &Path) -> &Path {
+    match path.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    }
+}
+
+/// Named like the temporaries, so `.env*` ignore rules cover it, but never swept with them.
+fn lock_path(path: &Path) -> PathBuf {
+    let mut name = temporary_prefix(path);
+    name.push("lock");
+    parent_directory(path).join(name)
 }
 
 fn open_for_read(path: &Path) -> Result<File> {
@@ -236,7 +214,8 @@ fn check_regular_file(path: &Path, verb: &str) -> Result<()> {
     Ok(())
 }
 
-/// Lock a dedicated lock file, for state with no dotenv path (the keyring blob).
+/// Lock a dedicated lock file. It is never renamed or deleted, so the lock always
+/// lives on the inode every writer opens.
 pub(crate) fn lock_sidecar(path: &Path) -> Result<File> {
     if let Some(parent) = path
         .parent()
@@ -247,13 +226,20 @@ pub(crate) fn lock_sidecar(path: &Path) -> Result<File> {
     }
     check_regular_file(path, "lock")?;
     let mut options = OpenOptions::new();
-    options.write(true).create(true);
+    options.write(true).create(true).truncate(false);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
         // `O_NONBLOCK`: a fifo planted here would otherwise block `open(2)` forever.
         options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{FILE_SHARE_READ, FILE_SHARE_WRITE};
+        // No FILE_SHARE_DELETE: the lock file cannot be deleted out from under a holder.
+        options.share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE);
     }
     let file = options
         .open(path)
@@ -320,10 +306,7 @@ fn ensure_not_hard_linked(_file: &File, _path: &Path) -> Result<()> {
 /// Atomic write for small side files (trust store, test keystore); dotenv files
 /// go through [`LockedFile`].
 pub(crate) fn replace_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
-    let directory = match path.parent() {
-        Some(parent) if !parent.as_os_str().is_empty() => parent,
-        _ => Path::new("."),
-    };
+    let directory = parent_directory(path);
     // A leftover of the test keystore holds the master key and nothing else
     // ever sweeps this directory.
     let prefix = temporary_prefix(path);
@@ -334,13 +317,7 @@ pub(crate) fn replace_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
         .rand_bytes(RANDOM_NAME_LEN)
         .tempfile_in(directory)
         .with_context(|| format!("creating a temporary file in {}", directory.display()))?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        temp.as_file()
-            .set_permissions(std::fs::Permissions::from_mode(NEW_FILE_MODE))
-            .context("setting file permissions")?;
-    }
+    apply_new_file_permissions(&temp)?;
     temp.write_all(bytes).context("writing the file")?;
     temp.flush().context("writing the file")?;
     temp.as_file().sync_all().context("flushing to disk")?;
@@ -351,13 +328,10 @@ pub(crate) fn replace_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Permissions come from the locked handle by `fstat`, never from the pathname.
-fn write_atomically(path: &Path, locked: &File, contents: &str) -> Result<()> {
+fn write_atomically(locked: &LockedFile, contents: &str) -> Result<()> {
+    let path = locked.path.as_path();
     check_regular_file(path, "write")?;
-    let directory = match path.parent() {
-        Some(parent) if !parent.as_os_str().is_empty() => parent,
-        _ => Path::new("."),
-    };
+    let directory = parent_directory(path);
 
     let prefix = temporary_prefix(path);
     let mut temp = tempfile::Builder::new()
@@ -366,22 +340,29 @@ fn write_atomically(path: &Path, locked: &File, contents: &str) -> Result<()> {
         .rand_bytes(RANDOM_NAME_LEN)
         .tempfile_in(directory)
         .with_context(|| format!("creating a temporary file in {}", directory.display()))?;
-    set_permissions(&temp, locked)?;
+    match &locked.snapshot {
+        Some(snapshot) => apply_snapshot_permissions(&temp, snapshot)?,
+        None => apply_new_file_permissions(&temp)?,
+    }
     temp.write_all(contents.as_bytes())
         .context("writing the updated file")?;
     temp.flush().context("writing the updated file")?;
     temp.as_file().sync_all().context("flushing to disk")?;
 
-    // Only gitguardian takes the lock, so an editor's save may have replaced the
-    // file since; renaming over it would silently discard that edit.
-    if !locked_the_file_at_the_path(locked, path)? {
+    // Only gitguardian takes the lock, so an editor's save may have landed since the
+    // read; renaming over it would silently discard that edit.
+    let current = read_snapshot(path)?;
+    if current.as_ref().map(|current| &current.contents)
+        != locked.snapshot.as_ref().map(|snapshot| &snapshot.contents)
+    {
         bail!(
-            "{} was replaced by another program while gitguardian was rewriting it (an editor \
-             saving the file, most likely), so writing now would discard that change. Nothing \
-             was written; re-run the command",
+            "{} was changed or replaced by another program while gitguardian was rewriting it (an \
+             editor saving the file, most likely), so writing now would discard that change. \
+             Nothing was written; re-run the command",
             path.display()
         );
     }
+    drop(current);
 
     temp.persist(path)
         .map_err(|error| error.error)
@@ -498,27 +479,44 @@ fn is_generated_temporary(name: &[u8], prefix: &[u8]) -> bool {
     random.len() == RANDOM_NAME_LEN && random.iter().all(u8::is_ascii_alphanumeric)
 }
 
-/// Copy the locked handle's mode via `fstat`; a path lookup would follow symlinks.
+/// The mode (Unix) or DACL (Windows) of the file that was read, captured from its handle.
 #[cfg(unix)]
-fn set_permissions(temp: &tempfile::NamedTempFile, locked: &File) -> Result<()> {
+fn apply_snapshot_permissions(temp: &tempfile::NamedTempFile, snapshot: &Snapshot) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
-
-    let mode = locked
-        .metadata()
-        .map(|metadata| metadata.permissions().mode() & 0o7777)
-        .unwrap_or(NEW_FILE_MODE);
     temp.as_file()
-        .set_permissions(std::fs::Permissions::from_mode(mode))
+        .set_permissions(std::fs::Permissions::from_mode(snapshot.mode))
         .context("setting file permissions")
 }
 
-#[cfg(not(unix))]
-fn set_permissions(temp: &tempfile::NamedTempFile, locked: &File) -> Result<()> {
-    if let Ok(metadata) = locked.metadata() {
-        temp.as_file()
-            .set_permissions(metadata.permissions())
-            .context("setting file permissions")?;
-    }
+#[cfg(windows)]
+fn apply_snapshot_permissions(temp: &tempfile::NamedTempFile, snapshot: &Snapshot) -> Result<()> {
+    snapshot
+        .dacl
+        .apply_to(temp.path())
+        .context("copying the file's permissions")
+}
+
+#[cfg(not(any(unix, windows)))]
+fn apply_snapshot_permissions(_temp: &tempfile::NamedTempFile, _snapshot: &Snapshot) -> Result<()> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn apply_new_file_permissions(temp: &tempfile::NamedTempFile) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    temp.as_file()
+        .set_permissions(std::fs::Permissions::from_mode(NEW_FILE_MODE))
+        .context("setting file permissions")
+}
+
+#[cfg(windows)]
+fn apply_new_file_permissions(temp: &tempfile::NamedTempFile) -> Result<()> {
+    super::win_security::restrict_to_current_user(temp.path())
+        .context("restricting the file to the current user")
+}
+
+#[cfg(not(any(unix, windows)))]
+fn apply_new_file_permissions(_temp: &tempfile::NamedTempFile) -> Result<()> {
     Ok(())
 }
 
@@ -577,7 +575,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&real).unwrap(), "A=1\n");
     }
 
-    /// Both raw openers refuse a symlink, so winning the check/open race gains nothing.
+    /// The raw opener refuses a symlink, so winning the check/open race gains nothing.
     #[cfg(unix)]
     #[test]
     fn a_symlink_swapped_in_after_the_check_still_cannot_be_followed() {
@@ -587,8 +585,6 @@ mod tests {
         std::fs::write(&victim, "STOLEN=secret\n").unwrap();
         std::os::unix::fs::symlink(&victim, &link).unwrap();
 
-        let error = super::open_for_update(&link).unwrap_err();
-        assert!(format!("{error:#}").contains("symbolic link"), "{error:#}");
         let error = super::open_for_read(&link).unwrap_err();
         assert!(format!("{error:#}").contains("symbolic link"), "{error:#}");
         assert_eq!(
@@ -598,10 +594,10 @@ mod tests {
         );
     }
 
-    /// Permissions come from the locked inode even with a 0666 decoy at the path.
+    /// Permissions come from the file that was read, not from a 0666 look-alike put in its place.
     #[cfg(unix)]
     #[test]
-    fn permissions_come_from_the_locked_handle_not_the_pathname() {
+    fn permissions_come_from_the_file_that_was_read_not_the_pathname() {
         use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
@@ -610,25 +606,47 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
 
         let locked = LockedFile::open(&path).unwrap();
-
-        // The pathname now names a different, world-readable file.
         std::fs::remove_file(&path).unwrap();
-        std::fs::write(&path, "DECOY=1\n").unwrap();
+        std::fs::write(&path, "A=1\n").unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o666)).unwrap();
+        locked.replace("A=2\n").unwrap();
 
-        let temp = tempfile::Builder::new()
-            .tempfile_in(directory.path())
-            .unwrap();
-        set_permissions(&temp, &locked.file).unwrap();
-        let mode = temp.as_file().metadata().unwrap().permissions().mode() & 0o777;
-        assert_eq!(
-            mode, 0o600,
-            "the mode came from the pathname, not the locked inode: {mode:o}"
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "the mode came from the pathname: {mode:o}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_new_private_file_gets_a_dacl_of_its_own() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(".env");
+        LockedFile::open(&path).unwrap().replace("A=1\n").unwrap();
+        let dacl = super::super::win_security::Dacl::of(&File::open(&path).unwrap()).unwrap();
+        assert!(
+            dacl.is_protected(),
+            "the new file inherited its directory's ACL"
         );
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn a_rewrite_keeps_the_files_restrictive_dacl() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(".env");
+        std::fs::write(&path, "A=1\n").unwrap();
+        super::super::win_security::restrict_to_current_user(&path).unwrap();
+
+        LockedFile::open(&path).unwrap().replace("A=2\n").unwrap();
+
+        let dacl = super::super::win_security::Dacl::of(&File::open(&path).unwrap()).unwrap();
+        assert!(
+            dacl.is_protected(),
+            "the rewrite fell back to the directory's ACL"
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "A=2\n");
+    }
+
     /// An editor's rename over the path after locking makes the write refuse, not clobber.
-    #[cfg(unix)]
     #[test]
     fn a_target_replaced_after_the_lock_is_not_overwritten_with_the_stale_snapshot() {
         let directory = tempfile::tempdir().unwrap();
@@ -652,11 +670,7 @@ mod tests {
             std::fs::read_to_string(&path).unwrap(),
             "A=1\nEDITED=by-the-user\n"
         );
-        let names = std::fs::read_dir(directory.path())
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        assert_eq!(names, vec![".env".to_string()], "{names:?}");
+        assert_eq!(names_in(directory.path()), [".env", LOCK_NAME]);
     }
 
     /// Hard-linked files are refused for writing but still readable.
@@ -755,40 +769,49 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "A=1\n");
     }
 
+    const LOCK_NAME: &str = ".env.gitguardian-lock";
+
+    fn names_in(directory: &Path) -> Vec<String> {
+        let mut names = std::fs::read_dir(directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        names.sort();
+        names
+    }
+
+    /// Only the lock file stays beside the target, and it is not a temporary to sweep.
     #[test]
     fn no_temporary_file_is_left_behind() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(".env");
         LockedFile::open(&path).unwrap().replace("A=1\n").unwrap();
-        let names = std::fs::read_dir(directory.path())
-            .unwrap()
-            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-            .collect::<Vec<_>>();
-        assert_eq!(names, vec![".env".to_string()]);
+        LockedFile::open(&path).unwrap().replace("A=2\n").unwrap();
+        assert_eq!(names_in(directory.path()), [".env", LOCK_NAME]);
     }
 
-    /// A handle whose inode was renamed away no longer counts as the file at the path.
-    #[cfg(unix)]
+    /// A writer waiting on the lock reads what the holder wrote, never the file it replaced.
     #[test]
-    fn a_lock_on_a_renamed_away_inode_is_not_the_file_any_more() {
+    fn a_waiting_writer_starts_from_the_holders_result() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(".env");
         std::fs::write(&path, "BASE=0\n").unwrap();
 
-        let orphaned = super::open_for_update(&path).unwrap();
-        assert!(
-            locked_the_file_at_the_path(&orphaned, &path).unwrap(),
-            "it is the file at the path to begin with"
-        );
-
-        LockedFile::open(&path)
-            .unwrap()
-            .replace("BASE=0\nAAA=a\n")
-            .unwrap();
-
-        assert!(
-            !locked_the_file_at_the_path(&orphaned, &path).unwrap(),
-            "the handle is an unlinked orphan and must not be trusted"
+        let first = LockedFile::open(&path).unwrap();
+        std::thread::scope(|scope| {
+            let waiter = scope.spawn(|| {
+                let mut second = LockedFile::open(&path).unwrap();
+                let contents = second.read().unwrap();
+                second.replace(&format!("{contents}BBB=b\n")).unwrap();
+            });
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            first.replace("BASE=0\nAAA=a\n").unwrap();
+            drop(first);
+            waiter.join().unwrap();
+        });
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "BASE=0\nAAA=a\nBBB=b\n"
         );
     }
 
