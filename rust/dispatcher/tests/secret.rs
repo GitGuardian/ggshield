@@ -3683,3 +3683,68 @@ fn import_refuses_a_file_that_is_also_the_target() {
     );
     assert!(source.exists(), "the source was removed anyway");
 }
+
+/// bash evaluates `OPTIND` and `HISTCMD` as arithmetic, so a quoted `$(…)` still runs;
+/// zsh's `export UID=…` is fatal and would skip every export after it.
+#[test]
+fn a_dotenv_cannot_assign_the_shells_special_parameters() {
+    let canary = std::env::temp_dir().join("gitguardian-hook-special-canary");
+    let _ = std::fs::remove_file(&canary);
+    let payload = format!("a[$(touch {})0]", canary.display());
+
+    for (shell, probe) in [
+        ("bash", "printf 'key=[%s]\\n' \"${API_KEY:-}\""),
+        ("zsh", "print -r -- \"key=[$API_KEY]\""),
+        ("fish", "printf 'key=[%s]\\n' \"$API_KEY\""),
+    ] {
+        if !has_shell(shell) {
+            continue;
+        }
+        let workspace = Workspace::new();
+        workspace.write_project(
+            ".env",
+            &format!(
+                "OPTIND='{payload}'\nHISTCMD='{payload}'\nMAILCHECK='{payload}'\nUID=1000\n\
+                 EGID=0\npath=/nowhere\nstatus=1\nAPI_KEY=fine\n"
+            ),
+        );
+        workspace.trust_project();
+        let script = stdout(&workspace.run(&["activate", shell, "--no-hook-env"]));
+        let project = workspace.project.path().display().to_string();
+        let outside = workspace.home.path().display().to_string();
+        let program = format!(
+            "{script}\ncd {project}\n_ggshield_hook\n{probe}\ncd {outside}\n_ggshield_hook\n{probe}\n"
+        );
+        let output = workspace.shell(shell, &program);
+        let out = stdout(&output);
+        assert!(!canary.exists(), "{shell} executed a dotenv value");
+        assert!(
+            out.contains("key=[fine]\n"),
+            "{shell}: {out}\n{}",
+            stderr(&output)
+        );
+        assert!(
+            out.contains("key=[]\n"),
+            "{shell} left a variable behind: {out}\n{}",
+            stderr(&output)
+        );
+        assert!(
+            stderr(&output).contains("refused to export"),
+            "{shell}: {}",
+            stderr(&output)
+        );
+    }
+    let _ = std::fs::remove_file(&canary);
+}
+
+#[test]
+fn the_state_is_recorded_before_anything_is_exported() {
+    let workspace = Workspace::new();
+    workspace.write_project(".env", "API_KEY=fake-order-value\n");
+    workspace.trust_project();
+
+    let block = stdout(&workspace.run(&["hook-env", "bash"]));
+    let state = block.find(&format!("export {STATE_VAR}=")).unwrap();
+    let export = block.find("export API_KEY=").unwrap();
+    assert!(state < export, "{block}");
+}

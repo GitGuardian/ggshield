@@ -458,7 +458,7 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         (None, None) => {
             report_debug(shell, "no dotenv file at or above this directory");
             if unreadable_state {
-                emit("", State::CLEARED, shell)?;
+                emit("", State::CLEARED, "", shell)?;
             }
             return Ok(());
         }
@@ -470,7 +470,7 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         _ => {}
     }
 
-    let mut script = String::new();
+    let mut unsets = String::new();
     // Ours to remove only while the value is still the one we set.
     let mut still_ours: Vec<&str> = Vec::new();
     let mut taken_over: Vec<&str> = Vec::new();
@@ -478,9 +478,11 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         for (key, digest) in &state.keys {
             match std::env::var(key) {
                 Ok(live) if digest_of(&live) == *digest => {
-                    script.push_str(&unset_statement(shell, key)?);
+                    unsets.push_str(&unset_statement(shell, key)?);
                     still_ours.push(key);
                 }
+                // Recorded but never set: the block that should have exported it stopped early.
+                Err(std::env::VarError::NotPresent) => {}
                 _ => taken_over.push(key),
             }
         }
@@ -504,14 +506,14 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
     }
 
     let Some(found) = target else {
-        emit(&script, State::CLEARED, shell)?;
+        emit(&unsets, State::CLEARED, "", shell)?;
         return Ok(());
     };
 
     // Stop rather than walk past a symlink or fifo and load another project's secrets.
     if let Some(refusal) = &found.refusal {
         report_always(shell, refusal);
-        return emit_state(&script, &found, Vec::new(), shell);
+        return emit_state(&unsets, &found, Vec::new(), "", shell);
     }
 
     // Entering a directory is not consent the way naming a file to `get`/`run` is.
@@ -525,12 +527,12 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
                 found.path.display()
             ),
         );
-        return emit_state(&script, &found, Vec::new(), shell);
+        return emit_state(&unsets, &found, Vec::new(), "", shell);
     }
 
     if let Some(refusal) = foreign_repo_store(&found.directory) {
         report_always(shell, &refusal);
-        return emit_state(&script, &found, Vec::new(), shell);
+        return emit_state(&unsets, &found, Vec::new(), "", shell);
     }
 
     let loaded = match load(&found.path) {
@@ -539,7 +541,7 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
             // Never fatal on a prompt. The state still records this file so the error is
             // reported once per file version rather than before every prompt.
             report_always(shell, &format!("{}: {error:#}", found.path.display()));
-            return emit_state(&script, &found, Vec::new(), shell);
+            return emit_state(&unsets, &found, Vec::new(), "", shell);
         }
     };
     for advisory in &loaded.advisories {
@@ -549,11 +551,12 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
     // Only names we just unset are replaceable; one the user took over keeps their value.
     let carried_over = still_ours;
 
+    let mut exports = String::new();
     let mut exported = Vec::new();
     let mut shadowed = Vec::new();
     let mut refused = Vec::new();
     for (key, value) in &loaded.fields {
-        if is_shell_control_var(key) {
+        if is_shell_control_var(key) || is_shell_special_param(shell, key) {
             refused.push(key.clone());
             continue;
         }
@@ -565,7 +568,7 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
             continue;
         }
         let plain = value.expose_secret();
-        script.push_str(&export_statement(shell, key, plain)?);
+        exports.push_str(&export_statement(shell, key, plain)?);
         exported.push((key.clone(), digest_of(plain)));
     }
 
@@ -574,17 +577,13 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         report_always(
             shell,
             &format!(
-                "refused to export {} that {} how the shell runs commands: {}",
+                "refused to export {} that {} reserves or that change how it runs commands: {}",
                 if refused.len() == 1 {
                     "1 variable".to_string()
                 } else {
                     format!("{} variables", refused.len())
                 },
-                if refused.len() == 1 {
-                    "changes"
-                } else {
-                    "change"
-                },
+                shell.name(),
                 refused.join(", ")
             ),
         );
@@ -604,22 +603,31 @@ fn hook_env_to(args: HookArgs, stdout_is_terminal: bool) -> Result<()> {
         report(shell, &format!("+{} {}", names.len(), names.join(", ")));
     }
 
-    emit_state(&script, &found, exported, shell)
+    emit_state(&unsets, &found, exported, &exports, shell)
 }
 
-fn emit_state(script: &str, found: &Found, keys: Vec<(String, u64)>, shell: Shell) -> Result<()> {
+fn emit_state(
+    unsets: &str,
+    found: &Found,
+    keys: Vec<(String, u64)>,
+    exports: &str,
+    shell: Shell,
+) -> Result<()> {
     let state = State {
         directory: found.directory.clone(),
         path: found.path.clone(),
         fingerprint: found.fingerprint,
         keys,
     };
-    emit(script, &state.encode(), shell)
+    emit(unsets, &state.encode(), exports, shell)
 }
 
-fn emit(script: &str, state: &str, shell: Shell) -> Result<()> {
-    print!("{script}");
+/// The state goes before the exports: an assignment the shell rejects fatally
+/// would otherwise skip it, and what was exported could never be unset.
+fn emit(unsets: &str, state: &str, exports: &str, shell: Shell) -> Result<()> {
+    print!("{unsets}");
     print!("{}", export_statement(shell, STATE_VAR, state)?);
+    print!("{exports}");
     Ok(())
 }
 
@@ -948,9 +956,10 @@ fn from_hex(text: &str) -> Option<Vec<u8>> {
 }
 
 /// Variables whose *value is executed*, so the hook never exports them: a dotenv
-/// file may say what a variable holds, not what the shell does. A class, not an
-/// inventory; many are shell-only variables, so "the user has not set it" is no
-/// protection. `ggshield run` is the way to set one for a single command.
+/// file may say what a variable holds, not what the shell does. Best effort: no
+/// such list is ever complete, and trust is the boundary that matters. Many are
+/// shell-only variables, so "the user has not set it" is no protection. `ggshield
+/// run` is the way to set one for a single command.
 const SHELL_CONTROL_VARS: &[&str] = &[
     // Startup files and shell configuration.
     "BASHOPTS",
@@ -958,17 +967,23 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "BASH_XTRACEFD",
     "ENV",
     "FPATH",
+    "INPUTRC",
     "SHELLOPTS",
     "ZDOTDIR",
     // Prompts. Executed on every prompt, or expanded by it.
     "PROMPT",
+    "PROMPT2",
+    "PROMPT3",
+    "PROMPT4",
     "PROMPT_COMMAND",
+    "PROMPT_EOL_MARK",
     "PS0",
     "PS1",
     "PS2",
     "PS3",
     "PS4",
     "RPROMPT",
+    "RPROMPT2",
     "RPS1",
     "RPS2",
     "SPROMPT",
@@ -977,6 +992,7 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "GLOBIGNORE",
     "HOME",
     "IFS",
+    "MAILPATH",
     "PATH",
     "SHELL",
     // The dynamic linker and the C library.
@@ -987,17 +1003,6 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     // Programs other programs shell out to.
     "BROWSER",
     "EDITOR",
-    "GIT_ASKPASS",
-    "GIT_CONFIG",
-    "GIT_CONFIG_COUNT",
-    "GIT_CONFIG_GLOBAL",
-    "GIT_CONFIG_SYSTEM",
-    "GIT_EDITOR",
-    "GIT_EXTERNAL_DIFF",
-    "GIT_PAGER",
-    "GIT_PROXY_COMMAND",
-    "GIT_SSH",
-    "GIT_SSH_COMMAND",
     "LESSCLOSE",
     "LESSOPEN",
     "MANPAGER",
@@ -1006,20 +1011,35 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "SUDO_ASKPASS",
     "VISUAL",
     // Language runtimes that take code, a module path or extra flags.
-    "JAVA_TOOL_OPTIONS",
+    "ANT_OPTS",
+    "COR_ENABLE_PROFILING",
+    "COR_PROFILER",
+    "COR_PROFILER_PATH",
+    "DOTNET_ADDITIONAL_DEPS",
+    "DOTNET_ROOT",
+    "DOTNET_STARTUP_HOOKS",
+    "GRADLE_OPTS",
+    "JAVA_OPTS",
     "LUA_CPATH",
     "LUA_INIT",
     "LUA_PATH",
-    "NODE_OPTIONS",
+    "MAVEN_OPTS",
+    "NODE_PATH",
     "PERL5DB",
     "PERL5LIB",
     "PERL5OPT",
+    "PERLLIB",
+    "PHPRC",
+    "PHP_INI_SCAN_DIR",
+    "PYTHONBREAKPOINT",
     "PYTHONHOME",
     "PYTHONPATH",
     "PYTHONSTARTUP",
+    "PYTHONUSERBASE",
+    "PYTHONWARNINGS",
     "RUBYLIB",
     "RUBYOPT",
-    "_JAVA_OPTIONS",
+    "SBT_OPTS",
     // PowerShell and Windows.
     "ComSpec",
     "PATHEXT",
@@ -1027,12 +1047,31 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "PSModulePath",
 ];
 
-/// Prefixes covering families of the same thing: every `LD_*` and `DYLD_*`
-/// loader knob, and bash's exported-function encoding.
-const SHELL_CONTROL_PREFIXES: &[&str] = &["BASH_FUNC_", "DYLD_", "LD_"];
+/// Families of the same thing: loader knobs, bash's exported functions, git's
+/// and fish's configuration, where XDG tools (and our own trust store) look,
+/// our own and Vault's settings, and .NET and npm hooks.
+const SHELL_CONTROL_PREFIXES: &[&str] = &[
+    "BASH_FUNC_",
+    "COMPlus_",
+    "CORECLR_",
+    "DYLD_",
+    "GITGUARDIAN_",
+    "GIT_",
+    "LD_",
+    "NPM_CONFIG_",
+    "VAULT_",
+    "XDG_",
+    "__GITGUARDIAN_",
+    "__fish_",
+    "fish_",
+    "npm_config_",
+];
+
+/// JVM and Node flags: `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`, `NODE_OPTIONS`...
+const SHELL_CONTROL_SUFFIXES: &[&str] = &["_OPTIONS"];
 
 /// Case-insensitive on Windows, where `Path` and `PATH` are the same variable.
-fn is_shell_control_var(key: &str) -> bool {
+pub(crate) fn is_shell_control_var(key: &str) -> bool {
     let same = |a: &str, b: &str| {
         if cfg!(windows) {
             a.eq_ignore_ascii_case(b)
@@ -1045,6 +1084,278 @@ fn is_shell_control_var(key: &str) -> bool {
             key.get(..prefix.len())
                 .is_some_and(|start| same(start, prefix))
         })
+        || SHELL_CONTROL_SUFFIXES.iter().any(|suffix| {
+            key.len() > suffix.len()
+                && key
+                    .get(key.len() - suffix.len()..)
+                    .is_some_and(|end| same(end, suffix))
+        })
+}
+
+/// Names the shell itself gives meaning to. Assigning one can run code (bash
+/// evaluates `OPTIND` and `HISTCMD` as arithmetic, subscripts included), kill the
+/// rest of the block (zsh's `export UID=…` is fatal), or change the session.
+const BASH_SPECIAL_PARAMS: &[&str] = &[
+    "BASH",
+    "BASHPID",
+    "BASH_ALIASES",
+    "BASH_ARGC",
+    "BASH_ARGV",
+    "BASH_ARGV0",
+    "BASH_CMDS",
+    "BASH_COMMAND",
+    "BASH_COMPAT",
+    "BASH_EXECUTION_STRING",
+    "BASH_LINENO",
+    "BASH_LOADABLES_PATH",
+    "BASH_MONOSECONDS",
+    "BASH_REMATCH",
+    "BASH_SOURCE",
+    "BASH_SUBSHELL",
+    "BASH_TRAPSIG",
+    "BASH_VERSINFO",
+    "BASH_VERSION",
+    "CHILD_MAX",
+    "COLUMNS",
+    "COMPREPLY",
+    "COMP_CWORD",
+    "COMP_KEY",
+    "COMP_LINE",
+    "COMP_POINT",
+    "COMP_TYPE",
+    "COMP_WORDBREAKS",
+    "COMP_WORDS",
+    "COPROC",
+    "DIRSTACK",
+    "EMACS",
+    "EPOCHREALTIME",
+    "EPOCHSECONDS",
+    "EUID",
+    "EXECIGNORE",
+    "FCEDIT",
+    "FIGNORE",
+    "FUNCNAME",
+    "FUNCNEST",
+    "GLOBSORT",
+    "GROUPS",
+    "HISTCMD",
+    "HISTCONTROL",
+    "HISTFILE",
+    "HISTFILESIZE",
+    "HISTIGNORE",
+    "HISTSIZE",
+    "HISTTIMEFORMAT",
+    "HOSTFILE",
+    "IGNOREEOF",
+    "INSIDE_EMACS",
+    "LINENO",
+    "LINES",
+    "MAIL",
+    "MAILCHECK",
+    "MAPFILE",
+    "OLDPWD",
+    "OPTARG",
+    "OPTERR",
+    "OPTIND",
+    "PIPESTATUS",
+    "POSIXLY_CORRECT",
+    "PPID",
+    "PROMPT_DIRTRIM",
+    "PWD",
+    "RANDOM",
+    "READLINE_ARGUMENT",
+    "READLINE_LINE",
+    "READLINE_MARK",
+    "READLINE_POINT",
+    "REPLY",
+    "SECONDS",
+    "SHLVL",
+    "SRANDOM",
+    "TIMEFORMAT",
+    "TMOUT",
+    "UID",
+    "_",
+    "auto_resume",
+    "histchars",
+];
+
+/// zsh 5.9's special parameters (`${(k)parameters}` typed `special`), plus the
+/// ones its modules and ZLE add and the ordinary ones the shell acts on.
+const ZSH_SPECIAL_PARAMS: &[&str] = &[
+    "ARGC",
+    "BAUD",
+    "COLUMNS",
+    "CORRECT_IGNORE",
+    "CORRECT_IGNORE_FILE",
+    "CPUTYPE",
+    "DIRSTACKSIZE",
+    "EGID",
+    "EPOCHREALTIME",
+    "EPOCHSECONDS",
+    "ERRNO",
+    "EUID",
+    "FCEDIT",
+    "FIGNORE",
+    "FUNCNEST",
+    "GID",
+    "HISTCHARS",
+    "HISTCMD",
+    "HISTFILE",
+    "HISTORY_IGNORE",
+    "HISTSIZE",
+    "HOST",
+    "KEYBOARD_HACK",
+    "KEYTIMEOUT",
+    "LINENO",
+    "LINES",
+    "LISTMAX",
+    "LOGCHECK",
+    "MACHTYPE",
+    "MAIL",
+    "MAILCHECK",
+    "MANPATH",
+    "MODULE_PATH",
+    "NULLCMD",
+    "OLDPWD",
+    "OPTARG",
+    "OPTIND",
+    "OSTYPE",
+    "PERIOD",
+    "POSTEDIT",
+    "PPID",
+    "PSVAR",
+    "PWD",
+    "RANDOM",
+    "READNULLCMD",
+    "REPORTMEMORY",
+    "REPORTTIME",
+    "SAVEHIST",
+    "SECONDS",
+    "SHLVL",
+    "STTY",
+    "TERMINFO",
+    "TERMINFO_DIRS",
+    "TIMEFMT",
+    "TMOUT",
+    "TMPPREFIX",
+    "TRY_BLOCK_ERROR",
+    "TRY_BLOCK_INTERRUPT",
+    "TTY",
+    "TTYIDLE",
+    "UID",
+    "USERNAME",
+    "VENDOR",
+    "WATCH",
+    "WATCHFMT",
+    "WORDCHARS",
+    "ZBEEP",
+    "ZLE_LINE_ABORTED",
+    "ZLE_REMOVE_SUFFIX_CHARS",
+    "ZLE_RPROMPT_INDENT",
+    "ZLE_SPACE_SUFFIX_CHARS",
+    "ZSH_ARGZERO",
+    "ZSH_EVAL_CONTEXT",
+    "ZSH_EXECUTION_STRING",
+    "ZSH_NAME",
+    "ZSH_PATCHLEVEL",
+    "ZSH_SCRIPT",
+    "ZSH_SUBSHELL",
+    "ZSH_VERSION",
+    "_",
+    "aliases",
+    "argv",
+    "builtins",
+    "cdpath",
+    "commands",
+    "dirstack",
+    "dis_aliases",
+    "dis_builtins",
+    "dis_functions",
+    "dis_functions_source",
+    "dis_galiases",
+    "dis_patchars",
+    "dis_reswords",
+    "dis_saliases",
+    "epochtime",
+    "errnos",
+    "fignore",
+    "fpath",
+    "funcfiletrace",
+    "funcsourcetrace",
+    "funcstack",
+    "functions",
+    "functions_source",
+    "functrace",
+    "galiases",
+    "histchars",
+    "history",
+    "historywords",
+    "jobdirs",
+    "jobstates",
+    "jobtexts",
+    "keymaps",
+    "mailpath",
+    "manpath",
+    "mapfile",
+    "module_path",
+    "modules",
+    "nameddirs",
+    "options",
+    "parameters",
+    "patchars",
+    "path",
+    "pipestatus",
+    "prompt",
+    "psvar",
+    "reswords",
+    "saliases",
+    "signals",
+    "status",
+    "sysparams",
+    "termcap",
+    "terminfo",
+    "userdirs",
+    "usergroups",
+    "watch",
+    "widgets",
+    "zle_bracketed_paste",
+    "zle_highlight",
+    "zsh_eval_context",
+    "zsh_scheduled_events",
+];
+
+/// fish's read-only and electric variables; `fish_*` is refused for every shell.
+const FISH_SPECIAL_PARAMS: &[&str] = &[
+    "CMD_DURATION",
+    "COLUMNS",
+    "EUID",
+    "FISH_VERSION",
+    "LINES",
+    "PWD",
+    "SHLVL",
+    "_",
+    "argv",
+    "dirnext",
+    "dirprev",
+    "history",
+    "hostname",
+    "last_pid",
+    "pipestatus",
+    "status",
+    "status_generation",
+    "umask",
+    "version",
+];
+
+/// `$env:` assignments never touch PowerShell's own variables.
+fn is_shell_special_param(shell: Shell, key: &str) -> bool {
+    let names = match shell {
+        Shell::Bash => BASH_SPECIAL_PARAMS,
+        Shell::Zsh => ZSH_SPECIAL_PARAMS,
+        Shell::Fish => FISH_SPECIAL_PARAMS,
+        Shell::Pwsh => &[],
+    };
+    names.contains(&key)
 }
 
 /// The name is validated too: it is interpolated unquoted and may come from the
@@ -1297,6 +1608,77 @@ mod tests {
             "PROMPT_TEMPLATE",
         ] {
             assert!(!is_shell_control_var(key), "{key} was refused");
+        }
+    }
+
+    #[test]
+    fn families_and_the_names_review_found_are_refused() {
+        for key in [
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_DIR",
+            "XDG_CONFIG_HOME",
+            "VAULT_ADDR",
+            "fish_user_paths",
+            "fish_function_path",
+            "MAILPATH",
+            "PROMPT2",
+            "PROMPT3",
+            "PROMPT4",
+            "DOTNET_STARTUP_HOOKS",
+            "JDK_JAVA_OPTIONS",
+            "JAVA_TOOL_OPTIONS",
+            "PERLLIB",
+            "GITGUARDIAN_API_URL",
+            "__GITGUARDIAN_ACTIVE",
+            "npm_config_script_shell",
+        ] {
+            assert!(is_shell_control_var(key), "{key} was allowed");
+        }
+        for key in [
+            "GITHUB_TOKEN",
+            "OPTIONS",
+            "_OPTIONS_X",
+            "DIGIT_COUNT",
+            "XDG",
+        ] {
+            assert!(!is_shell_control_var(key), "{key} was refused");
+        }
+    }
+
+    #[test]
+    fn each_shells_special_parameters_are_refused_for_that_shell() {
+        for (shell, key) in [
+            (Shell::Bash, "OPTIND"),
+            (Shell::Bash, "HISTCMD"),
+            (Shell::Bash, "MAILCHECK"),
+            (Shell::Bash, "RANDOM"),
+            (Shell::Bash, "TMOUT"),
+            (Shell::Bash, "UID"),
+            (Shell::Zsh, "UID"),
+            (Shell::Zsh, "EGID"),
+            (Shell::Zsh, "path"),
+            (Shell::Zsh, "fpath"),
+            (Shell::Zsh, "status"),
+            (Shell::Zsh, "argv"),
+            (Shell::Zsh, "SECONDS"),
+            (Shell::Fish, "status"),
+            (Shell::Fish, "PWD"),
+            (Shell::Fish, "hostname"),
+        ] {
+            assert!(
+                is_shell_special_param(shell, key),
+                "{}: {key}",
+                shell.name()
+            );
+        }
+        assert!(!is_shell_special_param(Shell::Bash, "path"));
+        assert!(!is_shell_special_param(Shell::Pwsh, "UID"));
+        for shell in [Shell::Bash, Shell::Zsh, Shell::Fish, Shell::Pwsh] {
+            assert!(
+                !is_shell_special_param(shell, "API_KEY"),
+                "{}",
+                shell.name()
+            );
         }
     }
 
