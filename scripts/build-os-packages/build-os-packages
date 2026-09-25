@@ -305,6 +305,11 @@ build_dispatcher() {
     if ! [ -f "$built" ] ; then
         die "cargo did not produce '$built'"
     fi
+    # CI runners ship the VC++ runtime, so a dynamic link only fails on user
+    # machines. PE import names are plain ASCII, so grep sees them.
+    if grep -qai 'vcruntime140[_0-9]*\.dll' "$built" ; then
+        die "'$built' imports the VC++ runtime; is rust/.cargo/config.toml's crt-static still applied?"
+    fi
 
     local launcher="$PYINSTALLER_OUTPUT_DIR/ggshield$EXE_EXT"
     if ! [ -f "$launcher" ] ; then
