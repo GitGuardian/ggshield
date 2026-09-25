@@ -1155,11 +1155,22 @@ const SHELL_CONTROL_VARS: &[&str] = &[
     "PATHEXT",
     "PSExecutionPolicyPreference",
     "PSModulePath",
+    // Where the Vault token is sent, and how the server is verified.
+    "VAULT_ADDR",
+    "VAULT_AGENT_ADDR",
+    "VAULT_CACERT",
+    "VAULT_CAPATH",
+    "VAULT_CLIENT_CERT",
+    "VAULT_CLIENT_KEY",
+    "VAULT_NAMESPACE",
+    "VAULT_PROXY_ADDR",
+    "VAULT_SKIP_VERIFY",
+    "VAULT_TLS_SERVER_NAME",
 ];
 
 /// Families of the same thing: loader knobs, bash's exported functions, git's
 /// and fish's configuration, where XDG tools (and our own trust store) look,
-/// our own and Vault's settings, and .NET and npm hooks.
+/// our own settings, and .NET and npm hooks.
 const SHELL_CONTROL_PREFIXES: &[&str] = &[
     "BASH_FUNC_",
     "COMPlus_",
@@ -1169,7 +1180,6 @@ const SHELL_CONTROL_PREFIXES: &[&str] = &[
     "GIT_",
     "LD_",
     "NPM_CONFIG_",
-    "VAULT_",
     "XDG_",
     "__GITGUARDIAN_",
     "__fish_",
@@ -1728,6 +1738,7 @@ mod tests {
             "GIT_DIR",
             "XDG_CONFIG_HOME",
             "VAULT_ADDR",
+            "VAULT_SKIP_VERIFY",
             "fish_user_paths",
             "fish_function_path",
             "MAILPATH",
@@ -1746,6 +1757,7 @@ mod tests {
         }
         for key in [
             "GITHUB_TOKEN",
+            "VAULT_TOKEN",
             "OPTIONS",
             "_OPTIONS_X",
             "DIGIT_COUNT",
