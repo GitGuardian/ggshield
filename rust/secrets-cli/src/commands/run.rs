@@ -95,7 +95,7 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         eprintln!("warning: {collision}");
     }
 
-    let mut child = std::process::Command::new(program);
+    let mut child = command_for(program);
     child.args(program_args);
     // Scrub provider credentials so the child cannot read the rest of the store.
     let scrubbed = credential_env_vars();
@@ -176,11 +176,93 @@ fn exec(mut child: std::process::Command, program: &str) -> ! {
     cannot_start(program, &error)
 }
 
-#[cfg(not(unix))]
+#[cfg(unix)]
+fn command_for(program: &str) -> std::process::Command {
+    std::process::Command::new(program)
+}
+
+/// `Command::new("npm")` looks for `npm.exe` only; npm, yarn and pnpm are `.cmd`. Given the full
+/// path, std escapes a `.cmd`/`.bat`'s arguments for cmd.exe.
+#[cfg(windows)]
+fn command_for(program: &str) -> std::process::Command {
+    let path = std::env::var_os("PATH");
+    let pathext = std::env::var_os("PATHEXT");
+    match resolve_program(program.as_ref(), path.as_deref(), pathext.as_deref()) {
+        Some(resolved) => std::process::Command::new(resolved),
+        None => std::process::Command::new(program),
+    }
+}
+
+/// The first `PATH` entry holding `program` with one of `PATHEXT`'s extensions, as cmd.exe
+/// searches.
+#[cfg(any(windows, test))]
+fn resolve_program(
+    program: &std::ffi::OsStr,
+    path: Option<&std::ffi::OsStr>,
+    pathext: Option<&std::ffi::OsStr>,
+) -> Option<std::path::PathBuf> {
+    use std::path::{Path, PathBuf};
+
+    let extensions = pathext
+        .and_then(|pathext| pathext.to_str())
+        .unwrap_or(".COM;.EXE;.BAT;.CMD")
+        .split(';')
+        .filter(|extension| !extension.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect::<Vec<_>>();
+    let program = Path::new(program);
+    let has_known_extension = program
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extensions.contains(&format!(".{}", extension.to_ascii_lowercase()))
+        });
+    let find = |base: PathBuf| -> Option<PathBuf> {
+        if has_known_extension && base.is_file() {
+            return Some(base);
+        }
+        extensions.iter().find_map(|extension| {
+            let mut candidate = base.clone().into_os_string();
+            candidate.push(extension);
+            let candidate = PathBuf::from(candidate);
+            candidate.is_file().then_some(candidate)
+        })
+    };
+    if program.components().count() > 1 || program.has_root() {
+        return find(program.to_path_buf());
+    }
+    std::env::split_paths(path?).find_map(|directory| find(directory.join(program)))
+}
+
+#[cfg(windows)]
 fn exec(mut child: std::process::Command, program: &str) -> ! {
+    keep_self_alive_through_ctrl_c();
     match child.status() {
         Ok(status) => std::process::exit(status.code().unwrap_or(1)),
         Err(error) => cannot_start(program, &error),
+    }
+}
+
+/// The console sends Ctrl-C to the child and to us; without a handler we would exit at once with
+/// 0xC000013A, returning the prompt while the child runs and losing its exit code.
+#[cfg(windows)]
+fn keep_self_alive_through_ctrl_c() {
+    use windows_sys::Win32::Foundation::{FALSE, TRUE};
+    use windows_sys::Win32::System::Console::{
+        CTRL_BREAK_EVENT, CTRL_C_EVENT, SetConsoleCtrlHandler,
+    };
+    use windows_sys::core::BOOL;
+
+    unsafe extern "system" fn swallow_ctrl_c(ctrl_type: u32) -> BOOL {
+        match ctrl_type {
+            CTRL_C_EVENT | CTRL_BREAK_EVENT => TRUE,
+            _ => FALSE,
+        }
+    }
+    // SAFETY: registering a handler touches only the process's handler list, and the handler
+    // only reads its argument.
+    unsafe {
+        SetConsoleCtrlHandler(Some(swallow_ctrl_c), TRUE);
     }
 }
 
@@ -225,6 +307,29 @@ mod tests {
         assert_eq!(collisions.len(), 1, "{collisions:?}");
         assert!(collisions[0].contains("'KEY'"), "{collisions:?}");
         assert!(collisions[0].contains("secret/b"), "{collisions:?}");
+    }
+
+    #[test]
+    fn a_program_is_resolved_through_path_and_pathext() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        std::fs::write(second.path().join("npm.cmd"), "").unwrap();
+        std::fs::write(first.path().join("tool.exe"), "").unwrap();
+        std::fs::write(second.path().join("tool.cmd"), "").unwrap();
+        let path = std::env::join_paths([first.path(), second.path()]).unwrap();
+        let pathext = std::ffi::OsString::from(".exe;.cmd");
+        let resolve =
+            |program: &str| resolve_program(program.as_ref(), Some(&path), Some(&pathext));
+
+        assert_eq!(resolve("npm"), Some(second.path().join("npm.cmd")));
+        assert_eq!(resolve("npm.cmd"), Some(second.path().join("npm.cmd")));
+        assert_eq!(resolve("tool"), Some(first.path().join("tool.exe")));
+        assert_eq!(resolve("missing"), None);
+        let explicit = second.path().join("npm");
+        assert_eq!(
+            resolve(explicit.to_str().unwrap()),
+            Some(second.path().join("npm.cmd"))
+        );
     }
 
     #[test]
