@@ -776,16 +776,31 @@ fn read_implicit_layer(
     path: &Path,
     skipped: &mut Vec<String>,
 ) -> Result<Option<String>> {
-    match atomic::read_to_string(path) {
+    let contents = match atomic::read_to_string(path) {
         Err(error) if is_permission_denied(&error) => {
             skipped.push(format!(
                 "skipped the {scope} scope file {}: permission denied",
                 path.display()
             ));
-            Ok(None)
+            return Ok(None);
         }
-        other => other,
+        other => other?,
+    };
+    // Every user's reads merge the system scope, so any user who could write it could set
+    // variables for all of them (on Windows, anyone may create folders in ProgramData).
+    if scope == Scope::System
+        && contents.is_some()
+        && let Some(reason) = std::iter::once(path)
+            .chain(path.parent())
+            .find_map(ownership::untrusted_writer)
+    {
+        skipped.push(format!(
+            "skipped the system scope file {}: {reason}",
+            path.display()
+        ));
+        return Ok(None);
     }
+    Ok(contents)
 }
 
 fn is_permission_denied(error: &anyhow::Error) -> bool {
@@ -2296,6 +2311,43 @@ mod tests {
         );
         assert!(warnings.unreadable.is_empty(), "{warnings:?}");
         assert_eq!(field.unwrap().expose_secret(), "1");
+    }
+
+    /// Another user who can write the system scope could set variables for everyone.
+    #[cfg(unix)]
+    #[test]
+    fn a_system_scope_others_can_write_is_skipped_with_a_warning() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut fixture = Fixture::new().plaintext();
+        let store = fixture.directory.path().join("etc-gitguardian");
+        std::fs::create_dir(&store).unwrap();
+        let path = store.join("secrets.env");
+        std::fs::write(&path, "PLANTED=1\n").unwrap();
+        fixture.backend.system_path = Some(path.clone());
+        fixture.write_project("PROJECT=1\n");
+
+        for (file_mode, directory_mode) in [(0o664, 0o755), (0o644, 0o777)] {
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(file_mode)).unwrap();
+            std::fs::set_permissions(&store, std::fs::Permissions::from_mode(directory_mode))
+                .unwrap();
+            let (fields, warnings) = fixture.get_reporting().unwrap();
+            assert!(
+                !fields.contains_key("PLANTED"),
+                "{file_mode:o}/{directory_mode:o}"
+            );
+            assert!(
+                warnings
+                    .advisories
+                    .iter()
+                    .any(|line| line.contains("writable by users other than its owner")),
+                "{warnings:?}"
+            );
+        }
+
+        std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(value(&fixture.get().unwrap(), "PLANTED"), "1");
     }
 
     /// A file the user named is still an error when they cannot read it.
