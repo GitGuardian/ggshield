@@ -64,7 +64,7 @@ repos:
         files: '^README\.md$'
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.31.0
+    rev: 0.38.0
     hooks:
       - id: check-github-workflows
 
