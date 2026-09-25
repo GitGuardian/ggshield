@@ -1,9 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::Value;
+use ureq::tls::Certificate;
 
 use crate::auth::apply_auth;
 use crate::definition::{Method, ProviderDef};
@@ -33,9 +36,19 @@ type VaultFields = serde_json::Map<String, Value>;
 struct Http {
     definition: &'static ProviderDef,
     agent: ureq::Agent,
+    /// `VAULT_NAMESPACE`, sent on every request.
+    namespace: Option<String>,
 }
 
+static INSECURE_TLS: AtomicBool = AtomicBool::new(false);
+
 impl SecretStore {
+    /// Process-wide, for ggshield's `--insecure`: stores built afterwards do
+    /// not verify TLS certificates.
+    pub fn allow_insecure_tls() {
+        INSECURE_TLS.store(true, Ordering::Relaxed);
+    }
+
     pub fn builder(provider: Provider) -> SecretStoreBuilder {
         SecretStoreBuilder {
             provider,
@@ -468,6 +481,10 @@ impl Http {
             Method::Post => "POST",
         };
         let request = ureq::http::Request::builder().method(method).uri(&url);
+        let request = match &self.namespace {
+            Some(namespace) => request.header("X-Vault-Namespace", namespace),
+            None => request,
+        };
         apply_auth(request, &self.definition.auth)
     }
 
@@ -599,11 +616,20 @@ impl SecretStoreBuilder {
             .max_redirects(0)
             // Otherwise 4xx/5xx become transport errors and 404 -> SecretNotFound never runs.
             .http_status_as_error(false)
+            .tls_config(vault_tls_config(
+                non_empty_env,
+                INSECURE_TLS.load(Ordering::Relaxed),
+            )?)
             .build();
         let agent = ureq::Agent::new_with_config(config);
+        let namespace = non_empty_env("VAULT_NAMESPACE");
 
         Ok(SecretStore {
-            backend: Backend::Http(Box::new(Http { definition, agent })),
+            backend: Backend::Http(Box::new(Http {
+                definition,
+                agent,
+                namespace,
+            })),
             env_override: self.env_override.unwrap_or(true),
         })
     }
@@ -616,6 +642,78 @@ fn is_denied_or_missing(error: &anyhow::Error) -> bool {
             Some(SecretError::PermissionDenied { .. } | SecretError::SecretNotFound { .. })
         )
     })
+}
+
+fn non_empty_env(name: &str) -> Option<String> {
+    std::env::var(name).ok().filter(|value| !value.is_empty())
+}
+
+/// `VAULT_CACERT` wins over `VAULT_CAPATH` and replaces the default roots, as
+/// in the vault CLI.
+fn vault_tls_config(
+    env: impl Fn(&str) -> Option<String>,
+    insecure: bool,
+) -> Result<ureq::tls::TlsConfig> {
+    for name in ["VAULT_CLIENT_CERT", "VAULT_CLIENT_KEY"] {
+        ensure!(
+            env(name).is_none(),
+            "{name} is set, but TLS client certificates are not supported yet for Vault; \
+             unset it or authenticate with a token"
+        );
+    }
+    let skip_verify = match env("VAULT_SKIP_VERIFY").as_deref() {
+        None | Some("0" | "f" | "F" | "false" | "FALSE" | "False") => false,
+        Some("1" | "t" | "T" | "true" | "TRUE" | "True") => true,
+        Some(other) => bail!("VAULT_SKIP_VERIFY must be true or false, not '{other}'"),
+    };
+    let mut builder = ureq::tls::TlsConfig::builder().disable_verification(insecure || skip_verify);
+    let certs = match (env("VAULT_CACERT"), env("VAULT_CAPATH")) {
+        (Some(file), _) => Some(pem_certificates(Path::new(&file))?),
+        (None, Some(directory)) => Some(pem_directory_certificates(Path::new(&directory))?),
+        (None, None) => None,
+    };
+    if let Some(certs) = certs {
+        builder = builder.root_certs(ureq::tls::RootCerts::new_with_certs(&certs));
+    }
+    Ok(builder.build())
+}
+
+fn pem_directory_certificates(directory: &Path) -> Result<Vec<Certificate<'static>>> {
+    let entries = std::fs::read_dir(directory)
+        .with_context(|| format!("reading VAULT_CAPATH {}", directory.display()))?;
+    let mut certs = Vec::new();
+    for entry in entries {
+        let path = entry
+            .with_context(|| format!("reading VAULT_CAPATH {}", directory.display()))?
+            .path();
+        if path.is_file() {
+            certs.extend(pem_certificates(&path)?);
+        }
+    }
+    ensure!(
+        !certs.is_empty(),
+        "VAULT_CAPATH {} holds no certificate",
+        directory.display()
+    );
+    Ok(certs)
+}
+
+fn pem_certificates(path: &Path) -> Result<Vec<Certificate<'static>>> {
+    let pem = std::fs::read(path)
+        .with_context(|| format!("reading CA certificate {}", path.display()))?;
+    let mut certs = Vec::new();
+    for item in ureq::tls::parse_pem(&pem) {
+        let item = item.with_context(|| format!("parsing CA certificate {}", path.display()))?;
+        if let ureq::tls::PemItem::Certificate(cert) = item {
+            certs.push(cert);
+        }
+    }
+    ensure!(
+        !certs.is_empty(),
+        "{} holds no PEM certificate",
+        path.display()
+    );
+    Ok(certs)
 }
 
 fn env_override_value(field: &str) -> Option<SecretString> {
@@ -968,6 +1066,7 @@ mod tests {
                     .http_status_as_error(false)
                     .build(),
             ),
+            namespace: None,
         }
     }
 
@@ -1146,6 +1245,123 @@ mod tests {
         let body = request_body(&received[1]);
         assert_eq!(body["data"], serde_json::json!({"B": 7}));
         assert_eq!(body["options"]["cas"], 5);
+    }
+
+    #[test]
+    fn every_request_carries_the_vault_namespace() {
+        let (addr, server) = serve_kv2(vec![
+            (404, r#"{"errors":[]}"#),
+            (200, r#"{"data":{"version":1}}"#),
+        ]);
+        let http = Http {
+            namespace: Some("team/eng".to_string()),
+            ..test_http()
+        };
+        http.set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+            .unwrap();
+
+        let received: Vec<_> = server.try_iter().collect();
+        assert_eq!(received.len(), 3);
+        for request in received {
+            assert!(
+                request
+                    .to_ascii_lowercase()
+                    .contains("x-vault-namespace: team/eng\r\n"),
+                "{request}"
+            );
+        }
+    }
+
+    const PEM: &str = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n";
+
+    fn tls_env(pairs: &[(&str, String)]) -> impl Fn(&str) -> Option<String> {
+        let pairs: BTreeMap<String, String> = pairs
+            .iter()
+            .map(|(name, value)| (name.to_string(), value.clone()))
+            .collect();
+        move |name| pairs.get(name).cloned()
+    }
+
+    fn root_cert_count(config: &ureq::tls::TlsConfig) -> Option<usize> {
+        match config.root_certs() {
+            ureq::tls::RootCerts::Specific(certs) => Some(certs.len()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn vault_tls_keeps_the_default_roots_and_verification_without_settings() {
+        let config = vault_tls_config(tls_env(&[]), false).unwrap();
+        assert!(!config.disable_verification());
+        assert_eq!(root_cert_count(&config), None);
+    }
+
+    #[test]
+    fn vault_tls_trusts_vault_cacert_over_vault_capath() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("ca.pem");
+        std::fs::write(&file, PEM).unwrap();
+        let capath = directory.path().join("capath");
+        std::fs::create_dir(&capath).unwrap();
+        std::fs::write(capath.join("a.pem"), PEM).unwrap();
+        std::fs::write(capath.join("b.pem"), format!("{PEM}{PEM}")).unwrap();
+        let file = file.to_str().unwrap().to_string();
+        let capath = capath.to_str().unwrap().to_string();
+
+        let config = vault_tls_config(tls_env(&[("VAULT_CAPATH", capath.clone())]), false).unwrap();
+        assert_eq!(root_cert_count(&config), Some(3));
+
+        let config = vault_tls_config(
+            tls_env(&[("VAULT_CACERT", file), ("VAULT_CAPATH", capath)]),
+            false,
+        )
+        .unwrap();
+        assert_eq!(root_cert_count(&config), Some(1));
+    }
+
+    #[test]
+    fn vault_tls_refuses_a_ca_file_without_a_certificate() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("ca.pem");
+        std::fs::write(&file, "not a certificate\n").unwrap();
+        let error = vault_tls_config(
+            tls_env(&[("VAULT_CACERT", file.to_str().unwrap().to_string())]),
+            false,
+        )
+        .unwrap_err();
+        assert!(
+            format!("{error:#}").contains("no PEM certificate"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn vault_tls_skips_verification_for_insecure_or_vault_skip_verify() {
+        assert!(
+            vault_tls_config(tls_env(&[]), true)
+                .unwrap()
+                .disable_verification()
+        );
+        for (value, skip) in [("1", true), ("true", true), ("0", false), ("false", false)] {
+            let config =
+                vault_tls_config(tls_env(&[("VAULT_SKIP_VERIFY", value.to_string())]), false)
+                    .unwrap();
+            assert_eq!(config.disable_verification(), skip, "{value}");
+        }
+        let error = vault_tls_config(tls_env(&[("VAULT_SKIP_VERIFY", "yes".to_string())]), false)
+            .unwrap_err();
+        assert!(error.to_string().contains("VAULT_SKIP_VERIFY"), "{error}");
+    }
+
+    #[test]
+    fn vault_tls_refuses_client_certificates_it_cannot_send() {
+        for name in ["VAULT_CLIENT_CERT", "VAULT_CLIENT_KEY"] {
+            let error =
+                vault_tls_config(tls_env(&[(name, "/some/file".to_string())]), false).unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains(name), "{message}");
+            assert!(message.contains("not supported"), "{message}");
+        }
     }
 
     #[test]

@@ -17,6 +17,8 @@ path = "src/main.rs"
 ggshield-hook = { path = "../hook" }
 # The `secret` store verbs: read, write and inject secrets.
 ggshield-secrets-cli = { workspace = true }
+# For `--insecure`, which the secrets CLI skips as a root option.
+ggshield-secrets = { workspace = true }
 
 # Ctrl-C has to be handed to the child, which needs SetConsoleCtrlHandler.
 [target.'cfg(windows)'.dependencies]

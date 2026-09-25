@@ -48,6 +48,23 @@ pub fn is_native_secret(args: &[OsString]) -> bool {
     ggshield_secrets_cli::is_native(args)
 }
 
+/// Whether Python's root `--insecure` (or its `--allow-self-signed` alias)
+/// precedes the verb.
+pub fn wants_insecure_tls(args: &[OsString]) -> bool {
+    let mut args = args.iter().map(|arg| arg.to_str());
+    while let Some(Some(arg)) = args.next() {
+        match arg {
+            "--insecure" | "--allow-self-signed" => return true,
+            "-c" | "--config-path" | "--log-file" | "--instance" => {
+                args.next();
+            }
+            _ if arg.starts_with('-') => {}
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// True only for the exact `secret scan ai-hook --warm-notifier` form.
 pub fn is_warm_notifier(args: &[OsString]) -> bool {
     args == WARM_NOTIFIER_ARGS
@@ -264,6 +281,29 @@ mod tests {
                 !is_warm_notifier(&case),
                 "{case:?} was claimed as a warm-up"
             );
+        }
+    }
+
+    /// GIVEN root options before a secret verb, and the same words elsewhere
+    /// WHEN they are checked for `--insecure`
+    /// THEN only a root `--insecure` or `--allow-self-signed` counts.
+    #[test]
+    fn only_a_root_insecure_flag_disables_tls_verification() {
+        for case in [
+            args(&["--insecure", "secret", "get", "secret/app"]),
+            args(&["--allow-self-signed", "run", "--", "true"]),
+            args(&["-v", "-c", "cfg.yaml", "--insecure", "secret", "list"]),
+            args(&["--log-file=-", "--insecure", "activate"]),
+        ] {
+            assert!(wants_insecure_tls(&case), "{case:?}");
+        }
+        for case in [
+            args(&["secret", "get", "secret/app"]),
+            args(&["run", "--", "curl", "--insecure"]),
+            args(&["--log-file", "--insecure", "run"]),
+            args(&["secret", "set", "--insecure"]),
+        ] {
+            assert!(!wants_insecure_tls(&case), "{case:?}");
         }
     }
 

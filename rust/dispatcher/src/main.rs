@@ -18,6 +18,9 @@ fn main() {
         std::process::exit(ggshield_hook::warm_notifier());
     }
     if dispatch::is_native_secret(&args) {
+        if dispatch::wants_insecure_tls(&args) {
+            ggshield_secrets::SecretStore::allow_insecure_tls();
+        }
         std::process::exit(run_secret_verb(&args));
     }
     dispatch::delegate(&args);
