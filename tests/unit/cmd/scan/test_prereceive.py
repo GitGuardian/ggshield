@@ -54,15 +54,18 @@ class TestPreReceive:
     def mock_multiprocessing(self):
         """
         multiprocessing.Process is mocked to make everything run on the main process
-        to permit mocking of scan_commit_range
+        to permit mocking of scan_commit_range. setup_truststore is mocked so that
+        running the child's code on the main process does not inject truststore into
+        the test process.
         """
-        with patch(
-            "ggshield.cmd.secret.scan.prereceive.multiprocessing"
-        ) as multiprocessing_mock:
-            multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
-                multiprocessing_mock.Process
-            )
-            yield
+        with patch("ggshield.cmd.secret.scan.prereceive.setup_truststore"):
+            with patch(
+                "ggshield.cmd.secret.scan.prereceive.multiprocessing"
+            ) as multiprocessing_mock:
+                multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
+                    multiprocessing_mock.Process
+                )
+                yield
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
