@@ -7,6 +7,7 @@ use secrecy::SecretString;
 use crate::commands::shared::{
     ScopeArgs, confirm_existing_fields, field_count, prompt_secret, resolve_provider, write_path,
 };
+use crate::commands::unset::scopes_shadowing;
 use crate::env::{validate_env_key, validate_env_value};
 
 #[derive(clap::Args)]
@@ -86,5 +87,16 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         field_count(fields.len()),
         fields.keys().cloned().collect::<Vec<_>>().join(", ")
     );
+    // Rotating a leaked key here would otherwise look done while `run` keeps the old one.
+    if provider == Provider::File {
+        for (scope, names) in scopes_shadowing(&store, &path, &args.keys) {
+            let verb = if names.len() == 1 { "is" } else { "are" };
+            eprintln!(
+                "warning: {} {verb} also set in the {scope} scope, which takes precedence: `run` \
+                 and `activate` keep using that value. Use --{scope} to change it there",
+                names.join(", ")
+            );
+        }
+    }
     Ok(())
 }

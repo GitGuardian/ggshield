@@ -125,13 +125,8 @@ fn delete_from_file(
     Ok(())
 }
 
-/// Most specific first, as reads resolve them. Best effort: a notice, not a guard. Never
-/// decrypts.
-fn other_scopes_setting(
-    store: &SecretStore,
-    path: &str,
-    names: &[String],
-) -> Vec<(Scope, Vec<String>)> {
+/// Most specific first, as reads resolve them.
+fn scope_paths() -> Vec<(Scope, Option<String>)> {
     [
         (Scope::Project, Some(PathBuf::from(DEFAULT_PROJECT_PATH))),
         (Scope::Local, repo_scope_path(Path::new("."))),
@@ -139,20 +134,66 @@ fn other_scopes_setting(
         (Scope::System, system_scope_path()),
     ]
     .into_iter()
-    .filter_map(|(scope, scope_path)| {
-        let scope_path = scope_path?.to_string_lossy().into_owned();
-        if scope_path == path {
-            return None;
-        }
-        let set = store.field_names(&scope_path).ok()?;
-        let still = names
-            .iter()
-            .filter(|name| set.contains(name))
-            .cloned()
-            .collect::<Vec<_>>();
-        (!still.is_empty()).then_some((scope, still))
-    })
+    .map(|(scope, path)| (scope, path.map(|path| path.to_string_lossy().into_owned())))
     .collect()
+}
+
+/// Best effort: a notice, not a guard. Never decrypts.
+fn other_scopes_setting(
+    store: &SecretStore,
+    path: &str,
+    names: &[String],
+) -> Vec<(Scope, Vec<String>)> {
+    scopes_setting(store, &scope_paths(), path, names)
+}
+
+/// The scopes whose value for one of `names` wins over the one `path` holds.
+pub(crate) fn scopes_shadowing(
+    store: &SecretStore,
+    path: &str,
+    names: &[String],
+) -> Vec<(Scope, Vec<String>)> {
+    shadowing(store, &scope_paths(), path, names)
+}
+
+fn shadowing(
+    store: &SecretStore,
+    scopes: &[(Scope, Option<String>)],
+    path: &str,
+    names: &[String],
+) -> Vec<(Scope, Vec<String>)> {
+    let Some(own) = scopes
+        .iter()
+        .position(|(_, scope_path)| scope_path.as_deref() == Some(path))
+    else {
+        // A `--path` file is read as the project layer: nothing outranks it.
+        return Vec::new();
+    };
+    scopes_setting(store, &scopes[..own], path, names)
+}
+
+fn scopes_setting(
+    store: &SecretStore,
+    scopes: &[(Scope, Option<String>)],
+    path: &str,
+    names: &[String],
+) -> Vec<(Scope, Vec<String>)> {
+    scopes
+        .iter()
+        .filter_map(|(scope, scope_path)| {
+            let scope_path = scope_path.as_deref()?;
+            if scope_path == path {
+                return None;
+            }
+            let set = store.field_names(scope_path).ok()?;
+            let still = names
+                .iter()
+                .filter(|name| set.contains(name))
+                .cloned()
+                .collect::<Vec<_>>();
+            (!still.is_empty()).then_some((*scope, still))
+        })
+        .collect()
 }
 
 fn delete_from_provider(
@@ -256,6 +297,45 @@ fn confirm_delete(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    fn scopes_in(directory: &Path) -> Vec<(Scope, Option<String>)> {
+        [
+            (Scope::Project, "project.env"),
+            (Scope::Local, "repo.env"),
+            (Scope::Global, "user.env"),
+        ]
+        .into_iter()
+        .map(|(scope, name)| {
+            let path = directory.join(name).to_string_lossy().into_owned();
+            (scope, Some(path))
+        })
+        .chain([(Scope::System, None)])
+        .collect()
+    }
+
+    /// Only a more specific scope shadows a write; a less specific one does not.
+    #[test]
+    fn a_more_specific_scope_shadows_a_write() {
+        let directory = tempfile::tempdir().unwrap();
+        let scopes = scopes_in(directory.path());
+        let path = |index: usize| scopes[index].1.clone().unwrap();
+        std::fs::write(path(0), "API_KEY=old\nOTHER=1\n").unwrap();
+        std::fs::write(path(1), "API_KEY=new\n").unwrap();
+        std::fs::write(path(2), "API_KEY=user\n").unwrap();
+        let store = SecretStore::builder(Provider::File).build().unwrap();
+        let names = ["API_KEY".to_string(), "UNSET".to_string()];
+
+        let found = shadowing(&store, &scopes, &path(1), &names);
+        assert_eq!(found.len(), 1);
+        assert!(found[0].0 == Scope::Project);
+        assert_eq!(found[0].1, ["API_KEY".to_string()]);
+
+        let found = shadowing(&store, &scopes, &path(2), &names);
+        assert_eq!(found.len(), 2);
+        assert!(shadowing(&store, &scopes, &path(0), &names).is_empty());
+        let elsewhere = directory.path().join("other.env");
+        assert!(shadowing(&store, &scopes, &elsewhere.to_string_lossy(), &names).is_empty());
+    }
 
     #[test]
     fn missing_keys_are_deduplicated() {
