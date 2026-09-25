@@ -4,7 +4,8 @@ use anyhow::{Context, Result, bail};
 use ggshield_secrets::{Provider, SecretStore, credential_env_vars};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::commands::shared::{ensure_explicit_path_exists, resolve_provider, secret_path};
+use crate::commands::activate::is_shell_control_var;
+use crate::commands::shared::{Scope, ensure_explicit_path_exists, resolve_provider, secret_path};
 use crate::env::{validate_env_key, validate_env_value};
 
 #[derive(clap::Args)]
@@ -50,11 +51,28 @@ pub(crate) fn execute(args: Args) -> Result<()> {
     let mut resolved = Vec::with_capacity(paths.len());
     let mut unreadable = 0;
     for path in &paths {
-        let (fields, warnings) = store.get_secrets_with_warnings(path)?;
+        let (mut fields, warnings) = store.get_secrets_with_warnings(path)?;
         for warning in warnings.messages() {
             eprintln!("warning: {warning}");
         }
         unreadable += warnings.unreadable.len();
+        if provider == Provider::File && args.secrets.is_empty() {
+            let refused = drop_control_vars(&mut fields, &store.field_scopes(path)?);
+            if !refused.is_empty() {
+                eprintln!(
+                    "warning: refused to inject {} from {path} that {} how programs run: {}. \
+                     Pass --path {path} to inject {} anyway",
+                    variable_count(refused.len()),
+                    if refused.len() == 1 {
+                        "changes"
+                    } else {
+                        "change"
+                    },
+                    refused.join(", "),
+                    if refused.len() == 1 { "it" } else { "them" },
+                );
+            }
+        }
         // Other tools can write fields we cannot inject faithfully ('=' in a name,
         // a NUL); checked per path so the error names the file.
         for (key, value) in &fields {
@@ -99,6 +117,31 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         child.env(key, value.expose_secret());
     }
     exec(child, program)
+}
+
+/// A `.env` nobody named is not consent: a cloned repository could set `LD_PRELOAD`. Only the
+/// project layer; the other scopes are the user's own.
+fn drop_control_vars(
+    fields: &mut BTreeMap<String, SecretString>,
+    scopes: &BTreeMap<String, String>,
+) -> Vec<String> {
+    let project = Scope::Project.to_string();
+    let refused = fields
+        .keys()
+        .filter(|key| is_shell_control_var(key) && scopes.get(*key) == Some(&project))
+        .cloned()
+        .collect::<Vec<_>>();
+    for key in &refused {
+        fields.remove(key);
+    }
+    refused
+}
+
+fn variable_count(count: usize) -> String {
+    match count {
+        1 => "1 variable".to_string(),
+        count => format!("{count} variables"),
+    }
 }
 
 /// Later paths win. Only a differing value is a collision: every file-provider
@@ -168,6 +211,31 @@ mod tests {
         assert_eq!(collisions.len(), 1, "{collisions:?}");
         assert!(collisions[0].contains("'KEY'"), "{collisions:?}");
         assert!(collisions[0].contains("secret/b"), "{collisions:?}");
+    }
+
+    #[test]
+    fn control_vars_from_the_default_env_are_dropped() {
+        let mut env = fields(&[
+            ("LD_PRELOAD", "/tmp/evil.so"),
+            ("NODE_OPTIONS", "--require evil"),
+            ("API_KEY", "k"),
+        ]);
+        let scopes = [
+            ("LD_PRELOAD", "project"),
+            ("NODE_OPTIONS", "global"),
+            ("API_KEY", "project"),
+        ]
+        .into_iter()
+        .map(|(key, scope)| (key.to_string(), scope.to_string()))
+        .collect();
+        let refused = drop_control_vars(&mut env, &scopes);
+        assert_eq!(refused, ["LD_PRELOAD".to_string()]);
+        assert!(!env.contains_key("LD_PRELOAD"));
+        assert!(
+            env.contains_key("NODE_OPTIONS"),
+            "the user's own scope is consent"
+        );
+        assert!(env.contains_key("API_KEY"));
     }
 
     /// The same value arriving from two paths is not a collision.
