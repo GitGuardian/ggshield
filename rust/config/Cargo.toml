@@ -13,6 +13,7 @@ serde_yaml_ng = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }
 dotenvy = { workspace = true }
+ureq = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
