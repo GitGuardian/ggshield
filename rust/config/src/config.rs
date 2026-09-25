@@ -46,10 +46,12 @@ pub const KEYRING_SERVICE: &str = "ggshield";
 pub const KEYRING_SENTINEL: &str = "__KEYRING__";
 pub const DEFAULT_INSTANCE_URL: &str = "https://dashboard.gitguardian.com";
 
-const TRACKED_ENV_VARS: [&str; 3] = [
+const TRACKED_ENV_VARS: [&str; 5] = [
     "GITGUARDIAN_INSTANCE",
     "GITGUARDIAN_API_URL",
     "GITGUARDIAN_API_KEY",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
 ];
 
 /// pygitguardian's `DOCUMENT_SIZE_THRESHOLD_BYTES`: the default per-document
@@ -219,9 +221,11 @@ pub struct Config {
     /// [`Config::token`].
     token: OnceCell<Result<String, Error>>,
     pub user: UserConfig,
+    pub ca_bundle: Option<String>,
     /// Instance limits, resolved at most once per run. The hook's `api` module
     /// owns the resolution order; this is where the answer is memoised.
     pub limits: OnceCell<Limits>,
+    pub agent: OnceCell<Result<ureq::Agent, String>>,
 }
 
 #[derive(Debug)]
@@ -262,7 +266,9 @@ impl Config {
             token_source: TokenSource::Plain(token),
             token: OnceCell::new(),
             user,
+            ca_bundle: None,
             limits: OnceCell::new(),
+            agent: OnceCell::new(),
         }
     }
 }
@@ -340,7 +346,7 @@ fn env_var(dotenv: &DotEnv, key: &str) -> Option<String> {
 /// has to resolve the *same* instance and token the CLI would: a self-hosted
 /// customer's `.env` names their own instance, so ignoring the file would ship
 /// their content to the SaaS API. `dotenvy`'s `*_iter` API yields the bindings
-/// without exporting them, and only the three tracked variables are applied.
+/// without exporting them, and only the tracked variables are applied.
 ///
 /// Searches the two locations the CLI looks at: the cwd, then the git root (or
 /// `GITGUARDIAN_DOTENV_PATH` when set); `GITGUARDIAN_DONT_LOAD_ENV` disables it.
@@ -386,9 +392,9 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
             }
         }
         // So blame is attributed from the result instead: a file that appears to
-        // bind one of the three more times than `dotenvy` yielded it has had that
-        // binding dropped, which selects the wrong server or credential. Decline,
-        // and name the variable.
+        // bind a tracked variable more times than `dotenvy` yielded it has had
+        // that binding dropped, which selects the wrong server, credential or CA
+        // bundle. Decline, and name the variable.
         if rejected
             && let Ok(content) = std::fs::read_to_string(&path)
             && let Some(var) = TRACKED_ENV_VARS.into_iter().find(|var| {
@@ -400,8 +406,7 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
                     "a {var} binding that is not valid `.env` syntax ({})",
                     path.display()
                 ),
-                "Fix that line, or set the GITGUARDIAN_* variables in the \
-                 environment instead.",
+                format!("Fix that line, or set {var} in the environment instead."),
             ));
         }
         return Ok(found);
@@ -531,13 +536,17 @@ pub fn resolve() -> Result<Config, Error> {
     // `instance:` — the only source above that does not carry its own check.
     validate_dashboard_url(&instance)?;
     let api_url = dashboard_to_api_url(&instance);
+    let ca_bundle = ca_bundle(&dotenv);
 
     // Env var wins over everything, short-circuiting keychain access as
     // `AuthConfig.load()` does.
     if let Some(token) = env_var(&dotenv, "GITGUARDIAN_API_KEY")
         && !token.is_empty()
     {
-        return Ok(Config::with_token(api_url, token, user));
+        return Ok(Config {
+            ca_bundle,
+            ..Config::with_token(api_url, token, user)
+        });
     }
 
     let token_source = token_source_for_instance(&instance)?;
@@ -546,8 +555,23 @@ pub fn resolve() -> Result<Config, Error> {
         token_source,
         token: OnceCell::new(),
         user,
+        ca_bundle,
         limits: OnceCell::new(),
+        agent: OnceCell::new(),
     })
+}
+
+fn ca_bundle(dotenv: &DotEnv) -> Option<String> {
+    pick_ca_bundle(
+        env_var(dotenv, "REQUESTS_CA_BUNDLE"),
+        env_var(dotenv, "CURL_CA_BUNDLE"),
+    )
+}
+
+fn pick_ca_bundle(requests: Option<String>, curl: Option<String>) -> Option<String> {
+    requests
+        .filter(|path| !path.is_empty())
+        .or(curl.filter(|path| !path.is_empty()))
 }
 
 /// `getenv_bool()` (utils/os.py): set to anything other than `false` or `0`,
@@ -962,6 +986,36 @@ mod tests {
         );
 
         unsafe { std::env::remove_var("GITGUARDIAN_API_KEY") };
+    }
+
+    /// GIVEN REQUESTS_CA_BUNDLE and CURL_CA_BUNDLE values
+    /// WHEN the CA bundle is picked
+    /// THEN REQUESTS_CA_BUNDLE wins, then CURL_CA_BUNDLE, and empty values count as unset
+    #[test]
+    fn the_ca_bundle_is_picked_like_requests_does() {
+        let requests = Some("/requests.pem".to_string());
+        let curl = Some("/curl.pem".to_string());
+        let empty = Some(String::new());
+
+        assert_eq!(pick_ca_bundle(requests.clone(), curl.clone()), requests);
+        assert_eq!(pick_ca_bundle(None, curl.clone()), curl);
+        assert_eq!(pick_ca_bundle(empty.clone(), curl.clone()), curl);
+        assert_eq!(pick_ca_bundle(empty, None), None);
+        assert_eq!(pick_ca_bundle(None, None), None);
+    }
+
+    /// GIVEN REQUESTS_CA_BUNDLE bound in the `.env` the CLI would read
+    /// WHEN the CA bundle is resolved
+    /// THEN the `.env` value is used, as the CLI exports the whole file
+    #[test]
+    fn a_dotenv_ca_bundle_is_used() {
+        let _guard = exclusive();
+        let (_dir, original) = in_a_checkout(&[(".env", "REQUESTS_CA_BUNDLE=/corporate.pem\n")]);
+
+        let resolved = dotenv_overrides().map(|dotenv| ca_bundle(&dotenv));
+
+        std::env::set_current_dir(original).expect("chdir back");
+        assert_eq!(resolved.ok().flatten().as_deref(), Some("/corporate.pem"));
     }
 
     /// A temporary git checkout — `root/.git` plus a `root/sub` working directory
@@ -1561,7 +1615,9 @@ mod tests {
             token_source: TokenSource::Keyring("https://keyring-absent.invalid".into()),
             token: OnceCell::new(),
             user: UserConfig::default(),
+            ca_bundle: None,
             limits: OnceCell::new(),
+            agent: OnceCell::new(),
         };
         assert!(config.token().is_err());
         assert!(

@@ -44,17 +44,6 @@ fn resolve_timeout(from_env: Option<&str>, configured: u64) -> u64 {
 const RETRY_STATUSES: [u16; 3] = [502, 503, 504];
 const RETRY_BACKOFF_SECS: [u64; 5] = [0, 1, 2, 4, 8];
 
-/// The TLS config to attach when `.gitguardian.yaml` set `insecure` (or v1
-/// `allow_self_signed`): certificate verification off, matching `session.verify
-/// = False` in `core/client.py`. `None` keeps ureq's verifying default.
-fn insecure_tls(config: &Config) -> Option<ureq::tls::TlsConfig> {
-    config.user.insecure.then(|| {
-        ureq::tls::TlsConfig::builder()
-            .disable_verification(true)
-            .build()
-    })
-}
-
 pub struct Document {
     pub content: String,
     pub filename: String,
@@ -279,13 +268,11 @@ fn env_usize(key: &str) -> Option<usize> {
 
 fn fetch_metadata(config: &Config) -> Option<Value> {
     let url = format!("{}/v1/metadata", config.api_url);
-    let mut builder = ureq::get(&url)
+    let mut response = crate::tls::agent(config)
+        .ok()?
+        .get(&url)
         .config()
-        .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))));
-    if let Some(tls) = insecure_tls(config) {
-        builder = builder.tls_config(tls);
-    }
-    let mut response = builder
+        .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))))
         .build()
         .header("Authorization", format!("Token {}", config.token().ok()?))
         .call()
@@ -399,17 +386,15 @@ fn send_once(
     body: &str,
 ) -> Result<(u16, String), Error> {
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let mut builder = ureq::post(&url)
+    let mut response = crate::tls::agent(config)
+        .map_err(Error::scan)?
+        .post(&url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))))
         // ureq turns any 4xx/5xx into an `Err` by default, which made the 401
         // branch below dead code: an expired token said "could not scan" instead
         // of "run ggshield auth login", and a 503 could not be recognised either.
-        .http_status_as_error(false);
-    if let Some(tls) = insecure_tls(config) {
-        builder = builder.tls_config(tls);
-    }
-    let mut response = builder
+        .http_status_as_error(false)
         .build()
         .header("Authorization", format!("Token {}", config.token()?))
         .header("Content-Type", "application/json")
