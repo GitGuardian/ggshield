@@ -286,16 +286,31 @@ impl Http {
     }
 
     /// The version feeds Vault's check-and-set, so concurrent writes fail
-    /// instead of being silently overwritten.
-    fn read_vault_secret_version(
+    /// instead of being silently overwritten. With no live version the fields
+    /// are `None`: a soft-deleted secret's 404 still names its version, and a
+    /// never-written one takes CAS 0.
+    fn read_vault_secret(
         &self,
         params: &BTreeMap<String, String>,
-    ) -> Result<Option<(VaultFields, u64)>> {
-        let body = match self.fetch_value("read_secret", params) {
-            Ok(body) => body,
-            Err(error) if SecretError::is_secret_not_found(&error) => return Ok(None),
-            Err(error) => return Err(error),
-        };
+    ) -> Result<(Option<VaultFields>, u64)> {
+        let request = self.request("read_secret", params)?;
+        let mut response = self.run("read_secret", request, String::new())?;
+        if response.status() == ureq::http::StatusCode::NOT_FOUND {
+            let version = response
+                .body_mut()
+                .read_json::<Value>()
+                .ok()
+                .and_then(|body| dot_path(&body, "data.metadata.version")?.as_u64())
+                .unwrap_or(0);
+            return Ok((None, version));
+        }
+        if !response.status().is_success() {
+            return Err(self.error_response("read_secret", params, response));
+        }
+        let body: Value = response
+            .body_mut()
+            .read_json()
+            .context("parsing JSON response")?;
         let fields = dot_path(&body, "data.data")
             .and_then(Value::as_object)
             .cloned()
@@ -303,20 +318,7 @@ impl Http {
         let version = dot_path(&body, "data.metadata.version")
             .and_then(Value::as_u64)
             .context("no 'data.metadata.version' in KV v2 read response")?;
-        Ok(Some((fields, version)))
-    }
-
-    // A soft delete keeps `current_version` in metadata; only a never-written
-    // secret takes CAS 0, which still fails if one is created concurrently.
-    fn read_vault_current_version(&self, params: &BTreeMap<String, String>) -> Result<u64> {
-        let body = match self.fetch_value("read_metadata", params) {
-            Ok(body) => body,
-            Err(error) if SecretError::is_secret_not_found(&error) => return Ok(0),
-            Err(error) => return Err(error),
-        };
-        dot_path(&body, "data.current_version")
-            .and_then(Value::as_u64)
-            .context("no 'data.current_version' in KV v2 metadata response")
+        Ok((Some(fields), version))
     }
 
     fn set_vault_secrets(
@@ -324,10 +326,8 @@ impl Http {
         params: &BTreeMap<String, String>,
         fields: &BTreeMap<String, SecretString>,
     ) -> Result<()> {
-        let (mut merged, version) = match self.read_vault_secret_version(params)? {
-            Some(current) => current,
-            None => (VaultFields::new(), self.read_vault_current_version(params)?),
-        };
+        let (current, version) = self.read_vault_secret(params)?;
+        let mut merged = current.unwrap_or_default();
         for (key, value) in fields {
             merged.insert(
                 key.clone(),
@@ -346,7 +346,7 @@ impl Http {
             return self.send_empty("delete_secret", params);
         }
 
-        let Some((mut existing, version)) = self.read_vault_secret_version(params)? else {
+        let (Some(mut existing), version) = self.read_vault_secret(params)? else {
             return Err(SecretError::missing_fields(keys).into());
         };
         let missing = keys
@@ -438,24 +438,40 @@ impl Http {
         request: ureq::http::request::Builder,
         body: String,
     ) -> Result<ureq::http::Response<ureq::Body>> {
+        let response = self.run(endpoint_name, request, body)?;
+        if response.status().is_success() {
+            return Ok(response);
+        }
+        Err(self.error_response(endpoint_name, params, response))
+    }
+
+    fn run(
+        &self,
+        endpoint_name: &str,
+        request: ureq::http::request::Builder,
+        body: String,
+    ) -> Result<ureq::http::Response<ureq::Body>> {
         let request = request
             .body(body)
             .with_context(|| format!("building the request for endpoint '{endpoint_name}'"))?;
-        let mut response = self
-            .agent
+        self.agent
             .run(request)
-            .with_context(|| format!("calling endpoint '{endpoint_name}'"))?;
-        let status = response.status();
-        if status.is_success() {
-            return Ok(response);
-        }
+            .with_context(|| format!("calling endpoint '{endpoint_name}'"))
+    }
+
+    fn error_response(
+        &self,
+        endpoint_name: &str,
+        params: &BTreeMap<String, String>,
+        mut response: ureq::http::Response<ureq::Body>,
+    ) -> anyhow::Error {
         // Text, not JSON: proxies answer with HTML or empty bodies, and the
         // status must still map to a typed error.
         let body = response
             .body_mut()
             .read_to_string()
             .unwrap_or_else(|_| "<unreadable response body>".to_string());
-        Err(self.http_error(status, &user_path(params), body, endpoint_name))
+        self.http_error(response.status(), &user_path(params), body, endpoint_name)
     }
 
     fn http_error(
@@ -942,10 +958,12 @@ mod tests {
     }
 
     #[test]
-    fn set_after_a_soft_delete_uses_the_metadata_current_version_as_cas() {
+    fn set_after_a_soft_delete_takes_the_cas_version_from_the_404_body() {
         let (addr, server) = serve(vec![
-            (404, r#"{"errors":[]}"#),
-            (200, r#"{"data":{"current_version":3}}"#),
+            (
+                404,
+                r#"{"data":{"data":null,"metadata":{"version":3,"deletion_time":"2026-01-01T00:00:00Z"}}}"#,
+            ),
             (200, r#"{"data":{"version":4}}"#),
         ]);
         test_http()
@@ -953,10 +971,43 @@ mod tests {
             .unwrap();
 
         let received: Vec<_> = server.try_iter().collect();
+        assert_eq!(received.len(), 2, "no metadata read: {received:?}");
         assert!(received[0].starts_with("GET /v1/secret/data/app "));
-        assert!(received[1].starts_with("GET /v1/secret/metadata/app "));
-        assert!(received[2].starts_with("POST /v1/secret/data/app "));
-        assert!(received[2].contains(r#""cas":3"#), "{}", received[2]);
+        assert!(received[1].starts_with("POST /v1/secret/data/app "));
+        let body = request_body(&received[1]);
+        assert_eq!(body["data"], serde_json::json!({"KEY": "value"}));
+        assert_eq!(body["options"]["cas"], 3);
+    }
+
+    #[test]
+    fn set_of_a_never_written_secret_uses_cas_zero() {
+        let (addr, server) = serve(vec![
+            (404, r#"{"errors":[]}"#),
+            (200, r#"{"data":{"version":1}}"#),
+        ]);
+        test_http()
+            .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+            .unwrap();
+
+        let received: Vec<_> = server.try_iter().collect();
+        assert_eq!(received.len(), 2, "{received:?}");
+        assert_eq!(request_body(&received[1])["options"]["cas"], 0);
+    }
+
+    #[test]
+    fn a_denied_read_fails_the_set_instead_of_writing() {
+        let (addr, server) = serve(vec![(403, r#"{"errors":["permission denied"]}"#)]);
+        let error = test_http()
+            .set_vault_secrets(&secret_params(&addr), &one_field("KEY", "value"))
+            .unwrap_err();
+        assert!(
+            matches!(
+                error.downcast_ref::<SecretError>(),
+                Some(SecretError::PermissionDenied { .. })
+            ),
+            "{error:#}"
+        );
+        assert_eq!(server.try_iter().count(), 1);
     }
 
     #[test]
