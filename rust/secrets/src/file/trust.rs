@@ -6,13 +6,14 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 
 use super::atomic;
 
 /// File holding this user's approvals, beside `secrets.env`.
 const TRUST_FILE: &str = "trusted";
+const TRUST_LOCK_FILE: &str = "trusted.lock";
 
 /// One approval: the file, and the contents that were approved.
 struct Entry {
@@ -41,31 +42,47 @@ pub fn trust(path: &Path) -> Result<bool> {
         )
     })?;
     let canonical = canonical(path);
-
-    let mut entries = load()?;
-    if entries
-        .iter()
-        .any(|entry| entry.path == canonical && entry.digest == digest)
-    {
-        return Ok(false);
+    // The store is one entry per line; a newline in the name would forge a second one.
+    if canonical.to_string_lossy().chars().any(char::is_control) {
+        bail!(
+            "{} has a control character in its path, which the trust store cannot record",
+            canonical.display()
+        );
     }
-    // Replace rather than accumulate, so an old digest can never come back.
-    entries.retain(|entry| entry.path != canonical);
-    entries.push(Entry {
-        digest,
-        path: canonical,
-    });
-    save(&entries)?;
-    Ok(true)
+
+    update(|entries| {
+        if entries
+            .iter()
+            .any(|entry| entry.path == canonical && entry.digest == digest)
+        {
+            return false;
+        }
+        // Replace rather than accumulate, so an old digest can never come back.
+        entries.retain(|entry| entry.path != canonical);
+        entries.push(Entry {
+            digest,
+            path: canonical,
+        });
+        true
+    })
 }
 
 /// Withdraw approval for `path`, returning whether there was one.
 pub fn untrust(path: &Path) -> Result<bool> {
     let canonical = canonical(path);
+    update(|entries| {
+        let before = entries.len();
+        entries.retain(|entry| entry.path != canonical);
+        entries.len() != before
+    })
+}
+
+/// Load, change and save under one lock, so a concurrent change is never undone.
+/// `change` returns whether it changed anything.
+fn update(change: impl FnOnce(&mut Vec<Entry>) -> bool) -> Result<bool> {
+    let _lock = atomic::lock_sidecar(&trust_path()?.with_file_name(TRUST_LOCK_FILE))?;
     let mut entries = load()?;
-    let before = entries.len();
-    entries.retain(|entry| entry.path != canonical);
-    if entries.len() == before {
+    if !change(&mut entries) {
         return Ok(false);
     }
     save(&entries)?;
@@ -264,6 +281,42 @@ mod tests {
 
             assert!(is_trusted(&env).unwrap());
             assert_eq!(trusted_paths().unwrap().len(), 1);
+        });
+    }
+
+    /// `trust B` racing `untrust A` must not bring A back.
+    #[test]
+    fn concurrent_changes_are_not_lost() {
+        with_home(|home| {
+            let a = home.join("a.env");
+            let b = home.join("b.env");
+            std::fs::write(&a, "A=1\n").unwrap();
+            std::fs::write(&b, "B=1\n").unwrap();
+            for attempt in 0..20 {
+                trust(&a).unwrap();
+                untrust(&b).unwrap();
+                std::thread::scope(|scope| {
+                    scope.spawn(|| trust(&b).unwrap());
+                    scope.spawn(|| untrust(&a).unwrap());
+                });
+                assert!(!is_trusted(&a).unwrap(), "attempt {attempt} revived a");
+                assert!(is_trusted(&b).unwrap(), "attempt {attempt} lost b");
+            }
+        });
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_path_with_a_newline_is_refused() {
+        with_home(|home| {
+            let directory = home
+                .join("evil\n0000000000000000000000000000000000000000000000000000000000000000 /x");
+            std::fs::create_dir_all(&directory).unwrap();
+            let env = directory.join(".env");
+            std::fs::write(&env, "A=1\n").unwrap();
+            let error = format!("{:#}", trust(&env).unwrap_err());
+            assert!(error.contains("control character"), "{error}");
+            assert!(trusted_paths().unwrap().is_empty());
         });
     }
 
