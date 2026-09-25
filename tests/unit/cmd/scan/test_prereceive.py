@@ -1,3 +1,4 @@
+import sys
 from typing import List
 from unittest.mock import ANY, Mock, patch
 
@@ -53,16 +54,48 @@ class TestPreReceive:
     @pytest.fixture(autouse=True)
     def mock_multiprocessing(self):
         """
-        multiprocessing.Process is mocked to make everything run on the main process
-        to permit mocking of scan_commit_range
+        The multiprocessing Process is mocked to make everything run on the main process
+        to permit mocking of scan_commit_range. setup_truststore is mocked so that
+        running the child's code on the main process does not inject truststore into
+        the test process.
         """
-        with patch(
-            "ggshield.cmd.secret.scan.prereceive.multiprocessing"
-        ) as multiprocessing_mock:
-            multiprocessing_mock.Process.side_effect = mock_multiprocessing_process(
-                multiprocessing_mock.Process
+        with patch("ggshield.cmd.secret.scan.prereceive.setup_truststore"):
+            with patch(
+                "ggshield.cmd.secret.scan.prereceive.multiprocessing"
+            ) as multiprocessing_mock:
+                process_mock = multiprocessing_mock.get_context.return_value.Process
+                process_mock.side_effect = mock_multiprocessing_process(process_mock)
+                yield multiprocessing_mock
+
+    @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
+    def test_child_process_is_forked_on_linux(
+        self,
+        scan_commit_range_mock: Mock,
+        mock_multiprocessing: Mock,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        """
+        GIVEN a push to scan
+        WHEN the command starts the scan process
+        THEN it uses the fork start method on Linux and the default one elsewhere
+        """
+        scan_commit_range_mock.return_value = ExitCode.SUCCESS
+
+        repo = create_pre_receive_repo(tmp_path)
+        old_sha = repo.get_top_sha()
+        new_sha = repo.create_commit()
+        with cd(repo.path):
+            result = cli_fs_runner.invoke(
+                cli,
+                ["secret", "scan", "pre-receive"],
+                input=f"{old_sha} {new_sha} origin/main\n",
             )
-            yield
+
+        assert_invoke_ok(result)
+        mock_multiprocessing.get_context.assert_called_once_with(
+            "fork" if sys.platform == "linux" else None
+        )
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_input(
