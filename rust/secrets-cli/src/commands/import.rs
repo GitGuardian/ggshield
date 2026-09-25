@@ -13,9 +13,14 @@ use crate::env::parse_dotenv;
 
 /// Import dotenv `KEY=value` entries into a secret.
 ///
-/// The way an existing `.env` becomes managed: read it, write every entry into
-/// the target (encrypted, for the file provider), and with `--remove-source`
-/// delete the file it came from once the write has succeeded.
+/// Reads the file and writes every entry into the target (encrypted, for the
+/// file provider). Values `encrypt` sealed on this device are decrypted first,
+/// so they are neither sealed twice nor pushed to another provider as
+/// ciphertext.
+///
+/// Encrypted values can only be read on this device: the key lives in the OS
+/// keychain, with no export or backup, so resetting the keychain loses them.
+/// Keep the source (or another copy) until you no longer need a way back.
 #[derive(clap::Args)]
 pub(crate) struct Args {
     /// Secret manager to write to.
@@ -35,6 +40,9 @@ pub(crate) struct Args {
     #[arg(long)]
     plain: bool,
     /// Delete the file the entries came from, once they are written.
+    ///
+    /// With the file provider this leaves device-only encrypted values as the
+    /// only copy: they are unrecoverable if the OS keychain is reset.
     #[arg(long)]
     remove_source: bool,
     /// Overwrite existing fields without asking.
@@ -85,10 +93,17 @@ pub(crate) fn execute(args: Args) -> Result<()> {
         if args.remove_source {
             remove_if_unchanged(input, &contents)?;
             eprintln!("removed {}", input.display());
+        } else if provider == Provider::File && !args.plain {
+            eprintln!(
+                "{} still holds the values in cleartext. The imported copies are encrypted with \
+                 this device's key and are lost if the OS keychain is reset, so keep a copy \
+                 elsewhere before removing it",
+                input.display()
+            );
         } else {
             eprintln!(
-                "{} still holds the values in cleartext; remove it, or pass --remove-source next \
-                 time",
+                "{} still holds the values in cleartext; remove it once you have checked the \
+                 import",
                 input.display()
             );
         }
