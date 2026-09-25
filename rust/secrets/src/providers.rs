@@ -45,6 +45,15 @@ pub(crate) const VAULT: ProviderDef = ProviderDef {
                 secret: None,
             },
         ),
+        (
+            "delete_versions",
+            Endpoint {
+                method: Method::Post,
+                path: "/v1/${mount}/delete/${path}",
+                query: &[],
+                secret: None,
+            },
+        ),
     ],
 };
 

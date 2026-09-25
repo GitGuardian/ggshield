@@ -362,7 +362,9 @@ impl Http {
             existing.remove(key);
         }
         if existing.is_empty() {
-            self.send_empty("delete_secret", params)
+            // The version read, not the latest: a write since then must survive.
+            let body = serde_json::json!({ "versions": [version] });
+            self.send_json("delete_versions", params, &body)
         } else {
             self.write_vault_secrets(params, existing, version)
         }
@@ -992,6 +994,51 @@ mod tests {
         let received: Vec<_> = server.try_iter().collect();
         assert_eq!(received.len(), 2, "{received:?}");
         assert_eq!(request_body(&received[1])["options"]["cas"], 0);
+    }
+
+    #[test]
+    fn unsetting_the_last_field_soft_deletes_only_the_version_read() {
+        let (addr, server) = serve(vec![
+            (
+                200,
+                r#"{"data":{"data":{"ONLY":"x"},"metadata":{"version":5}}}"#,
+            ),
+            (204, ""),
+        ]);
+        test_http()
+            .delete_vault_secrets(&secret_params(&addr), &["ONLY".to_string()])
+            .unwrap();
+
+        let received: Vec<_> = server.try_iter().collect();
+        assert!(
+            received[1].starts_with("POST /v1/secret/delete/app "),
+            "{}",
+            received[1]
+        );
+        assert_eq!(
+            request_body(&received[1]),
+            serde_json::json!({"versions": [5]})
+        );
+    }
+
+    #[test]
+    fn unsetting_some_fields_rewrites_the_rest_with_cas() {
+        let (addr, server) = serve(vec![
+            (
+                200,
+                r#"{"data":{"data":{"A":"x","B":7},"metadata":{"version":5}}}"#,
+            ),
+            (200, r#"{"data":{"version":6}}"#),
+        ]);
+        test_http()
+            .delete_vault_secrets(&secret_params(&addr), &["A".to_string()])
+            .unwrap();
+
+        let received: Vec<_> = server.try_iter().collect();
+        assert!(received[1].starts_with("POST /v1/secret/data/app "));
+        let body = request_body(&received[1]);
+        assert_eq!(body["data"], serde_json::json!({"B": 7}));
+        assert_eq!(body["options"]["cas"], 5);
     }
 
     #[test]
