@@ -682,4 +682,19 @@ mod tests {
         );
         assert!(cipher.decrypt("OTHER", &first).is_err());
     }
+
+    /// RFC 5869 test case 3 (no salt, as `aead` uses): a dependency bump that changed the
+    /// derivation would make every stored value unreadable.
+    #[test]
+    fn the_key_derivation_matches_the_rfc_vector() {
+        let mut okm = [0u8; 42];
+        Hkdf::<Sha256>::new(None, &[0x0b; 22])
+            .expand(&[], &mut okm)
+            .unwrap();
+        let hex: String = okm.iter().map(|byte| format!("{byte:02x}")).collect();
+        assert_eq!(
+            hex,
+            "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8"
+        );
+    }
 }
