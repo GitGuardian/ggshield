@@ -373,10 +373,22 @@ def get_local_hook_dir_path() -> Path:
 
     If core.hooksPath is configured, honor it and detect Husky-managed repositories
     to avoid overwriting Husky's shim scripts.
+
+    Relative paths — the default ``.git/hooks`` and a relative ``core.hooksPath``
+    — are resolved against the repository root, the way git itself resolves them,
+    so installing from a repository subdirectory still targets the root's hooks.
     """
     hooks_path = get_git_local_hooks_path()
     if hooks_path is None:
-        return Path(".git/hooks")
+        hooks_path = Path(".git/hooks")
+
+    if not hooks_path.is_absolute():
+        repo_root = _get_repo_root()
+        if repo_root is not None and Path.cwd().resolve() != repo_root.resolve():
+            # Git resolves relative hook paths against the repository root, so
+            # anchor them there; otherwise installing from a subdirectory would
+            # target <subdir>/.git/hooks instead of the root's hooks.
+            hooks_path = repo_root / hooks_path
 
     if is_husky_hooks_path(hooks_path):
         return hooks_path.parent
