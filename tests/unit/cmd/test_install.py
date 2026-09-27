@@ -232,6 +232,96 @@ class TestInstallLocal:
         default_hook = Path(".git/hooks/pre-commit")
         assert not default_hook.exists()
 
+    def test_install_local_from_subdir_targets_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        GIVEN a repository, invoked from one of its subdirectories
+        WHEN install_local is called
+        THEN the hook lands in the repository root's .git/hooks
+        (GitGuardian/ggshield#989: it used to be created under <subdir>/.git/hooks)
+        """
+        repo = Repository.create(tmp_path / "repo")
+        subdir = repo.path / "subdir"
+        subdir.mkdir()
+        monkeypatch.chdir(subdir)
+
+        return_code = install_local(hook_type="pre-commit", force=False, append=False)
+
+        assert return_code == 0
+        assert (repo.path / ".git/hooks/pre-commit").is_file()
+        assert not (subdir / ".git").exists()
+
+    def test_get_local_hook_dir_path_unchanged_at_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        GIVEN no core.hooksPath configured, invoked from the repository root
+        WHEN get_local_hook_dir_path is called
+        THEN the default relative path is kept as-is (no behavior change at root)
+        """
+        from ggshield.cmd.install import get_local_hook_dir_path
+
+        repo = Repository.create(tmp_path / "repo")
+        monkeypatch.chdir(repo.path)
+
+        assert get_local_hook_dir_path() == Path(".git/hooks")
+
+    def test_get_local_hook_dir_path_resolves_default_against_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        GIVEN no core.hooksPath configured, invoked from a subdirectory
+        WHEN get_local_hook_dir_path is called
+        THEN it resolves .git/hooks against the repository root, not the CWD
+        """
+        from ggshield.cmd.install import get_local_hook_dir_path
+
+        repo = Repository.create(tmp_path / "repo")
+        deep = repo.path / "nested" / "deeper"
+        deep.mkdir(parents=True)
+        monkeypatch.chdir(deep)
+
+        assert get_local_hook_dir_path() == repo.path / ".git" / "hooks"
+
+    def test_get_local_hook_dir_path_resolves_relative_hookspath_against_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        GIVEN a relative core.hooksPath, invoked from a subdirectory
+        WHEN get_local_hook_dir_path is called
+        THEN the configured path is resolved against the repository root,
+        the way git itself interprets a relative core.hooksPath
+        """
+        from ggshield.cmd.install import get_local_hook_dir_path
+
+        repo = Repository.create(tmp_path / "repo")
+        repo.git("config", "core.hooksPath", "custom-hooks")
+        subdir = repo.path / "subdir"
+        subdir.mkdir()
+        monkeypatch.chdir(subdir)
+
+        assert get_local_hook_dir_path() == repo.path / "custom-hooks"
+
+    def test_get_local_hook_dir_path_absolute_hookspath_unchanged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        GIVEN an absolute core.hooksPath, invoked from a subdirectory
+        WHEN get_local_hook_dir_path is called
+        THEN the absolute path is used as-is
+        """
+        from ggshield.cmd.install import get_local_hook_dir_path
+
+        repo = Repository.create(tmp_path / "repo")
+        absolute = tmp_path / "shared-hooks"
+        repo.git("config", "core.hooksPath", str(absolute))
+        subdir = repo.path / "subdir"
+        subdir.mkdir()
+        monkeypatch.chdir(subdir)
+
+        assert get_local_hook_dir_path() == absolute
+
 
 @pytest.fixture()
 def custom_global_git_config_path(tmp_path, monkeypatch):
