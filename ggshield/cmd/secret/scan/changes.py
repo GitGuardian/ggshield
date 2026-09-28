@@ -7,7 +7,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
-from ggshield.cmd.utils.common_decorators import exception_wrapper
+from ggshield.cmd.utils.common_decorators import GitUsage, exception_wrapper, uses_git
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
@@ -21,6 +21,7 @@ from ggshield.utils.git_shell import (
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
+@uses_git(GitUsage.REQUIRED)
 @click.command()
 @add_secret_scan_common_options()
 @click.pass_context

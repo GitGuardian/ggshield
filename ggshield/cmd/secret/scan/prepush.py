@@ -9,8 +9,10 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import (
+    GitUsage,
     exception_wrapper,
     non_blocking_on_server_error,
+    uses_git,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.hooks import check_user_requested_skip
@@ -30,6 +32,7 @@ from ggshield.verticals.secret.repo import scan_commit_range
 logger = logging.getLogger(__name__)
 
 
+@uses_git(GitUsage.REQUIRED)
 @click.command()
 @click.argument("prepush_args", nargs=-1, type=click.UNPROCESSED)
 @add_secret_scan_common_options()
