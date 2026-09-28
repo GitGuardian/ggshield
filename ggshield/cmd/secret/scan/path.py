@@ -8,7 +8,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.secret.scan.ui_utils import print_file_list
-from ggshield.cmd.utils.common_decorators import exception_wrapper
+from ggshield.cmd.utils.common_decorators import GitUsage, exception_wrapper, uses_git
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.files import check_directory_not_ignored
 from ggshield.core import ui
@@ -32,6 +32,7 @@ def _expand_paths_callback(
         raise click.BadParameter(str(e), ctx=ctx, param=param)
 
 
+@uses_git(GitUsage.OPTIONAL, note="It is only needed with `--use-gitignore`.")
 @click.command()
 @click.argument(
     "paths",
@@ -44,7 +45,9 @@ def _expand_paths_callback(
 @click.option("--recursive", "-r", is_flag=True, help="Scan directory recursively.")
 @click.option("--yes", "-y", is_flag=True, help="Confirm recursive scan.")
 @click.option(
-    "--use-gitignore", is_flag=True, help="Honor content of .gitignore files."
+    "--use-gitignore",
+    is_flag=True,
+    help="Honor content of .gitignore files. Requires git.",
 )
 @add_secret_scan_common_options()
 @click.pass_context

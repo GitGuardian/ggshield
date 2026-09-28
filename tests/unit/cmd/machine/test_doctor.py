@@ -16,6 +16,7 @@ from ggshield.cmd.machine.doctor import (
     _check_scopes,
     _is_plugin_installed,
 )
+from ggshield.core.errors import GIT_INSTALL_HINT
 from ggshield.verticals.ai.installation import AgentHookStatus
 from tests.unit.cmd.machine.test_setup import _current_hook, _legacy_hook
 from tests.unit.conftest import assert_invoke_ok
@@ -48,6 +49,50 @@ class TestDoctorCommand:
         ) as m_plugin:
             result = cli_fs_runner.invoke(cli, ["machine", "doctor"])
         return result, m_plugin
+
+    @patch(f"{BASE}.get_global_hook_dir_path")
+    @patch(f"{BASE}.get_shadowing_hooks_path")
+    def test_git_hooks_skipped_without_git(
+        self, m_shadow, m_hook_dir, no_git, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN git cannot be found and every other check passes
+        WHEN machine doctor runs
+        THEN neither git hook check calls git, both are listed as skipped with the
+        install hint, and the exit code is 0
+        """
+        auth = Check("Authentication", True)
+        with patch(
+            f"{BASE}._check_auth_and_scopes", return_value=(["scan"], auth)
+        ), patch(f"{BASE}._is_plugin_installed", return_value=False), patch(
+            f"{BASE}._check_ai_hooks", return_value=Check("AI hooks", True)
+        ), patch(
+            f"{BASE}._check_scopes", return_value=[Check("Scope", True)]
+        ):
+            result = cli_fs_runner.invoke(cli, ["machine", "doctor"])
+        assert_invoke_ok(result)
+        m_hook_dir.assert_not_called()
+        m_shadow.assert_not_called()
+        assert "- Git hooks — skipped: no git\n" in result.output
+        assert "- Git hook precedence — skipped: no git\n" in result.output
+        assert "✓ Git hook" not in result.output
+        assert result.output.count(f"↳ fix: {GIT_INSTALL_HINT}") == 2
+        assert (
+            "correctly set up, except for the skipped checks: "
+            "Git hooks, Git hook precedence." in result.output
+        )
+
+    def test_skipped_check_is_not_a_failure(self):
+        """
+        GIVEN a skipped check
+        WHEN it is inspected
+        THEN it is neither passing nor failing
+        """
+        check = Check.skip("Git hooks", "no git", "install git")
+        assert check.skipped is True
+        assert check.failed is False
+        assert check.detail == "skipped: no git"
+        assert check.fix == "install git"
 
     def test_exit_zero_when_all_pass(self, cli_fs_runner: CliRunner):
         result, _ = self._run(

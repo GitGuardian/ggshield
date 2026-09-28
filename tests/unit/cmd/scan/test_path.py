@@ -736,3 +736,17 @@ class TestPathScanAtFile:
         )
         assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
         assert "does not exist" in result.output
+
+
+class TestPathWithoutGit:
+    @my_vcr.use_cassette("test_scan_file")
+    def test_plain_scan_works_without_git(self, no_git, cli_fs_runner):
+        """
+        GIVEN git cannot be found
+        WHEN scan path is run without --use-gitignore
+        THEN the scan runs
+        """
+        write_text(Path("file"), "This is a file with no secrets.")
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file"])
+        assert_invoke_ok(result)
+        assert "No secrets have been found" in result.output

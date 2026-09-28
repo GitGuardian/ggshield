@@ -1008,3 +1008,20 @@ class TestAppendSeparator:
         assert "run-my-linter\n" in content
         assert "run-my-linter#" not in content
         TestStaleHookRepair._assert_parses(hook_dir / "pre-commit")
+
+
+class TestInstallWithoutGit:
+    @patch("ggshield.verticals.ai.installation._is_interactive", return_value=False)
+    def test_ai_hook_type_does_not_need_git(
+        self, _interactive: Mock, no_git, cli_fs_runner: CliRunner
+    ):
+        """
+        GIVEN git cannot be found
+        WHEN an AI coding assistant hook is installed
+        THEN the command succeeds
+        """
+        result = cli_fs_runner.invoke(
+            cli, ["install", "-m", "local", "-t", "claude-code"]
+        )
+        assert_invoke_ok(result)
+        assert Path(".claude/settings.json").is_file()
