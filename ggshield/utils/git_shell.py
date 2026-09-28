@@ -62,11 +62,18 @@ class Filemode(Enum):
 
 
 def is_git_available() -> bool:
+    return git_unavailable_reason() is None
+
+
+def git_unavailable_reason() -> Optional[str]:
+    """Return why git cannot be used on this machine, without a trailing period, or
+    None when it can.
+    """
     try:
         _get_git_path()
-        return True
-    except GitExecutableNotFound:
-        return False
+    except GitExecutableNotFound as exc:
+        return str(exc)
+    return None
 
 
 _MACOS_CLT_GIT = "/Library/Developer/CommandLineTools/usr/bin/git"
@@ -108,8 +115,20 @@ def _is_macos_clt_stub(git_path: str) -> bool:
         return False
 
 
-@lru_cache(None)
 def _get_git_path() -> str:
+    git_path = _look_up_git()
+    if isinstance(git_path, GitExecutableNotFound):
+        raise GitExecutableNotFound(str(git_path))
+    return git_path
+
+
+@lru_cache(None)
+def _look_up_git() -> Union[str, GitExecutableNotFound]:
+    """Return the git executable, or why it cannot be used.
+
+    A failure is cached too, because on a machine with the macOS Command Line Tools
+    stub every lookup reads the stub and runs `xcode-select`.
+    """
     git_path = which("git")
 
     if git_path is not None and _is_macos_clt_stub(git_path):
@@ -124,13 +143,13 @@ def _get_git_path() -> str:
         )
         git_path = which("git", path=path) if path else None
         if git_path is None:
-            raise GitExecutableNotFound(
+            return GitExecutableNotFound(
                 "git is the Xcode Command Line Tools stub and the tools are not "
-                "installed. To use all features of ggshield, please install git."
+                "installed"
             )
 
     if git_path is None:
-        raise GitExecutableNotFound("unable to find git executable in PATH/PATHEXT")
+        return GitExecutableNotFound("unable to find git executable in PATH/PATHEXT")
 
     # lower()ing these would provide additional coverage on case-
     # insensitive filesystems but detection is problematic
@@ -142,7 +161,7 @@ def _get_git_path() -> str:
 
     # git was found - ignore git in cwd if cwd not in PATH
     if cwd == os.path.dirname(git_path) and cwd not in path_env:
-        raise GitExecutableNotFound("rejecting git executable in CWD not in PATH")
+        return GitExecutableNotFound("rejecting git executable in CWD not in PATH")
 
     logger.debug("Found git at %s", git_path)
     return git_path
