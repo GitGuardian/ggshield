@@ -1,0 +1,59 @@
+name: Scan packages
+
+on:
+  workflow_call:
+
+env:
+  GRYPE_VERSION: 0.116.1
+  # grype_${GRYPE_VERSION}_linux_amd64.tar.gz, from the release's
+  # grype_${GRYPE_VERSION}_checksums.txt. Update both together.
+  GRYPE_SHA256: 0122df7b655981abe547ad3d2190d65551dac6a2bfc80b4dc2a989b5d0587458
+
+jobs:
+  scan_vulnerabilities:
+    name: Scan built packages for vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/vulnscan
+            scripts/download
+            .grype.yaml
+
+      - name: Download built packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: os-packages-*
+          path: packages
+
+      - name: Compute cache date
+        id: date
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Grype vulnerability database
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/grype/db
+          # The DB is refreshed daily upstream; keying on the date avoids
+          # re-downloading it on every run.
+          key: grype-db-${{ steps.date.outputs.date }}
+
+      - name: Install Grype
+        # Not `curl .../main/install.sh | sh`: that fetches an unpinned script
+        # from a branch and pipes it into a shell, so upstream can change what
+        # runs here at any time. The release tarball is pinned and
+        # checksum-verified instead, like rustup-init in wheels.yml.
+        run: |
+          scripts/download \
+            "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz" \
+            /tmp/grype.tar.gz \
+            "${GRYPE_SHA256}"
+          tar -xzf /tmp/grype.tar.gz -C /tmp grype
+          install -m 0755 /tmp/grype /usr/local/bin/grype
+
+      - name: Scan and report
+        # tee, not >>: the report is genuinely useful in the plain job log
+        # too (searchable, visible without switching to the Summary tab).
+        run: scripts/vulnscan/scan_packages.py packages | tee -a "$GITHUB_STEP_SUMMARY"
