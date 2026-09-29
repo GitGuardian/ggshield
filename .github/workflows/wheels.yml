@@ -19,31 +19,11 @@ on:
   # `build_wheel_sdist`, which is what lets `push_to_pypi` download both.
   workflow_call:
     inputs:
-      sign:
-        description: 'Code-sign the macOS and Windows binaries (needs secrets, so no PR from a fork can)'
+      skip_macos_windows:
+        description: 'Leave the macOS and Windows wheels to the caller, which builds them signed'
         type: boolean
         default: false
-    secrets:
-      MACOS_P12_FILE:
-        required: false
-      MACOS_P12_PASSWORD:
-        required: false
-      WINDOWS_CERT_FINGERPRINT:
-        required: false
-      SM_API_KEY:
-        required: false
-      SM_HOST:
-        required: false
-      SM_CLIENT_CERT_FILE:
-        required: false
-      SM_CLIENT_CERT_PASSWORD:
-        required: false
   workflow_dispatch:
-    inputs:
-      sign:
-        description: 'Code-sign the macOS and Windows binaries (needs secrets, so no PR from a fork can)'
-        type: boolean
-        default: false
   # Only the packaging inputs: nothing else changes what these wheels contain,
   # and six jobs on every push is a lot of runner time for that.
   pull_request:
@@ -65,8 +45,8 @@ env:
 jobs:
   macos_windows:
     name: wheel ${{ matrix.wheel }}
+    if: ${{ !inputs.skip_macos_windows }}
     runs-on: ${{ matrix.runs-on }}
-    environment: ${{ inputs.sign && 'signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -76,15 +56,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/build-wheel
-        with:
-          sign: ${{ inputs.sign }}
-          macos-p12-file: ${{ secrets.MACOS_P12_FILE }}
-          macos-p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
-          windows-cert-fingerprint: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
-          sm-api-key: ${{ secrets.SM_API_KEY }}
-          sm-host: ${{ secrets.SM_HOST }}
-          sm-client-cert-file: ${{ secrets.SM_CLIENT_CERT_FILE }}
-          sm-client-cert-password: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
 
   # glibc (manylinux) and musl (musllinux, e.g. Alpine) wheels, each built in
   # its pypa image so the binary links that libc, then relabelled from the raw

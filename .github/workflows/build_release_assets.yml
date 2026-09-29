@@ -10,8 +10,8 @@ on:
         description: 'Release mode (no commit sha in version number)'
         type: boolean
         default: false
-      sign:
-        description: 'Code-sign the binaries (needs secrets, so no PR from a fork can)'
+      skip_macos_windows:
+        description: 'Leave the macOS and Windows packages to the caller, which builds them signed'
         type: boolean
         default: false
     secrets:
@@ -27,30 +27,10 @@ on:
         required: false
       TEST_GG_VALID_TOKEN_IGNORE_SHA:
         required: false
-      MACOS_P12_FILE:
-        required: false
-      MACOS_P12_PASSWORD:
-        required: false
-      MACOS_API_KEY_FILE:
-        required: false
-      WINDOWS_CERT_FINGERPRINT:
-        required: false
-      SM_API_KEY:
-        required: false
-      SM_HOST:
-        required: false
-      SM_CLIENT_CERT_FILE:
-        required: false
-      SM_CLIENT_CERT_PASSWORD:
-        required: false
   workflow_dispatch:
     inputs:
       release_mode:
         description: 'Release mode (no commit sha in version number)'
-        type: boolean
-        default: false
-      sign:
-        description: 'Code-sign the binaries (needs secrets, so no PR from a fork can)'
         type: boolean
         default: false
 
@@ -95,7 +75,6 @@ jobs:
     name: Build packages
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
-    environment: ${{ inputs.sign && 'signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -108,9 +87,6 @@ jobs:
             container: rockylinux/rockylinux:8.10@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
           - os: ubuntu-24.04-arm
             container: rockylinux/rockylinux:8.10@sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
-          - os: windows-2022
-          - os: macos-15-intel
-          - os: macos-14
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -120,15 +96,30 @@ jobs:
         with:
           artifact-name: os-packages-${{ matrix.os }}
           release-mode: ${{ inputs.release_mode }}
-          sign: ${{ inputs.sign }}
-          macos-p12-file: ${{ secrets.MACOS_P12_FILE }}
-          macos-p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
-          macos-api-key-file: ${{ secrets.MACOS_API_KEY_FILE }}
-          windows-cert-fingerprint: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
-          sm-api-key: ${{ secrets.SM_API_KEY }}
-          sm-host: ${{ secrets.SM_HOST }}
-          sm-client-cert-file: ${{ secrets.SM_CLIENT_CERT_FILE }}
-          sm-client-cert-password: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
+          gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
+          test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
+          test-unknown-secret: ${{ secrets.TEST_UNKNOWN_SECRET }}
+          test-gg-valid-token: ${{ secrets.TEST_GG_VALID_TOKEN }}
+          test-gg-valid-token-ignore-sha: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
+
+  build_macos_windows_packages:
+    name: Build packages
+    if: ${{ !inputs.skip_macos_windows }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15-intel, macos-14]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Get enough commits to run `ggshield secret scan commit-range` on ourselves
+          fetch-depth: 10
+      - uses: ./.github/actions/build-os-packages
+        with:
+          artifact-name: os-packages-${{ matrix.os }}
+          release-mode: ${{ inputs.release_mode }}
           gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
           gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
           test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
@@ -218,5 +209,6 @@ jobs:
           ggshield --help
 
   scan_vulnerabilities:
-    needs: build_os_packages
+    needs: [build_os_packages, build_macos_windows_packages]
+    if: ${{ !inputs.skip_macos_windows }}
     uses: ./.github/workflows/scan_packages.yml
