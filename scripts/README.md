@@ -22,8 +22,8 @@ The script aborts if the working-tree is not clean (can be bypassed with `--allo
 
 ## vulnscan/scan_packages.py
 
-Used by `scan_packages.yml`, which `build_release_assets.yml` calls once
-every OS package is built. Scans those packages with Grype and prints a Markdown
+Used by `scan_packages.yml`, which `build_release_assets.yml` and `tag.yml`
+call once every OS package is built. Scans those packages with Grype and prints a Markdown
 report. See `doc/dev/vulnerability-scanning.md`.
 
 ## create-ghe-environment

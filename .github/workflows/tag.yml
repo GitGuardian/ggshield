@@ -18,36 +18,79 @@ jobs:
       TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
       TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
       TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
-      MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
-      MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
-      MACOS_API_KEY_FILE: ${{ secrets.MACOS_API_KEY_FILE }}
-      WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
-      SM_API_KEY: ${{ secrets.SM_API_KEY }}
-      SM_HOST: ${{ secrets.SM_HOST }}
-      SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
-      SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
     with:
       release_mode: true
-      sign: true
+      skip_macos_windows: true
+
+  build_signed_os_packages:
+    name: Build packages
+    runs-on: ${{ matrix.os }}
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15-intel, macos-14]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 10
+      - uses: ./.github/actions/build-os-packages
+        with:
+          artifact-name: os-packages-${{ matrix.os }}
+          release-mode: true
+          sign: true
+          macos-p12-file: ${{ secrets.MACOS_P12_FILE }}
+          macos-p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
+          macos-api-key-file: ${{ secrets.MACOS_API_KEY_FILE }}
+          windows-cert-fingerprint: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          sm-api-key: ${{ secrets.SM_API_KEY }}
+          sm-host: ${{ secrets.SM_HOST }}
+          sm-client-cert-file: ${{ secrets.SM_CLIENT_CERT_FILE }}
+          sm-client-cert-password: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
+          gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
+          test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
+          test-unknown-secret: ${{ secrets.TEST_UNKNOWN_SECRET }}
+          test-gg-valid-token: ${{ secrets.TEST_GG_VALID_TOKEN }}
+          test-gg-valid-token-ignore-sha: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
+
+  scan_vulnerabilities:
+    needs: [build_release_assets, build_signed_os_packages]
+    uses: ./.github/workflows/scan_packages.yml
 
   # The platform wheels carrying the Rust `ggshield`. Called from here rather
   # than triggered on the tag itself, so its artifacts land in this run and
   # `push_to_pypi` below can download them.
   build_platform_wheels:
     uses: ./.github/workflows/wheels.yml
-    secrets:
-      MACOS_P12_FILE: ${{ secrets.MACOS_P12_FILE }}
-      MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
-      WINDOWS_CERT_FINGERPRINT: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
-      SM_API_KEY: ${{ secrets.SM_API_KEY }}
-      SM_HOST: ${{ secrets.SM_HOST }}
-      SM_CLIENT_CERT_FILE: ${{ secrets.SM_CLIENT_CERT_FILE }}
-      SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
     with:
-      sign: true
+      skip_macos_windows: true
+
+  build_signed_wheels:
+    name: wheel ${{ matrix.wheel }}
+    runs-on: ${{ matrix.runs-on }}
+    environment: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runs-on: macos-14, wheel: macos-universal2 }
+          - { runs-on: windows-latest, wheel: windows-amd64 }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/build-wheel
+        with:
+          sign: true
+          macos-p12-file: ${{ secrets.MACOS_P12_FILE }}
+          macos-p12-password: ${{ secrets.MACOS_P12_PASSWORD }}
+          windows-cert-fingerprint: ${{ secrets.WINDOWS_CERT_FINGERPRINT }}
+          sm-api-key: ${{ secrets.SM_API_KEY }}
+          sm-host: ${{ secrets.SM_HOST }}
+          sm-client-cert-file: ${{ secrets.SM_CLIENT_CERT_FILE }}
+          sm-client-cert-password: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
 
   push_to_pypi:
-    needs: [build_release_assets, build_platform_wheels]
+    needs: [scan_vulnerabilities, build_platform_wheels, build_signed_wheels]
     runs-on: ubuntu-22.04
     permissions:
       contents: read
@@ -91,7 +134,7 @@ jobs:
 
   release:
     runs-on: ubuntu-22.04
-    needs: build_release_assets
+    needs: scan_vulnerabilities
     continue-on-error: true
     outputs:
       tag: ${{ steps.tags.outputs.tag }}
@@ -169,6 +212,7 @@ jobs:
 
   push_docker_images:
     name: Push Docker image to Docker Hub and GitHub Packages
+    needs: scan_vulnerabilities
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
@@ -212,7 +256,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
 
   push_to_cloudsmith:
-    needs: build_release_assets
+    needs: scan_vulnerabilities
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && !contains(github.ref_name, 'rc')
@@ -247,7 +291,7 @@ jobs:
           CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
 
   push_to_chocolatey:
-    needs: build_release_assets
+    needs: scan_vulnerabilities
     name: Push to Chocolatey
     runs-on: windows-latest
     environment: release
