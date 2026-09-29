@@ -234,6 +234,8 @@ struct Pending {
     /// The verdict-cache key, or `None` past the 1 MiB threshold, matching
     /// hooks.py, which keys the cache on empty content for those.
     key: Option<String>,
+    /// `api::encoded_size()`: what batching counts against the payload ceiling.
+    size: usize,
 }
 
 /// `_scan_payloads()` plus `_scan_contents()`: scan everything the event still
@@ -257,6 +259,7 @@ fn scan_payloads(
     let agent = payloads[0].agent;
     let exclusions = exclusion::Exclusions::new(&config.user.secret);
 
+    let max_payload_size = api::max_payload_size(config);
     let mut pending: Vec<Pending> = Vec::new();
     for (index, payload) in payloads.iter_mut().enumerate() {
         // Excluded by `secret.ignored_paths`: never read, never sent, allowed.
@@ -302,10 +305,17 @@ fn scan_payloads(
             continue;
         }
 
+        let document = api::Document { content, filename };
+        let size = api::encoded_size(config, &document);
+        // Fits in no request once encoded: skipped, as `_start_scans()` does.
+        if size > max_payload_size {
+            continue;
+        }
         pending.push(Pending {
             index,
-            document: api::Document { content, filename },
+            document,
             key,
+            size,
         });
     }
     if pending.is_empty() {
@@ -315,7 +325,6 @@ fn scan_payloads(
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
     let mut failure: Option<Error> = None;
     let max_documents = api::max_documents_per_scan(config);
-    let max_payload_size = api::max_payload_size(config);
     for chunk in chunks(&pending, max_documents, max_payload_size) {
         // `_collect_results()` reports a failed chunk and carries on with the
         // rest. Propagating here instead discarded every secret the earlier
@@ -373,7 +382,7 @@ fn chunks(
             .iter()
             .take(max_documents)
             .take_while(|item| {
-                size += item.document.content.len();
+                size += item.size;
                 size <= max_payload_size
             })
             .count()
@@ -872,21 +881,81 @@ mod tests {
     /// THEN the split honours the per-request byte ceiling, not just the count.
     #[test]
     fn chunking_also_splits_on_the_payload_byte_limit() {
-        let pending: Vec<Pending> = (0..3)
-            .map(|index| Pending {
-                index,
-                document: api::Document {
-                    content: "x".repeat(config::MAXIMUM_DOCUMENT_SIZE),
-                    filename: format!("file{index}"),
-                },
-                key: None,
-            })
-            .collect();
+        let pending = pending_of("x".repeat(config::MAXIMUM_DOCUMENT_SIZE), 3);
 
         let sizes: Vec<usize> = chunks(&pending, 20, config::MAXIMUM_PAYLOAD_SIZE)
             .map(<[Pending]>::len)
             .collect();
         assert_eq!(sizes, [2, 1]);
+    }
+
+    fn pending_of(content: String, count: usize) -> Vec<Pending> {
+        let config = offline_config();
+        (0..count)
+            .map(|index| {
+                let document = api::Document {
+                    content: content.clone(),
+                    filename: format!("file{index}"),
+                };
+                let size = api::encoded_size(&config, &document);
+                Pending {
+                    index,
+                    document,
+                    key: None,
+                    size,
+                }
+            })
+            .collect()
+    }
+
+    /// GIVEN three documents whose raw size lets two share a request, but whose
+    /// JSON encoding doubles them
+    /// WHEN they are chunked
+    /// THEN each request body, as `multiscan` serializes it, fits the ceiling.
+    #[test]
+    fn chunking_counts_the_json_encoded_size() {
+        let pending = pending_of("\"".repeat(config::MAXIMUM_DOCUMENT_SIZE), 3);
+        let config = offline_config();
+
+        let batches: Vec<&[Pending]> = chunks(&pending, 20, config::MAXIMUM_PAYLOAD_SIZE).collect();
+
+        assert_eq!(batches.len(), 3);
+        for chunk in batches {
+            let body = serde_json::Value::Array(
+                chunk
+                    .iter()
+                    .map(|item| api::document_json(&config, &item.document))
+                    .collect(),
+            )
+            .to_string();
+            assert!(body.len() <= config::MAXIMUM_PAYLOAD_SIZE, "{}", body.len());
+        }
+    }
+
+    /// GIVEN a clean payload and one whose JSON encoding alone exceeds the
+    /// payload ceiling, though its raw size is within the document ceiling
+    /// WHEN the event is scanned
+    /// THEN only the clean payload is sent: the other would fail the request.
+    #[test]
+    fn a_document_too_big_once_encoded_is_skipped() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(MockLimits {
+            max_document_size: 2 * config::MAXIMUM_DOCUMENT_SIZE,
+            ..MockLimits::default()
+        });
+        let quotes = "\"".repeat(2 * config::MAXIMUM_DOCUMENT_SIZE);
+        let mut payloads = [
+            text_payload("clean.txt", "nothing here"),
+            text_payload("quotes.txt", &quotes),
+        ];
+
+        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+
+        assert!(secrets.is_empty());
+        assert_eq!(
+            *recorded.batches.lock().expect("lock"),
+            [vec!["clean.txt".to_string()]]
+        );
     }
 
     /// GIVEN an instance whose token lives in a credential store with no item for
