@@ -7,6 +7,7 @@ from ggshield.verticals.honeytoken.endpoint_deployments import (
     DeploymentMethod,
     EndpointDeploymentsClient,
     EndpointDeploymentsError,
+    KubeconfigToken,
 )
 from tests.unit.request_mock import create_json_response
 
@@ -68,6 +69,28 @@ def test_deployment_delete_carries_token_and_no_token_is_none():
         {"id": "d3", "action": "write", "method": "aws_credentials", "config": {}}
     )
     assert no_token.token is None
+
+
+def test_deployment_parses_kubeconfig_token_and_flat_config():
+    deployment = Deployment.from_dict(
+        {
+            "id": "k1",
+            "action": "write",
+            "method": "kubeconfig",
+            "config": {"filename": "config"},
+            "token": {
+                "kubeconfig": "apiVersion: v1\nkind: Config\n",
+                "context_name": "kubernetes-admin@abc123",
+            },
+        }
+    )
+    assert deployment.method is DeploymentMethod.KUBECONFIG
+    assert deployment.config.filename == "config"
+    # kubeconfig placement carries no INI profile.
+    assert deployment.config.profile_name == ""
+    assert isinstance(deployment.token, KubeconfigToken)
+    assert deployment.token.context_name == "kubernetes-admin@abc123"
+    assert "kind: Config" in deployment.token.kubeconfig
 
 
 def test_unknown_action_and_method_are_forward_compatible():

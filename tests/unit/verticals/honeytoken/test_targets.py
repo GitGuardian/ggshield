@@ -5,12 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from ggshield.verticals.honeytoken import secure_file as secure_file_mod
 from ggshield.verticals.honeytoken import targets as targets_mod
 from ggshield.verticals.honeytoken.targets import (
     Target,
-    _gid_for_uid,
-    apply_perms_and_owner,
+    apply_dir_perms_and_owner,
     machine_info_for,
+    ownership_for,
     resolve_targets,
 )
 
@@ -155,11 +156,11 @@ def test_apply_perms_non_root_keeps_dir_private_and_leaves_file_mode(tmp_path):
     path.parent.mkdir()
     path.write_text("x")
     os.chmod(path, 0o640)
-    apply_perms_and_owner(
+    apply_dir_perms_and_owner(
         path, Target("alice", tmp_path, uid=None), running_as_root=False
     )
     # The file mode is _atomic_write's responsibility (it preserves the user's bits);
-    # apply_perms_and_owner only keeps the .aws dir private and must leave the file alone.
+    # apply_dir_perms_and_owner only keeps the .aws dir private and must leave the file alone.
     assert (path.stat().st_mode & 0o777) == 0o640
     assert (path.parent.stat().st_mode & 0o777) == 0o700
 
@@ -175,10 +176,13 @@ def test_apply_perms_root_chowns(monkeypatch, tmp_path):
         os, "chown", lambda p, u, g, **kw: chowns.append((str(p), u, g))
     )
     monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=2002))
-    apply_perms_and_owner(path, Target("bob", tmp_path, uid=1001), running_as_root=True)
-    # Dir owned via its fd; file via dir_fd + no-follow (relative name).
+    apply_dir_perms_and_owner(
+        path, Target("bob", tmp_path, uid=1001), running_as_root=True
+    )
+    # Only the dir, via its own fd. The file is handed over by the write path, on the
+    # temp fd, before the rename — never by name here.
     assert (1001, 2002) in fchowns
-    assert (path.name, 1001, 2002) in chowns
+    assert chowns == []
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlinks")
@@ -197,7 +201,7 @@ def test_apply_perms_skips_symlinked_aws_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(os, "chown", lambda p, u, g: chowns.append(str(p)))
     monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=2002))
 
-    apply_perms_and_owner(path, Target("bob", home, uid=1001), running_as_root=True)
+    apply_dir_perms_and_owner(path, Target("bob", home, uid=1001), running_as_root=True)
 
     assert chowns == []  # nothing chowned through the link
     assert (real.stat().st_mode & 0o777) == 0o755  # target dir left untouched
@@ -207,7 +211,7 @@ def test_apply_perms_skips_symlinked_aws_dir(monkeypatch, tmp_path):
 def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path):
     """TOCTOU: swap `.aws` for a symlink to an attacker dir right after the dir fd is
     opened. The fchmod must hit the pinned (real) dir, never the attacker's."""
-    from ggshield.verticals.honeytoken import aws_profile
+    from ggshield.verticals.honeytoken import secure_file
 
     home = tmp_path / "home"
     real_aws = home / ".aws"
@@ -229,8 +233,10 @@ def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path)
             os.symlink(attacker, real_aws, target_is_directory=True)
         return fd
 
-    monkeypatch.setattr(aws_profile.os, "open", _swap_then_open)
-    apply_perms_and_owner(path, Target("alice", home, uid=None), running_as_root=False)
+    monkeypatch.setattr(secure_file.os, "open", _swap_then_open)
+    apply_dir_perms_and_owner(
+        path, Target("alice", home, uid=None), running_as_root=False
+    )
 
     # fchmod(dir_fd, 0700) hit the pinned (moved-aside) real dir, not the attacker's.
     assert (tmp_path / ".aws.real").stat().st_mode & 0o777 == 0o700
@@ -240,25 +246,25 @@ def test_apply_perms_is_immune_to_aws_dir_swap_after_open(monkeypatch, tmp_path)
 def test_apply_perms_fails_closed_without_fd_support(tmp_path, monkeypatch):
     """POSIX without the no-follow/dir-fd backend → refuse rather than chmod/chown via
     path (which would be TOCTOU-prone)."""
-    from ggshield.verticals.honeytoken import aws_profile
-    from ggshield.verticals.honeytoken.aws_profile import PlacementError
+    from ggshield.verticals.honeytoken import secure_file
+    from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
     path = tmp_path / ".aws" / "credentials"
     path.parent.mkdir()
     path.write_text("x")
-    monkeypatch.setattr(aws_profile, "FD_HARDENED", False)
-    with pytest.raises(PlacementError):
-        apply_perms_and_owner(
+    monkeypatch.setattr(secure_file, "FD_HARDENED", False)
+    with pytest.raises(SecureFileError):
+        apply_dir_perms_and_owner(
             path, Target("a", tmp_path, uid=None), running_as_root=False
         )
 
 
-def test_gid_for_uid_unknown_returns_none(monkeypatch):
+def test_primary_gid_falls_back_to_the_uid_when_passwd_has_no_entry(monkeypatch):
     def _raise(_uid):
         raise KeyError
 
     monkeypatch.setattr("pwd.getpwuid", _raise)
-    assert _gid_for_uid(4242) is None
+    assert secure_file_mod._primary_gid(4242) == 4242
 
 
 def test_machine_info_for_uses_shared_helpers(monkeypatch):
@@ -269,3 +275,68 @@ def test_machine_info_for_uses_shared_helpers(monkeypatch):
         "username": "alice",
         "hostname": "host-1",
     }
+
+
+def test_apply_perms_root_without_uid_hands_the_dir_to_the_home_owner(
+    monkeypatch, tmp_path
+):
+    # `--user-dir` without a passwd user (uid None): ownership falls back to whoever
+    # owns the placement directory, read off the pinned fd.
+    home = tmp_path / "home"
+    path = home / ".kube" / "config"
+    path.parent.mkdir(parents=True)
+    path.write_text("x")
+    owner = os.stat(home).st_uid
+    fchowns = []
+    chowns = []
+    monkeypatch.setattr(os, "fchown", lambda fd, u, g: fchowns.append((u, g)))
+    monkeypatch.setattr(
+        os, "chown", lambda p, u, g, **kw: chowns.append((str(p), u, g))
+    )
+    monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=4242))
+
+    apply_dir_perms_and_owner(
+        path, Target("alice", home, uid=None), running_as_root=True
+    )
+
+    assert fchowns == [(owner, 4242)]
+    assert chowns == []
+
+
+def test_apply_perms_reports_a_failed_chown_instead_of_swallowing_it(
+    monkeypatch, tmp_path
+):
+    from ggshield.verticals.honeytoken.secure_file import SecureFileError
+
+    path = tmp_path / ".kube" / "config"
+    path.parent.mkdir()
+    path.write_text("x")
+
+    def _refuse(*args, **kwargs):
+        raise PermissionError("EPERM")
+
+    monkeypatch.setattr(os, "fchown", _refuse)
+    monkeypatch.setattr("pwd.getpwuid", lambda uid: SimpleNamespace(pw_gid=2002))
+
+    with pytest.raises(SecureFileError, match="hand .* back to uid 1001"):
+        apply_dir_perms_and_owner(
+            path, Target("bob", tmp_path, uid=1001), running_as_root=True
+        )
+
+
+def test_ownership_is_only_claimed_when_running_as_root():
+    target = Target("bob", Path("/home/bob"), uid=1001)
+
+    assert ownership_for(target, running_as_root=False) is None
+
+    owner = ownership_for(target, running_as_root=True)
+    assert owner is not None and owner.uid == 1001
+
+
+def test_ownership_keeps_an_unknown_uid_for_the_write_path_to_resolve():
+    # `--user-dir` without a passwd user: the uid is settled later, against the pinned
+    # placement directory, not here.
+    owner = ownership_for(
+        Target("ghost", Path("/tmp/ht"), uid=None), running_as_root=True
+    )
+    assert owner is not None and owner.uid is None

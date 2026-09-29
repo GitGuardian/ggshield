@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 from requests import Session
@@ -59,6 +59,7 @@ class DeploymentMethod(enum.Enum):
 
     AWS_CREDENTIALS = "aws_credentials"
     AWS_CONFIG_PROFILE = "aws_config_profile"
+    KUBECONFIG = "kubeconfig"
     UNKNOWN = "unknown"
 
     @classmethod
@@ -81,12 +82,51 @@ class HoneytokenCreds:
 
 
 @dataclass
+class KubeconfigToken:
+    """The kubeconfig placement payload: the full rendered kubeconfig (one
+    cluster+user+context) and the kubectl context name identifying it — the unit the
+    client merges into and later removes from ``~/.kube/<filename>``."""
+
+    kubeconfig: str
+    context_name: str
+
+
+# The credential material a deployment carries, keyed by method. AWS methods carry
+# ``HoneytokenCreds``; kubeconfig carries a ``KubeconfigToken``.
+DeploymentToken = Union[HoneytokenCreds, KubeconfigToken]
+
+
+@dataclass
 class PlacementConfig:
     """Method-specific placement payload. ``method`` is a sibling field on the
-    deployment (not nested here); GIM carries only the basename + profile name."""
+    deployment (not nested here). AWS methods carry the basename + profile name;
+    kubeconfig carries only the basename (``profile_name`` stays empty)."""
 
     filename: str
-    profile_name: str
+    profile_name: str = ""
+
+
+def _parse_token(
+    method: DeploymentMethod, token_data: Optional[Dict[str, Any]]
+) -> Optional[DeploymentToken]:
+    """Build the method-specific token from the wire payload (``None`` when absent, or
+    for a method this client doesn't handle — kept forward-compatible)."""
+    if not token_data:
+        return None
+    if method is DeploymentMethod.KUBECONFIG:
+        return KubeconfigToken(
+            kubeconfig=token_data["kubeconfig"],
+            context_name=token_data["context_name"],
+        )
+    if method in (
+        DeploymentMethod.AWS_CREDENTIALS,
+        DeploymentMethod.AWS_CONFIG_PROFILE,
+    ):
+        return HoneytokenCreds(
+            access_token_id=token_data["access_token_id"],
+            secret_key=token_data["secret_key"],
+        )
+    return None
 
 
 @dataclass
@@ -97,32 +137,24 @@ class Deployment:
     action: DeploymentAction
     method: DeploymentMethod
     config: PlacementConfig
-    # AWS credentials. Present for ``write`` (the key to write) and for ``delete`` (the
-    # revoked key, so the client can verify the on-disk profile holds *this* key before
-    # removing it — never clobbering a foreign profile that re-used the name).
-    token: Optional[HoneytokenCreds]
+    # Credential material. Present for ``write`` (what to plant) and for ``delete`` (the
+    # revoked material, so the client can verify the on-disk entry is *ours* before
+    # removing it — never clobbering a foreign profile/context that re-used the name).
+    token: Optional[DeploymentToken]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Deployment":
         config = data.get("config") or {}
-        token_data = data.get("token")
-        token = (
-            HoneytokenCreds(
-                access_token_id=token_data["access_token_id"],
-                secret_key=token_data["secret_key"],
-            )
-            if token_data
-            else None
-        )
+        method = DeploymentMethod(data.get("method"))
         return cls(
             id=data["id"],
             action=DeploymentAction(data.get("action")),
-            method=DeploymentMethod(data.get("method")),
+            method=method,
             config=PlacementConfig(
                 filename=config.get("filename", ""),
                 profile_name=config.get("profile_name", ""),
             ),
-            token=token,
+            token=_parse_token(method, data.get("token")),
         )
 
 
