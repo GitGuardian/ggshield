@@ -56,4 +56,5 @@ jobs:
       - name: Scan and report
         # tee, not >>: the report is genuinely useful in the plain job log
         # too (searchable, visible without switching to the Summary tab).
+        shell: bash
         run: scripts/vulnscan/scan_packages.py packages | tee -a "$GITHUB_STEP_SUMMARY"
