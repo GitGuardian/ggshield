@@ -23,11 +23,8 @@ from typing import Dict, List, Optional
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.core.machine_id import _get_hostname, _get_machine_id, _get_username
 from ggshield.utils.os import is_root  # re-exported for cmd.honeytoken.plant
-from ggshield.verticals.honeytoken.aws_profile import (
-    PlacementError,
-    open_aws_dir_fd,
-    require_safe_backend,
-)
+from ggshield.verticals.honeytoken import secure_file
+from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
 
 # Home roots that look like real human-user spaces (kept even if the shell is nologin,
@@ -88,35 +85,49 @@ def resolve_targets(user: Optional[str], user_dir: Optional[Path]) -> List[Targe
     return [Target(username=_get_username(), home=get_user_home_dir(), uid=None)]
 
 
-def apply_perms_and_owner(path: Path, target: Target, running_as_root: bool) -> None:
-    """Keep ``.aws`` private (0700) and, as root, chown the file + dir to the target user
-    (mode left to the write path). No-op off Unix. Anchored to an ``O_NOFOLLOW`` dir fd
-    (``fchmod``/``fchown``/``dir_fd``) so a symlinked ``.aws`` can't redirect the
-    privileged chmod/chown elsewhere."""
+def ownership_for(
+    target: Target, running_as_root: bool
+) -> Optional[secure_file.Ownership]:
+    """Who the written file must end up belonging to, or ``None`` when nothing needs to
+    change hands (not root, or not Unix). The write path applies this to the temp fd
+    before publishing the file, so the decoy is never briefly root-owned."""
+    if os.name != "posix" or not running_as_root:
+        return None
+    return secure_file.Ownership(target.uid)
+
+
+def apply_dir_perms_and_owner(
+    path: Path, target: Target, running_as_root: bool
+) -> None:
+    """Keep the placement dir (``.aws`` / ``.kube``) private (0700) and, as root, chown
+    it to the target user. The file itself is handled by the write path. No-op off Unix.
+    Anchored to an ``O_NOFOLLOW`` dir fd so a symlinked dir can't redirect the privileged
+    chmod/chown elsewhere."""
     if os.name != "posix":
         return
-    require_safe_backend()  # POSIX without dir fds → refuse (no unsafe path fallback)
+    # POSIX without dir fds → refuse (no unsafe path fallback).
+    secure_file.require_safe_backend()
     parent = path.parent
 
     try:
-        dir_fd = open_aws_dir_fd(parent, create=False)
-    except (FileNotFoundError, PlacementError):
-        return  # nothing planted there, or .aws is a symlink — leave it alone
+        dir_fd = secure_file.open_dir_fd(parent, create=False)
+    except (FileNotFoundError, SecureFileError):
+        return  # nothing planted there, or the dir is a symlink — leave it alone
     try:
         try:
             os.fchmod(dir_fd, 0o700)
         except OSError:
             pass
-        if running_as_root and target.uid is not None:
-            gid = _gid_for_uid(target.uid)
-            gid = gid if gid is not None else target.uid
-            try:
-                os.fchown(dir_fd, target.uid, gid)
-                os.chown(
-                    path.name, target.uid, gid, dir_fd=dir_fd, follow_symlinks=False
-                )
-            except OSError:
-                pass
+        if not running_as_root:
+            return
+        uid, gid = secure_file.Ownership(target.uid).resolve(dir_fd)
+        try:
+            os.fchown(dir_fd, uid, gid)
+        except OSError as exc:
+            # Swallowing this would leave the user locked out of their own ~/.kube.
+            raise SecureFileError(
+                f"could not hand {parent} back to uid {uid} after writing it: {exc}"
+            )
     finally:
         os.close(dir_fd)
 
@@ -129,15 +140,6 @@ def _passwd_for_name(name: str):
     except KeyError:
         raise LookupError(f"could not resolve home directory for user '{name}'")
     return Path(entry.pw_dir), entry.pw_uid, entry.pw_gid
-
-
-def _gid_for_uid(uid: int) -> Optional[int]:
-    import pwd
-
-    try:
-        return pwd.getpwuid(uid).pw_gid
-    except KeyError:
-        return None
 
 
 def _is_interactive_shell(shell: str) -> bool:
