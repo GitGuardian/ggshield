@@ -91,6 +91,8 @@ class Scannable(ABC):
                 raise ValueError("content is None after reading")
         return self._content
 
+    # Raw content size, not the request size: multiscan batches are sized on the
+    # JSON encoding (see SecretScanner._document_payload_size)
     @property
     def utf8_encoded_size(self) -> int:
         if self._utf8_encoded_size is None:

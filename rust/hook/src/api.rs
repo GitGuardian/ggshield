@@ -321,6 +321,36 @@ fn basename(path: &str) -> &str {
     }
 }
 
+pub(crate) fn document_json(config: &Config, doc: &Document) -> Value {
+    // `_document_filename()`: basename first when `filename_only` is
+    // set, then truncated to the LAST 256 characters.
+    let filename = if config.user.secret.filename_only {
+        let base = basename(&doc.filename);
+        if base.is_empty() { &doc.filename } else { base }
+    } else {
+        &doc.filename
+    };
+    let length = filename.chars().count();
+    let filename: String = filename
+        .chars()
+        .skip(length.saturating_sub(API_PATH_MAX_LENGTH))
+        .collect();
+    // `replace_0_bytes()` in pygitguardian's DocumentSchema: the API
+    // rejects a NUL byte with a 400, which fails the whole event open.
+    // `\u0000` and `\u001a` encode to the same size, so no size accounting moves.
+    let document = doc.content.replace('\0', "\u{1a}");
+    // Field order and the null `location` are pygitguardian's
+    // DocumentSchema.
+    json!({"filename": filename, "document": document, "location": null})
+}
+
+/// `_document_payload_size()`: what `doc` adds to the request body. The API caps
+/// the JSON body, and escaping makes it up to 6x the raw content.
+pub fn encoded_size(config: &Config, doc: &Document) -> usize {
+    let separator_size = 1; // "," between array items
+    document_json(config, doc).to_string().len() + separator_size
+}
+
 pub fn multiscan<'a>(
     config: &Config,
     agent: crate::payload::Agent,
@@ -328,28 +358,7 @@ pub fn multiscan<'a>(
 ) -> Result<Vec<DocumentResult>, Error> {
     let payload: Vec<Value> = documents
         .into_iter()
-        .map(|doc| {
-            // `_document_filename()`: basename first when `filename_only` is
-            // set, then truncated to the LAST 256 characters.
-            let filename = if config.user.secret.filename_only {
-                let base = basename(&doc.filename);
-                if base.is_empty() { &doc.filename } else { base }
-            } else {
-                &doc.filename
-            };
-            let length = filename.chars().count();
-            let filename: String = filename
-                .chars()
-                .skip(length.saturating_sub(API_PATH_MAX_LENGTH))
-                .collect();
-            // `replace_0_bytes()` in pygitguardian's DocumentSchema: the API
-            // rejects a NUL byte with a 400, which fails the whole event open.
-            // The ASCII substitute is one byte, so no size accounting moves.
-            let document = doc.content.replace('\0', "\u{1a}");
-            // Field order and the null `location` are pygitguardian's
-            // DocumentSchema.
-            json!({"filename": filename, "document": document, "location": null})
-        })
+        .map(|doc| document_json(config, doc))
         .collect();
     let body = Value::Array(payload).to_string();
 

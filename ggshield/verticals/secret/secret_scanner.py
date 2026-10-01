@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import logging
 import os
 from ast import literal_eval
@@ -31,6 +32,7 @@ from .secret_scan_collection import Result, Results
 
 # GitGuardian API does not accept paths longer than this
 _API_PATH_MAX_LENGTH = 256
+# Room for the request envelope around the documents (brackets, source_uuid)
 _SIZE_METADATA_OVERHEAD = 10240  # 10 KB
 
 
@@ -103,17 +105,24 @@ class SecretScanner:
             filename = os.path.basename(filename) or filename
         return filename[-_API_PATH_MAX_LENGTH:]
 
+    def _document(self, scannable: Scannable) -> Dict[str, str]:
+        return {
+            "document": scannable.content,
+            "filename": self._document_filename(scannable),
+        }
+
+    def _document_payload_size(self, scannable: Scannable) -> int:
+        # The API caps the JSON body, which requests escapes with ensure_ascii (up to 6x)
+        separator_size = 2  # ", " between list items
+        return len(json.dumps(self._document(scannable))) + separator_size
+
     def _scan_chunk(
         self, executor: concurrent.futures.ThreadPoolExecutor, chunk: List[Scannable]
     ) -> ScanFuture:
         """
         Sends a chunk of files to scan to the API
         """
-        # `documents` is a version of `chunk` suitable for `GGClient.multi_content_scan()`
-        documents = [
-            {"document": x.content, "filename": self._document_filename(x)}
-            for x in chunk
-        ]
+        documents = [self._document(x) for x in chunk]
 
         # Use scan_and_create_incidents if source_uuid is provided, otherwise use multi_content_scan
         if self.secret_config.source_uuid:
@@ -146,7 +155,7 @@ class SecretScanner:
 
         chunk: List[Scannable] = []
         max_payload_size = self.client.maximum_payload_size - _SIZE_METADATA_OVERHEAD
-        utf8_encoded_chunk_size = 0
+        chunk_payload_size = 0
         maximum_document_size = int(
             os.getenv(
                 "GG_MAX_DOC_SIZE",
@@ -179,20 +188,29 @@ class SecretScanner:
                 scanner_ui.on_skipped(scannable, "file not found")
                 continue
 
-            if content:
-                if (
-                    len(chunk) == maximum_documents_per_scan
-                    or utf8_encoded_chunk_size + scannable.utf8_encoded_size
-                    > max_payload_size
-                ):
-                    future = self._scan_chunk(executor, chunk)
-                    chunks_for_futures[future] = chunk
-                    chunk = []
-                    utf8_encoded_chunk_size = 0
-                chunk.append(scannable)
-                utf8_encoded_chunk_size += scannable.utf8_encoded_size
-            else:
+            if not content:
                 scanner_ui.on_skipped(scannable, "")
+                continue
+
+            document_payload_size = self._document_payload_size(scannable)
+            if document_payload_size > max_payload_size:
+                scanner_ui.on_skipped(
+                    scannable,
+                    f"encoded content is over the {max_payload_size:,} bytes"
+                    " payload limit",
+                )
+                continue
+
+            if chunk and (
+                len(chunk) == maximum_documents_per_scan
+                or chunk_payload_size + document_payload_size > max_payload_size
+            ):
+                future = self._scan_chunk(executor, chunk)
+                chunks_for_futures[future] = chunk
+                chunk = []
+                chunk_payload_size = 0
+            chunk.append(scannable)
+            chunk_payload_size += document_payload_size
         if chunk:
             future = self._scan_chunk(executor, chunk)
             chunks_for_futures[future] = chunk

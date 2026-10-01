@@ -1,11 +1,14 @@
+import json
 import platform
 from collections import namedtuple
+from typing import Any, Dict, List
 from unittest.mock import ANY, Mock, patch
 
 import click
 import pytest
 import requests
 from click import Command, Context, Group
+from pygitguardian import GGClient
 from pygitguardian.models import (
     APITokensResponse,
     Detail,
@@ -37,7 +40,10 @@ from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.utils.git_shell import Filemode
 from ggshield.utils.os import get_os_info
 from ggshield.verticals.secret import SecretScanner
-from ggshield.verticals.secret.secret_scanner import handle_scan_chunk_error
+from ggshield.verticals.secret.secret_scanner import (
+    _SIZE_METADATA_OVERHEAD,
+    handle_scan_chunk_error,
+)
 from tests.unit.conftest import (
     _MULTIPLE_SECRETS_PATCH,
     _NO_SECRET_PATCH,
@@ -674,3 +680,87 @@ def test_with_source_uuid_error(
             secret_config=SecretConfig(source_uuid="test-uuid"),
         )
         assert message in str(exc_info.value)
+
+
+def _scanner_with_payload_budget(
+    client: GGClient, monkeypatch: pytest.MonkeyPatch, budget: int
+) -> SecretScanner:
+    # `client` is session-scoped: monkeypatch restores the limit after the test
+    monkeypatch.setattr(
+        client, "maximum_payload_size", budget + _SIZE_METADATA_OVERHEAD
+    )
+    return SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(scan_mode=ScanMode.PATH, command_path="ggshield"),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+
+
+def _clean_multi_scan_result(
+    documents: List[Dict[str, str]], *args: Any, **kwargs: Any
+) -> MultiScanResult:
+    result = MultiScanResult(
+        [
+            ScanResult(policy_break_count=0, policy_breaks=[], policies=[])
+            for _ in documents
+        ]
+    )
+    result.status_code = 200
+    return result
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_chunks_fit_the_payload_cap_once_json_encoded(
+    scan_mock: Mock, client: GGClient, monkeypatch: pytest.MonkeyPatch
+):
+    """
+    GIVEN documents whose raw size fits the payload budget but whose JSON encoding
+    (escaped quotes, newlines, non-ASCII) does not
+    WHEN SecretScanner.scan() is called on them
+    THEN they are split so that every request body fits the budget
+    """
+    budget = 2000
+    content = '"\n\\é' * 80  # 400 raw bytes, 960 once escaped
+    scannables = [StringScannable(url=f"file{i}", content=content) for i in range(3)]
+    assert sum(s.utf8_encoded_size for s in scannables) < budget
+    scan_mock.side_effect = _clean_multi_scan_result
+
+    _scanner_with_payload_budget(client, monkeypatch, budget).scan(
+        scannables, scanner_ui=Mock()
+    )
+
+    sent = [call.args[0] for call in scan_mock.call_args_list]
+    assert sum(len(documents) for documents in sent) == 3
+    assert len(sent) > 1
+    for documents in sent:
+        assert len(json.dumps(documents)) <= budget
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_document_too_big_for_any_payload_is_skipped(
+    scan_mock: Mock, client: GGClient, monkeypatch: pytest.MonkeyPatch
+):
+    """
+    GIVEN a document whose JSON encoding exceeds the payload budget on its own,
+    following a document that fits
+    WHEN SecretScanner.scan() is called on them
+    THEN the oversized document is skipped with a message
+    AND no empty request is sent
+    """
+    budget = 2000
+    small = StringScannable(url="small", content="hello")
+    oversized = StringScannable(url="oversized", content="\x01" * 500)
+    assert oversized.utf8_encoded_size < budget
+    scan_mock.side_effect = _clean_multi_scan_result
+    scanner_ui = Mock(spec=ScannerUI)
+
+    _scanner_with_payload_budget(client, monkeypatch, budget).scan(
+        [small, oversized], scanner_ui=scanner_ui
+    )
+
+    sent = [call.args[0] for call in scan_mock.call_args_list]
+    assert [[d["filename"] for d in documents] for documents in sent] == [["small"]]
+    scanner_ui.on_skipped.assert_called_once_with(oversized, ANY)
+    assert "payload" in scanner_ui.on_skipped.call_args.args[1]
