@@ -12,10 +12,13 @@ from ggshield.cmd.install import (
     hook_invokes_ggshield,
     hook_is_outdated,
 )
+from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config, safe_api_tokens
+from ggshield.core.errors import GIT_INSTALL_HINT
 from ggshield.core.plugin.hooks import load_plugin_registry
+from ggshield.utils.git_shell import git_unavailable_reason
 from ggshield.verticals.ai.installation import ai_hook_posture
 
 
@@ -39,14 +42,35 @@ class Check:
     ``fix`` is the remediation shown when the check fails — it must be specific to
     the check (hooks are fixed by `machine setup`, but scopes are fixed by getting a
     token with the right scopes, not by re-running setup).
+
+    ``ok`` is None for a check that could not run on this machine, such as the git
+    hooks when git is not installed (see `skip`). It is reported with its ``fix`` but
+    never counts as a failure.
     """
 
     name: str
-    ok: bool
+    ok: Optional[bool]
     detail: str = ""
     fix: str = ""
 
+    @classmethod
+    def skip(cls, name: str, reason: str, fix: str) -> "Check":
+        return cls(name, None, f"skipped: {reason}", fix)
 
+    @property
+    def failed(self) -> bool:
+        return self.ok is False
+
+    @property
+    def skipped(self) -> bool:
+        return self.ok is None
+
+
+@uses_git(
+    GitUsage.OPTIONAL,
+    note="Without it the git hook checks are reported as skipped and do not affect "
+    "the exit code.",
+)
 @click.command(name="doctor")
 @add_common_options()
 @click.pass_context
@@ -83,7 +107,7 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
         checks.append(_check_plugin_native())
 
     _render(checks)
-    return 0 if all(check.ok for check in checks) else 1
+    return 1 if any(check.failed for check in checks) else 0
 
 
 def _check_auth_and_scopes(config: Any) -> "tuple[Optional[List[str]], Check]":
@@ -133,6 +157,8 @@ def _check_git_hooks() -> Check:
     the directory ggshield *would* install into, when nothing points git at it -- is
     dead config and says nothing about the machine.
     """
+    if reason := git_unavailable_reason():
+        return Check.skip("Git hooks", reason, GIT_INSTALL_HINT)
     hook_dir = get_global_hook_dir_path() or get_system_hook_dir_path()
     if hook_dir is None:
         return Check(
@@ -175,6 +201,8 @@ def _check_git_hooks_precedence() -> Check:
     one thing `machine setup` cannot fix (git precedence); the hook must be integrated
     into the other tool, or the override unset.
     """
+    if reason := git_unavailable_reason():
+        return Check.skip("Git hook precedence", reason, GIT_INSTALL_HINT)
     shadow = get_shadowing_hooks_path()
     if shadow is None:
         return Check(
@@ -277,18 +305,33 @@ def _check_plugin_native() -> Check:
 
 def _render(checks: List[Check]) -> None:
     for check in checks:
-        mark = click.style("✓", fg="green") if check.ok else click.style("✗", fg="red")
+        if check.skipped:
+            mark = click.style("-", fg="yellow")
+        elif check.ok:
+            mark = click.style("✓", fg="green")
+        else:
+            mark = click.style("✗", fg="red")
         detail = f" — {check.detail}" if check.detail else ""
         click.echo(f"  {mark} {check.name}{detail}")
-        if not check.ok and check.fix:
+        if (check.failed or check.skipped) and check.fix:
             click.echo(f"      {click.style('↳ fix:', fg='yellow')} {check.fix}")
-    failed = [check for check in checks if not check.ok]
+    failed = [check for check in checks if check.failed]
+    skipped = [check.name for check in checks if check.skipped]
     click.echo()
     if failed:
         click.echo(
             click.style(
                 f"{len(failed)} check(s) failed — see the suggested fixes above.",
                 fg="red",
+                bold=True,
+            )
+        )
+    elif skipped:
+        click.echo(
+            click.style(
+                "This machine is correctly set up, except for the skipped checks: "
+                f"{', '.join(skipped)}.",
+                fg="yellow",
                 bold=True,
             )
         )

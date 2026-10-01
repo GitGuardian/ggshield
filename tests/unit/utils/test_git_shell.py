@@ -25,6 +25,7 @@ from ggshield.utils.git_shell import (
     get_staged_filepaths,
     git,
     git_ls_unstaged,
+    git_unavailable_reason,
     gitignore,
     is_git_available,
     is_git_dir,
@@ -53,10 +54,24 @@ def _create_repository_with_remote(
     return local_repo
 
 
-@patch("ggshield.utils.git_shell._get_git_path")
-def test_is_git_available(_get_git_path_mock):
-    _get_git_path_mock.side_effect = GitExecutableNotFound()
+def test_is_git_available(no_git):
     assert not is_git_available()
+
+
+def test_git_lookup_caches_a_failure(monkeypatch):
+    """
+    GIVEN git cannot be found
+    WHEN git availability is checked and git is called
+    THEN git is looked up once and every caller gets the same reason
+    """
+    m_which = Mock(return_value=None)
+    monkeypatch.setattr(git_shell, "which", m_which)
+    reason = "unable to find git executable in PATH/PATHEXT"
+    assert git_unavailable_reason() == reason
+    assert not is_git_available()
+    with pytest.raises(GitExecutableNotFound, match=reason):
+        git(["--version"])
+    assert m_which.call_count == 1
 
 
 @pytest.mark.parametrize(
