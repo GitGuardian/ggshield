@@ -110,6 +110,13 @@ class Claude(Agent):
                 response["decision"] = "block"
                 response["reason"] = result.message
                 response["additionalContext"] = result.message
+                if result.payload.event_type == EventType.USER_PROMPT:
+                    # Otherwise Claude Code appends "Original prompt:" and the
+                    # submitted text, secret included, to the block message.
+                    response["hookSpecificOutput"] = {
+                        "hookEventName": "UserPromptSubmit",
+                        "suppressOriginalPrompt": True,
+                    }
             elif result.payload.event_type == EventType.PRE_TOOL_USE:
                 response["hookSpecificOutput"] = {
                     "hookEventName": "PreToolUse",

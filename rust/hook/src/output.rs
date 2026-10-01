@@ -197,6 +197,24 @@ fn claude_post_tool_use(result: &HookResult) -> Value {
     value
 }
 
+/// Claude's UserPromptSubmit block. Without `suppressOriginalPrompt`, Claude
+/// Code ends the block message with "Original prompt:" and the submitted text,
+/// so the very secret we blocked is shown back to the user and written to the
+/// session transcript inside that message.
+fn claude_user_prompt_block(message: &str) -> Value {
+    let mut value = decision_block(message);
+    if let Value::Object(map) = &mut value {
+        map.insert(
+            "hookSpecificOutput".into(),
+            obj(vec![
+                ("hookEventName", "UserPromptSubmit".into()),
+                ("suppressOriginalPrompt", true.into()),
+            ]),
+        );
+    }
+    value
+}
+
 fn allow_with_optional_warning(warning: &str) -> Value {
     let mut pairs = vec![("continue", true.into())];
     if !warning.is_empty() {
@@ -237,7 +255,7 @@ pub fn emission(result: &HookResult) -> Emission {
             } else {
                 match event {
                     EventType::PostToolUse => claude_post_tool_use(result),
-                    EventType::UserPrompt => decision_block(message),
+                    EventType::UserPrompt => claude_user_prompt_block(message),
                     EventType::PreToolUse => deny_pre_tool_use(message),
                     // Should not happen; Claude's "universal" fields.
                     EventType::Other => obj(vec![
@@ -516,10 +534,14 @@ mod tests {
         );
         // A blocked prompt carries no additionalContext: Claude Code reads that
         // field only under hookSpecificOutput, and a blocked prompt is erased
-        // without a model turn, so nothing could be delivered anyway.
+        // without a model turn, so nothing could be delivered anyway. It
+        // suppresses the original prompt, which would otherwise be echoed back
+        // in the block message, secret included.
         assert_eq!(
             blocked(Agent::Claude, EventType::UserPrompt).as_deref(),
-            Some(r#"{"decision":"block","reason":"nope"}"#)
+            Some(
+                r#"{"decision":"block","reason":"nope","hookSpecificOutput":{"hookEventName":"UserPromptSubmit","suppressOriginalPrompt":true}}"#
+            )
         );
         assert_eq!(
             blocked(Agent::Claude, EventType::Other).as_deref(),
