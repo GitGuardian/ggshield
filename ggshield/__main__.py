@@ -18,6 +18,7 @@ from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 from ggshield.core.env_utils import load_dot_env
+from ggshield.core.os_truststore import setup_truststore
 from ggshield.core.ui import ensure_level, log_utils
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
@@ -179,25 +180,6 @@ def force_utf8_output():
         # calling `reconfigure()` on them, unless this check is there.
         assert isinstance(out, TextIOWrapper)
         out.reconfigure(encoding="utf-8")
-
-
-def setup_truststore():
-    """Use the system certificates instead of the ones bundled by certifi"""
-    if sys.version_info < (3, 10):
-        # truststore requires Python 3.10
-        return
-
-    # truststore is only an optimization to use the system trust store instead
-    # of the certificates bundled by certifi. If anything goes wrong while
-    # importing or injecting it (for example truststore failing to parse the
-    # macOS version, see #1265), fall back to certifi rather than crashing the
-    # whole CLI.
-    try:
-        import truststore
-
-        truststore.inject_into_ssl()
-    except Exception as exc:
-        logger.debug("Could not set up truststore, falling back to certifi: %s", exc)
 
 
 def main(args: Optional[List[str]] = None) -> Any:

@@ -15,6 +15,7 @@ import pygitguardian
 
 import ggshield
 from ggshield.core import ui
+from ggshield.core.os_truststore import get_setup_error
 from ggshield.core.ui import log_utils
 
 
@@ -35,3 +36,10 @@ def setup_debug_mode(*, filename: Optional[str] = None) -> None:
     logger.debug("args=%s", sys.argv)
     logger.debug("ggshield=%s", ggshield.__version__)
     logger.debug("py-gitguardian=%s", pygitguardian.__version__)
+
+    truststore_error = get_setup_error()
+    if truststore_error is not None:
+        logger.debug(
+            "Could not set up truststore, falling back to certifi: %s",
+            truststore_error,
+        )
