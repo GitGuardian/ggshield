@@ -12,6 +12,13 @@ from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
     lazy_commands={
         "scan": "ggshield.cmd.secret.scan:scan_group",
         "ignore": "ggshield.cmd.secret.ignore:ignore_cmd",
+        # Answered by the native executable; these are stubs for --help.
+        "get": "ggshield.cmd.secret.store:get_cmd",
+        "set": "ggshield.cmd.secret.store:set_cmd",
+        "unset": "ggshield.cmd.secret.store:unset_cmd",
+        "list": "ggshield.cmd.secret.store:list_cmd",
+        "import": "ggshield.cmd.secret.store:import_cmd",
+        "encrypt": "ggshield.cmd.secret.store:encrypt_cmd",
     },
 )
 @add_common_options()

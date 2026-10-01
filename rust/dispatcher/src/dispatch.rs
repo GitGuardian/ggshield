@@ -42,6 +42,32 @@ pub fn is_native_hook(args: &[OsString]) -> bool {
     args == NATIVE_HOOK_ARGS
 }
 
+/// True for the `secret <verb>` and `run`/`activate`/`trust` forms the secrets
+/// crate answers.
+pub fn is_native_secret(args: &[OsString]) -> bool {
+    ggshield_secrets_cli::is_native(args)
+}
+
+/// Whether Python's root `--insecure` (or its `--allow-self-signed` alias)
+/// precedes the verb.
+pub fn wants_insecure_tls(args: &[OsString]) -> bool {
+    let mut args = args.iter().map(|arg| arg.to_str());
+    let mut in_secret_group = false;
+    while let Some(Some(arg)) = args.next() {
+        match arg {
+            "--insecure" | "--allow-self-signed" => return true,
+            "-c" | "--config-path" | "--log-file" | "--instance" => {
+                args.next();
+            }
+            _ if arg.starts_with('-') => {}
+            // Python repeats the common options on the group: `ggshield secret --insecure get`.
+            "secret" if !in_secret_group => in_secret_group = true,
+            _ => return false,
+        }
+    }
+    false
+}
+
 /// True only for the exact `secret scan ai-hook --warm-notifier` form.
 pub fn is_warm_notifier(args: &[OsString]) -> bool {
     args == WARM_NOTIFIER_ARGS
@@ -258,6 +284,32 @@ mod tests {
                 !is_warm_notifier(&case),
                 "{case:?} was claimed as a warm-up"
             );
+        }
+    }
+
+    /// GIVEN root options before a secret verb, and the same words elsewhere
+    /// WHEN they are checked for `--insecure`
+    /// THEN only one before the verb, at the root or on the `secret` group, counts.
+    #[test]
+    fn only_a_root_insecure_flag_disables_tls_verification() {
+        for case in [
+            args(&["--insecure", "secret", "get", "secret/app"]),
+            args(&["--allow-self-signed", "run", "--", "true"]),
+            args(&["-v", "-c", "cfg.yaml", "--insecure", "secret", "list"]),
+            args(&["--log-file=-", "--insecure", "activate"]),
+            args(&["secret", "--insecure", "get", "secret/app"]),
+            args(&["-v", "secret", "--allow-self-signed", "list"]),
+        ] {
+            assert!(wants_insecure_tls(&case), "{case:?}");
+        }
+        for case in [
+            args(&["secret", "get", "secret/app"]),
+            args(&["run", "--", "curl", "--insecure"]),
+            args(&["--log-file", "--insecure", "run"]),
+            args(&["secret", "set", "--insecure"]),
+            args(&["secret", "secret", "--insecure"]),
+        ] {
+            assert!(!wants_insecure_tls(&case), "{case:?}");
         }
     }
 
