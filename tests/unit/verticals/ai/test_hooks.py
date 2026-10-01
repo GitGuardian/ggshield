@@ -2354,6 +2354,42 @@ class TestFlavorOutputResult:
         )
 
     @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
+    def test_claude_output_result_user_prompt_block(self, mock_echo: MagicMock):
+        """Claude blocking a prompt: decision block, and the original prompt
+        (which holds the secret) is not echoed back in the block message."""
+        result = HookResult(
+            block=True,
+            message="Secret in prompt",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.USER_PROMPT),
+        )
+        code = Claude().output_result(result)
+        assert code == 0
+        args, _ = mock_echo.call_args
+        out = json.loads(args[0])
+        assert out["decision"] == "block"
+        assert out["reason"] == "Secret in prompt"
+        assert out["hookSpecificOutput"] == {
+            "hookEventName": "UserPromptSubmit",
+            "suppressOriginalPrompt": True,
+        }
+
+    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
+    def test_claude_output_result_post_tool_use_block(self, mock_echo: MagicMock):
+        """suppressOriginalPrompt only belongs to the prompt event."""
+        result = HookResult(
+            block=True,
+            message="Secret in tool output",
+            nbr_secrets=1,
+            payload=_dummy_payload(EventType.POST_TOOL_USE),
+        )
+        Claude().output_result(result)
+        args, _ = mock_echo.call_args
+        out = json.loads(args[0])
+        assert out["decision"] == "block"
+        assert "hookSpecificOutput" not in out
+
+    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
     def test_copilot_output_result_allow(self, mock_echo: MagicMock):
         """Copilot with block=False: same as Claude, JSON to stdout, return 0."""
         result = HookResult.allow(_dummy_payload(EventType.USER_PROMPT))
