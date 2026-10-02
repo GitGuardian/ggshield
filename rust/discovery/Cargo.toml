@@ -1,0 +1,18 @@
+[package]
+name = "ggshield-discovery"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Reads the AI inventory ggshield's discovery walk leaves in ai_discovery.json."
+
+[dependencies]
+ggshield-common = { workspace = true }
+ggshield-config = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

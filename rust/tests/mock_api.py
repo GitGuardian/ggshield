@@ -6,6 +6,8 @@ full scan without a single byte leaving the machine.
   MODE=clean   -> no policy breaks
   MODE=secret  -> one "AWS Keys" policy break, with matches located in the
                   document that was actually submitted
+  MCP_DENY=... -> the MCP activity endpoint refuses the tool call with that
+                  reason; unset or empty permits it
 
 The indices matter: the Python side maps every match back onto the document's
 lines and errors out if a match falls outside them, so the mock cannot return
@@ -25,6 +27,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 MODE = os.environ.get("MODE", "clean")
 REQUEST_LOG = os.environ.get("REQUEST_LOG")
+# The organisation's answer for an MCP tool call: a reason denies it, empty allows.
+MCP_DENY = os.environ.get("MCP_DENY", "")
 
 # Fake credentials, shaped like AWS keys. Never valid anywhere.
 CLIENT_ID = "AKIA4SVQEXAMPLE01"
@@ -170,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
                     )
                     + "\n"
                 )
+        if "mcp-activity" in self.path:
+            # MCPActivityResponse: both fields are required on the wire.
+            self._send({"allowed": not MCP_DENY, "reason": MCP_DENY})
+            return
         if "multiscan" not in self.path:
             self._send({"detail": "not found"}, 404)
             return
