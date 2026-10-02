@@ -227,7 +227,14 @@ def handle_api_error(detail: Detail) -> None:
         raise UnexpectedError(f"Scanning failed: {detail.detail}")
     if detail.status_code == 403 and detail.detail == "Quota limit reached.":
         raise QuotaLimitReachedError()
-    if detail.status_code == 400 and "not found" in detail.detail:
-        raise UnexpectedError(detail.detail)
-    if 500 <= detail.status_code < 600:
+    if detail.status_code == 400:
+        if "not found" in detail.detail:
+            raise UnexpectedError(detail.detail)
+        # A 400 faults the chunk we sent, not the scan: the caller names the
+        # offending files and the scan goes on without them.
+        return
+    # Everything below means the server scanned nothing. Returning instead would
+    # drop the chunk and let the command exit 0 reporting no secrets.
+    if detail.status_code == 429 or 500 <= detail.status_code < 600:
         raise ServiceUnavailableError(detail.detail)
+    raise UnexpectedError(detail.detail)
