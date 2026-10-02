@@ -244,7 +244,9 @@ function Invoke-PostInstall {
         if (-not $gg) { Die 'ggshield not found on PATH after install (open a new terminal and retry)' }
         $script:GgshieldExe = $gg.Source
     }
-    Say "Installed: $(& $script:GgshieldExe --version)"
+    $installedVersion = & $script:GgshieldExe --version
+    if ($LASTEXITCODE -ne 0) { Die "the installed ggshield ($script:GgshieldExe) failed to run (exit code $LASTEXITCODE)" }
+    Say "Installed: $installedVersion"
 
     # a pre-existing ggshield earlier on PATH (e.g. a system MSI on the Machine
     # PATH) shadows a per-user zip install — warn so the version isn't confusing

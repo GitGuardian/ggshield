@@ -23,6 +23,13 @@ bin="$venv/bin"
 
 "$bin/python" -m pip install --quiet --disable-pip-version-check "$wheel"
 
+# CI runners ship the VC++ runtime, so a dynamic link only fails on user
+# machines. PE import names are plain ASCII, so grep sees them.
+if [ -f "$bin/ggshield.exe" ] && grep -qai 'vcruntime140[_0-9]*\.dll' "$bin/ggshield.exe" ; then
+    echo "FAIL: '$bin/ggshield.exe' imports the VC++ runtime" >&2
+    exit 1
+fi
+
 echo "--- ggshield --version"
 "$bin/ggshield" --version
 echo "--- ggshield-py --version"
