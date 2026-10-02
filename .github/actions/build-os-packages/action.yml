@@ -1,0 +1,329 @@
+name: Build OS packages
+description: Build, optionally code-sign, test and upload the standalone ggshield packages for the current runner
+
+inputs:
+  artifact-name:
+    description: Name of the uploaded artifact
+    required: true
+  release-mode:
+    description: Release mode (no commit sha in version number)
+    default: 'false'
+  sign:
+    description: Code-sign the macOS and Windows binaries, failing if the signing inputs are empty
+    default: 'false'
+  macos-p12-file:
+    description: Base64-encoded macOS signing certificate
+    default: ''
+  macos-p12-password:
+    description: Password of the macOS signing certificate
+    default: ''
+  macos-api-key-file:
+    description: rcodesign notarization key
+    default: ''
+  windows-cert-fingerprint:
+    description: Fingerprint of the Windows signing certificate
+    default: ''
+  sm-api-key:
+    description: DigiCert KeyLocker API key
+    default: ''
+  sm-host:
+    description: DigiCert KeyLocker host
+    default: ''
+  sm-client-cert-file:
+    description: Base64-encoded DigiCert KeyLocker client certificate
+    default: ''
+  sm-client-cert-password:
+    description: Password of the DigiCert KeyLocker client certificate
+    default: ''
+  gitguardian-api-key:
+    description: API key for the functional tests
+    default: ''
+  gitguardian-api-url:
+    description: API URL for the functional tests
+    default: ''
+  test-known-secret:
+    description: Functional tests secret
+    default: ''
+  test-unknown-secret:
+    description: Functional tests secret
+    default: ''
+  test-gg-valid-token:
+    description: Functional tests secret
+    default: ''
+  test-gg-valid-token-ignore-sha:
+    description: Functional tests secret
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python 3.14 (Windows 1/2)
+      if: runner.os == 'Windows'
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: '3.14'
+
+    - name: Set up Python 3.14 (Windows 2/2)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        echo PYTHON_CMD=python >> $GITHUB_ENV
+
+    - name: Install Linux specific dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        case "${{ runner.arch }}" in
+          X64)
+            ARCH=x86_64
+            NFPM_ARCH=x86_64
+            PYTHON_SHA256=d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb
+            NFPM_SHA256=9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
+            ;;
+          ARM64)
+            ARCH=aarch64
+            NFPM_ARCH=arm64
+            PYTHON_SHA256=44f86d58f3bbc1aa6c95ee90f03226e0fdbd22475a98c4410e5a20042b7f40d3
+            NFPM_SHA256=ccfc3a154dec318100c6b6e28deddef0a1ffddf5e258364d74b647a129c72a0e
+            ;;
+          *)
+            echo "Unsupported runner architecture: ${{ runner.arch }}" >&2
+            exit 1
+            ;;
+        esac
+
+        # Install latest security updates
+        yum update -y
+
+        # Install necessary packages
+        yum install -y \
+          git-core \
+          findutils
+
+        # Install Python 3.14 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
+        PYTHON_VERSION=3.14.6
+        PYTHON_BUILD=20260728
+        scripts/download \
+          https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-unknown-linux-gnu-install_only_stripped.tar.gz \
+          python.tar.gz \
+          ${PYTHON_SHA256}
+
+        tar xf python.tar.gz
+
+        # Make Python available
+        echo PATH=$PWD/python/bin:$PATH >> $GITHUB_ENV
+        echo PYTHON_CMD=$PWD/python/bin/python >> $GITHUB_ENV
+
+        # Install NFPM
+        NFPM_VERSION=2.36.1
+
+        scripts/download \
+          https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_Linux_${NFPM_ARCH}.tar.gz \
+          nfpm.tar.gz \
+          ${NFPM_SHA256}
+
+        tar xf nfpm.tar.gz nfpm
+        cp nfpm /usr/local/bin
+
+    - name: Install macOS specific dependencies
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        case "${{ runner.arch }}" in
+          X64)
+            ARCH=x86_64
+            PYTHON_SHA256=26e384a6000a2c6e7484bca9c6441553c0c9f701c87dcd2e632d994edd000e9c
+            RCODESIGN_SHA256=bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
+            ;;
+          ARM64)
+            ARCH=aarch64
+            PYTHON_SHA256=1c7e8db27d1f5c029c232406103b7216baaa8a32a900a64f6dee20f8eaaca1af
+            RCODESIGN_SHA256=163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
+            ;;
+          *)
+            echo "Unsupported runner architecture: ${{ runner.arch }}" >&2
+            exit 1
+            ;;
+        esac
+
+        # scripts/download needs the `sha256sum` command
+        brew install coreutils
+
+        # Install Python. We don't use actions/setup-python because on M1
+        # macs it installs the Framework version of Python, and the binaries
+        # produced with that version do not pass Apple notarization step.
+        # (tested with actions/setup-python@v4 and @v5)
+        PYTHON_VERSION=3.14.6
+        PYTHON_BUILD=20260728
+
+        scripts/download \
+          https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-apple-darwin-install_only.tar.gz \
+          python.tar.gz \
+          ${PYTHON_SHA256}
+
+        tar xf python.tar.gz
+
+        # Make Python available
+        echo PATH=$PWD/python/bin:$PATH >> $GITHUB_ENV
+        echo PYTHON_CMD=$PWD/python/bin/python >> $GITHUB_ENV
+
+        # Install rcodesign
+        RCODESIGN_VERSION=0.27.0
+
+        scripts/download \
+          https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${RCODESIGN_VERSION}/apple-codesign-${RCODESIGN_VERSION}-${ARCH}-apple-darwin.tar.gz \
+          rcodesign.tar.gz \
+          ${RCODESIGN_SHA256}
+
+        tar --strip-components=1 -xzf rcodesign.tar.gz
+
+        # Make it available
+        cp rcodesign /usr/local/bin
+
+    - name: Install WiX Toolset
+      if: runner.os == 'Windows'
+      shell: bash
+      run: dotnet tool install --global wix --version 5.0.2
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        $PYTHON_CMD -m pip install --upgrade pip
+        # Install uv
+        $PYTHON_CMD -m pip install uv==$UV_VERSION
+        uv sync --locked --no-default-groups --group tests --group standalone
+
+    - name: Prepare macOS secrets
+      if: runner.os == 'macOS' && inputs.sign == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        for name in MACOS_P12_FILE MACOS_P12_PASSWORD MACOS_API_KEY_FILE ; do
+          if [ -z "${!name}" ] ; then
+            echo "sign: true, but $name is not readable here" >&2
+            exit 1
+          fi
+        done
+        SECRETS_DIR=$TMPDIR/secrets
+        mkdir "$SECRETS_DIR"
+        # Prepare our secret files
+        # The p12-file is base64-encoded because it's binary
+        echo "$MACOS_P12_FILE" | base64 --decode > "$SECRETS_DIR/cert.p12"
+        echo "$MACOS_P12_PASSWORD" > "$SECRETS_DIR/cert.pwd"
+        echo "$MACOS_API_KEY_FILE" > "$SECRETS_DIR/rcodesign-notarize-key.json"
+
+        # Tell next steps where to find them
+        cat >> $GITHUB_ENV <<EOF
+        MACOS_P12_FILE=$SECRETS_DIR/cert.p12
+        MACOS_P12_PASSWORD_FILE=$SECRETS_DIR/cert.pwd
+        MACOS_API_KEY_FILE=$SECRETS_DIR/rcodesign-notarize-key.json
+        EOF
+      env:
+        MACOS_P12_FILE: ${{ inputs.macos-p12-file }}
+        MACOS_P12_PASSWORD: ${{ inputs.macos-p12-password }}
+        MACOS_API_KEY_FILE: ${{ inputs.macos-api-key-file }}
+
+    - name: Setup Windows environment
+      if: runner.os == 'Windows' && inputs.sign == 'true'
+      shell: bash
+      env:
+        WINDOWS_CERT_FINGERPRINT: ${{ inputs.windows-cert-fingerprint }}
+        SM_API_KEY: ${{ inputs.sm-api-key }}
+        SM_HOST: ${{ inputs.sm-host }}
+        SM_CLIENT_CERT_FILE_B64: ${{ inputs.sm-client-cert-file }}
+        SM_CLIENT_CERT_PASSWORD: ${{ inputs.sm-client-cert-password }}
+      run: |
+        set -euo pipefail
+        for name in WINDOWS_CERT_FINGERPRINT SM_API_KEY SM_HOST SM_CLIENT_CERT_FILE_B64 SM_CLIENT_CERT_PASSWORD ; do
+          if [ -z "${!name}" ] ; then
+            echo "sign: true, but $name is not readable here" >&2
+            exit 1
+          fi
+        done
+
+        signtool_install_dir="/c/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64"
+        smctl_install_dir="/c/Program Files/DigiCert/DigiCert Keylocker Tools"
+
+        # Add signtool dir to $PATH
+        if [ ! -x "$signtool_install_dir/signtool.exe" ] ; then
+          echo "signtool.exe is not in '$signtool_install_dir'"
+          exit 1
+        fi
+        echo "$signtool_install_dir" >> $GITHUB_PATH
+
+        # Add smctl dir to $PATH
+        # Don't test if smctl is there: it is installed by the next step
+        echo "$smctl_install_dir" >> $GITHUB_PATH
+
+        # Create our certificate file
+        SECRETS_DIR=$(cygpath -m "$RUNNER_TEMP")/secrets
+        mkdir -p "$SECRETS_DIR"
+        cert_file="$SECRETS_DIR/cert.p12"
+        echo "$SM_CLIENT_CERT_FILE_B64" | base64 --decode > "$cert_file"
+
+        # Add secrets to env
+        cat >> $GITHUB_ENV <<EOF
+        WINDOWS_CERT_FINGERPRINT=$WINDOWS_CERT_FINGERPRINT
+        SM_API_KEY=$SM_API_KEY
+        SM_HOST=$SM_HOST
+        SM_CLIENT_CERT_FILE=$cert_file
+        SM_CLIENT_CERT_PASSWORD=$SM_CLIENT_CERT_PASSWORD
+        EOF
+
+    - name: Install Windows dependencies
+      if: runner.os == 'Windows' && inputs.sign == 'true'
+      shell: bash
+      run: |
+        scripts/build-os-packages/install-keylockertools
+
+    - name: Build
+      shell: bash
+      env:
+        SIGN: ${{ inputs.sign }}
+        RELEASE_MODE: ${{ inputs.release-mode }}
+      run: |
+        args=""
+        if [ "$SIGN" = "true" ] ; then
+          args="$args --sign"
+        fi
+        # The +sha stamp is what tells an internal build apart from the release.
+        if [ "$RELEASE_MODE" != "true" ] ; then
+          args="$args --suffix +${GITHUB_SHA:0:7}"
+        fi
+        # Run the script with `bash -c` because `uv run` does not
+        # automatically do it on Windows
+        uv run --no-sync bash -c "scripts/build-os-packages/build-os-packages $args"
+
+    - name: Override base Docker image used for functional tests on Windows
+      if: runner.os == 'Windows'
+      # This is required because GitHub Windows runner is not configured to
+      # run Linux-based Docker images
+      shell: bash
+      run: |
+        echo "GGTEST_DOCKER_IMAGE=mcr.microsoft.com/windows/nanoserver:ltsc2022" >> $GITHUB_ENV
+
+    - name: Functional tests
+      if: ${{ !github.event.pull_request.head.repo.fork }}
+      shell: bash
+      run: |
+        uv run --no-sync bash -c "scripts/build-os-packages/build-os-packages functests"
+      env:
+        GITGUARDIAN_API_KEY: ${{ inputs.gitguardian-api-key }}
+        GITGUARDIAN_API_URL: ${{ inputs.gitguardian-api-url }}
+        TEST_KNOWN_SECRET: ${{ inputs.test-known-secret }}
+        TEST_GG_VALID_TOKEN: ${{ inputs.test-gg-valid-token }}
+        TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ inputs.test-gg-valid-token-ignore-sha }}
+        TEST_UNKNOWN_SECRET: ${{ inputs.test-unknown-secret }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          dist/ggshield-*.gz
+          dist/ggshield-*.pkg
+          dist/ggshield-*.zip
+          dist/ggshield-*.rpm
+          dist/ggshield_*.deb
+          dist/ggshield.*.nupkg
+          dist/ggshield-*.msi

@@ -18,7 +18,7 @@ version: 2
 # spreads that load, and the review work, across the week.
 updates:
   - package-ecosystem: 'github-actions'
-    directory: '/'
+    directories: ['/', '/.github/actions/*']
     schedule:
       interval: 'weekly'
       day: 'monday'
