@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scan the ggshield packages built by build_release_assets.yml for known
+Scan the ggshield OS packages, as downloaded by scan_packages.yml, for known
 vulnerabilities using Grype (https://github.com/anchore/grype), and print a
 Markdown report to stdout (meant to be piped into $GITHUB_STEP_SUMMARY).
 
