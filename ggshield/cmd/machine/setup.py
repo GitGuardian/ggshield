@@ -16,10 +16,12 @@ from ggshield.cmd.install import (
     install_system,
     upgrade_hook,
 )
+from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
-from ggshield.utils.git_shell import git
+from ggshield.core.errors import GIT_INSTALL_HINT
+from ggshield.utils.git_shell import git, git_unavailable_reason
 from ggshield.utils.os import is_root
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
@@ -32,6 +34,11 @@ from ggshield.verticals.ai.installation import (
 _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 
 
+@uses_git(
+    GitUsage.OPTIONAL,
+    note="It is only needed for the git hooks; without it that step is skipped "
+    "with a warning.",
+)
 @click.command()
 @click.option(
     "--no-ai-hooks",
@@ -173,6 +180,10 @@ def _setup_git_hooks(system: bool) -> bool:
     ``machine doctor`` fails on all three and MDM rollouts gate on the exit code.
     """
     click.echo(click.style("Git hooks", bold=True))
+    reason = git_unavailable_reason()
+    if reason is not None:
+        ui.display_warning(f"  git hooks skipped: {reason}. {GIT_INSTALL_HINT}")
+        return True
     use_system = system or is_root()
     if use_system:
         scope = "system"

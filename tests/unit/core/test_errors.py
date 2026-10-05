@@ -3,7 +3,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ggshield.core.errors import UnexpectedError, handle_api_error
+from ggshield.core.errors import (
+    ExitCode,
+    UnexpectedError,
+    handle_api_error,
+    handle_exception,
+)
+from ggshield.utils.git_shell import GitExecutableNotFound
 
 
 def test_handle_api_error_logs_detail_at_debug(caplog):
@@ -42,3 +48,20 @@ def test_handle_api_error_unknown_status_raises_unexpected_error():
 
     with pytest.raises(UnexpectedError):
         handle_api_error(detail)
+
+
+def test_handle_exception_renders_missing_git_actionably(capsys):
+    """
+    GIVEN a GitExecutableNotFound escaping a command
+    WHEN handle_exception renders it
+    THEN the user gets the reason and the install hint, without a --verbose hint,
+    since a missing git is a problem with the machine, not a ggshield bug
+    """
+    exit_code = handle_exception(GitExecutableNotFound("no git anywhere"))
+    out = capsys.readouterr()
+    output = out.out + out.err
+    assert exit_code == ExitCode.UNEXPECTED_ERROR
+    assert "requires git: no git anywhere.\nInstall git and run the command again." in (
+        output
+    )
+    assert "--verbose" not in output

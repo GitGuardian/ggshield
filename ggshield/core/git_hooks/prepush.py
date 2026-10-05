@@ -69,6 +69,8 @@ def collect_commits_from_stdin(remote_name: str) -> Tuple[str, str]:
     # branches. We should support this.
     line = prepush_input.splitlines()[0]
     _, local_commit, _, remote_commit = line.split(maxsplit=3)
+    if local_commit == EMPTY_SHA:
+        return (local_commit, remote_commit)
 
     if is_valid_git_commit_ref(remote_commit):
         # Pushing to an existing branch

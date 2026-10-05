@@ -12,7 +12,11 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
-from ggshield.cmd.utils.common_decorators import fail_on_server_error_option
+from ggshield.cmd.utils.common_decorators import (
+    GitUsage,
+    fail_on_server_error_option,
+    uses_git,
+)
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
@@ -70,6 +74,7 @@ def _execute_prereceive(
         sys.exit(handle_exception(error))
 
 
+@uses_git(GitUsage.REQUIRED)
 @click.command()
 @click.argument("prereceive_args", nargs=-1, type=click.UNPROCESSED)
 @click.option(

@@ -10,6 +10,7 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     add_secret_scan_common_options,
     create_output_handler,
 )
+from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
@@ -24,6 +25,7 @@ REGEX_GIT_URL = re.compile(
 )
 
 
+@uses_git(GitUsage.REQUIRED)
 @click.command()
 @click.argument("repository", nargs=1, type=click.STRING, required=True)
 @add_secret_scan_common_options()

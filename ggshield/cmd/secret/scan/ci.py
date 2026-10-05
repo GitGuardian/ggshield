@@ -10,8 +10,10 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
     create_output_handler,
 )
 from ggshield.cmd.utils.common_decorators import (
+    GitUsage,
     exception_wrapper,
     non_blocking_on_server_error,
+    uses_git,
 )
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
@@ -23,6 +25,7 @@ from ggshield.utils.git_shell import check_git_dir
 from ggshield.verticals.secret.repo import scan_commit_range
 
 
+@uses_git(GitUsage.REQUIRED)
 @click.command()
 @add_secret_scan_common_options()
 @click.pass_context

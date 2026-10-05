@@ -321,6 +321,21 @@ class TestSetupGitHooks:
         assert _setup_git_hooks(system=False) is True
         assert mock_install.call_count == 2  # pre-commit + pre-push
 
+    @patch(f"{BASE}.install_global")
+    def test_skips_git_hooks_without_git(self, mock_install, no_git, capsys):
+        """
+        GIVEN git cannot be found
+        WHEN the git hooks step runs
+        THEN it warns, installs nothing, and does not fail the setup
+        """
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        assert _setup_git_hooks(system=False) is True
+        mock_install.assert_not_called()
+        self.git_mock.assert_not_called()
+        captured = capsys.readouterr()
+        assert "git hooks skipped: no git" in captured.out + captured.err
+
     @patch(f"{BASE}.is_root", return_value=False)
     @patch(f"{BASE}.install_global")
     @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)

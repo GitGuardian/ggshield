@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from os.path import dirname, join, realpath
 from pathlib import Path
 from typing import Any, Dict, Union
+from unittest.mock import patch
 
 import pytest
 import vcr
@@ -20,8 +21,9 @@ from ggshield.core.cache import Cache
 from ggshield.core.ui.reset import reset
 from ggshield.core.url_utils import dashboard_to_api_url
 from ggshield.utils.git_shell import (
-    _get_git_path,
+    GitExecutableNotFound,
     _git_rev_parse_absolute,
+    _look_up_git,
     read_git_file,
 )
 from tests.conftest import GG_VALID_TOKEN
@@ -846,9 +848,19 @@ def _disable_keyring(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clear_cache():
-    _get_git_path.cache_clear()
+    _look_up_git.cache_clear()
     _git_rev_parse_absolute.cache_clear()
     read_git_file.cache_clear()
+
+
+@pytest.fixture
+def no_git():
+    """Make git unavailable, as on a machine where it is not installed."""
+    with patch(
+        "ggshield.utils.git_shell._look_up_git",
+        return_value=GitExecutableNotFound("no git"),
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)

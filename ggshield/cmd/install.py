@@ -7,6 +7,7 @@ from typing import Any, List, Literal, Optional
 import click
 from click import UsageError
 
+from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
@@ -70,6 +71,10 @@ fi
 )
 
 
+@uses_git(
+    GitUsage.OPTIONAL,
+    note="Git hook types require it; AI coding assistant hook types do not.",
+)
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.option(
     "--mode",

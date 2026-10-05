@@ -15,7 +15,7 @@ from pygitguardian.models import Detail, TokenScope
 
 from ggshield.core import auth_check_cache
 from ggshield.core.text_utils import pluralize
-from ggshield.utils.git_shell import InvalidGitRefError
+from ggshield.utils.git_shell import GitExecutableNotFound, InvalidGitRefError
 
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,23 @@ class ParseError(_ExitError):
 
     def __init__(self, message: str):
         super().__init__(ExitCode.UNEXPECTED_ERROR, message)
+
+
+GIT_INSTALL_HINT = "Install git and run the command again."
+
+
+class GitUnavailableError(_ExitError):
+    """
+    The command needs git, but git cannot be used on this machine
+    """
+
+    def __init__(self, reason: str) -> None:
+        ctx = click.get_current_context(silent=True)
+        subject = ctx.command_path if ctx is not None else "ggshield"
+        super().__init__(
+            ExitCode.UNEXPECTED_ERROR,
+            f"`{subject}` requires git: {reason}.\n{GIT_INSTALL_HINT}",
+        )
 
 
 class MissingScopesError(_ExitError):
@@ -183,6 +200,8 @@ def handle_exception(exc: Exception) -> int:
 
     if isinstance(exc, click.exceptions.Abort):
         return ExitCode.SUCCESS
+    if isinstance(exc, GitExecutableNotFound):
+        exc = GitUnavailableError(str(exc))
 
     # Get exit code
     if isinstance(exc, _ExitError):
