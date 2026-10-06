@@ -28,6 +28,7 @@ from ggshield.core.git_hooks.prereceive import (
     get_prereceive_timeout,
     parse_stdin,
 )
+from ggshield.core.os_truststore import setup_truststore
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import get_list_commit_SHA
 from ggshield.verticals.secret.output import (
@@ -48,6 +49,7 @@ def _execute_prereceive(
     client: GGClient,
     exclusion_regexes: Set[Pattern[str]],
 ) -> None:
+    setup_truststore()
     try:
         scan_context = ScanContext(
             scan_mode=ScanMode.PRE_RECEIVE,
@@ -137,7 +139,8 @@ def prereceive_cmd(
 
     ui.display_verbose(f"Commits to scan: {len(commit_list)}")
 
-    process = multiprocessing.Process(
+    context = multiprocessing.get_context("fork" if sys.platform == "linux" else None)
+    process = context.Process(
         target=_execute_prereceive,
         kwargs={
             "config": config,
