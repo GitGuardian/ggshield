@@ -314,6 +314,40 @@ pub fn load() -> Result<UserConfig, Error> {
     merged.resolve()
 }
 
+/// `secret.provider`, local file over global: the store verbs' default `--provider`.
+///
+/// `config_path` replaces both files, as `ggshield --config-path` does. Read on its own
+/// rather than through [`load`], whose errors are worded for the hook.
+pub fn secret_provider(config_path: Option<&Path>) -> Result<Option<String>, String> {
+    #[derive(Default, Deserialize)]
+    #[serde(default)]
+    struct Only {
+        secret: OnlySecret,
+    }
+    #[derive(Default, Deserialize)]
+    #[serde(default)]
+    struct OnlySecret {
+        provider: Option<String>,
+    }
+
+    let mut provider = None;
+    let paths = match config_path {
+        Some(path) => vec![path.to_path_buf()],
+        None => [global_config_path(), local_config_path()]
+            .into_iter()
+            .flatten()
+            .collect(),
+    };
+    for path in paths {
+        let raw = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let parsed = serde_yaml_ng::from_str::<Option<Only>>(&raw)
+            .map_err(|e| format!("{}: {e}", path.display()))?
+            .unwrap_or_default();
+        provider = parsed.secret.provider.or(provider);
+    }
+    Ok(provider)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -54,6 +54,8 @@ class SecretConfig(FilteredConfig):
     # so incidents record just the filename (e.g. `config.py` instead of
     # `src/app/config.py`).
     filename_only: bool = False
+    # Default --provider for the native store verbs (`ggshield secret get`, `ggshield run`, ...).
+    provider: Optional[str] = None
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
