@@ -25,4 +25,4 @@ def get_skip_env_var() -> bool:
     if skip_env_var is None:
         return False
 
-    return any(p.strip().lower() == "ggshield" for p in skip_env_var.split(","))
+    return any(p.strip().lower() in ["ggshield", "ggshield-push"] for p in skip_env_var.split(","))
