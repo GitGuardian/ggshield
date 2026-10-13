@@ -1,0 +1,5 @@
+# Link the MSVC runtime statically: without it ggshield.exe needs
+# VCRUNTIME140.dll, which a Windows machine without the VC++ Redistributable
+# lacks, and the process then exits before printing anything.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]
