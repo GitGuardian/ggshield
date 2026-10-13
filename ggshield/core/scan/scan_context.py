@@ -6,7 +6,13 @@ from typing import Dict, Optional, Union
 
 from ggshield import __version__
 from ggshield.core.git_hooks.ci.repository import get_repository_url_from_ci
-from ggshield.core.machine_id import _get_machine_id, _get_username
+from ggshield.core.machine_id import (
+    _get_hostname,
+    _get_machine_id,
+    _get_username,
+    endpoint_registration_opt_out,
+    running_on_ci,
+)
 from ggshield.utils.git_shell import get_repository_url_from_path
 from ggshield.utils.os import get_os_info
 
@@ -19,6 +25,9 @@ class ScanContext:
     command_path: str
     extra_headers: Optional[Dict[str, str]] = None
     target_path: Optional[Path] = None
+    # The user config's `endpoint_registration`, passed by the git and AI hook
+    # commands only: the server registers the users of hook scans from the hostname.
+    endpoint_registration: bool = False
 
     def __post_init__(self) -> None:
         self.command_id = str(uuid.uuid4())
@@ -51,6 +60,14 @@ class ScanContext:
             "Machine-Id": _get_machine_id(),
             "Machine-Username": _get_username(),
         }
+        if (
+            endpoint_registration_opt_out(self.endpoint_registration) is None
+            and not running_on_ci()
+        ):
+            hostname = _get_hostname()
+            # requests raises on a header value that latin-1 cannot encode.
+            if _encodes_to_latin1(hostname):
+                headers["Machine-Hostname"] = hostname
         repo_url = self._get_repository_url()
         if repo_url is not None:
             headers["Repository-URL"] = repo_url
@@ -65,3 +82,11 @@ class ScanContext:
                 else self.scan_mode
             ),
         }
+
+
+def _encodes_to_latin1(value: str) -> bool:
+    try:
+        value.encode("latin-1")
+    except UnicodeEncodeError:
+        return False
+    return True

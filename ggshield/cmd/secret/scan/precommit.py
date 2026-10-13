@@ -86,6 +86,7 @@ def precommit_cmd(
         scan_mode=ScanMode.PRE_COMMIT,
         command_path=ctx.command_path,
         target_path=Path.cwd(),
+        endpoint_registration=config.user_config.endpoint_registration,
     )
 
     # Get the commit object

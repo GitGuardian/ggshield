@@ -43,6 +43,8 @@ def _assert_no_repo_url_in_headers(context: ScanContext):
 @mock.patch(
     "ggshield.core.scan.scan_context.get_repository_url_from_ci", return_value=None
 )
+@mock.patch("ggshield.core.scan.scan_context.running_on_ci", return_value=False)
+@mock.patch("ggshield.core.scan.scan_context._get_hostname", return_value="laptop-42")
 @mock.patch("ggshield.core.scan.scan_context._get_username", return_value="alice")
 @mock.patch(
     "ggshield.core.scan.scan_context._get_machine_id", return_value="machine-42"
@@ -50,6 +52,8 @@ def _assert_no_repo_url_in_headers(context: ScanContext):
 def test_machine_identity_sent_on_every_scan(
     _mid: mock.MagicMock,
     _usr: mock.MagicMock,
+    _host: mock.MagicMock,
+    _on_ci: mock.MagicMock,
     _ci_url: mock.MagicMock,
     scan_mode: ScanMode,
     tmp_path: Path,
@@ -57,7 +61,8 @@ def test_machine_identity_sent_on_every_scan(
     """
     GIVEN any scan mode
     WHEN building the HTTP headers
-    THEN machine id and username ride along so the backend can identify the endpoint
+    THEN machine id and username ride along so the backend can identify the endpoint,
+        but not the hostname, which only the hook commands opt into
     """
     context = ScanContext(
         scan_mode=scan_mode,
@@ -67,6 +72,98 @@ def test_machine_identity_sent_on_every_scan(
     headers = context.get_http_headers()
     assert headers["GGShield-Machine-Id"] == "machine-42"
     assert headers["GGShield-Machine-Username"] == "alice"
+    assert "GGShield-Machine-Hostname" not in headers
+
+
+@pytest.mark.parametrize("hostname", ["laptop-42", "Clément-PC"])
+@mock.patch("ggshield.core.scan.scan_context.running_on_ci", return_value=False)
+def test_endpoint_registration_sends_the_hostname(
+    _on_ci: mock.MagicMock, hostname: str, tmp_path: Path
+) -> None:
+    """
+    GIVEN a hook command with endpoint registration on
+    WHEN building the HTTP headers
+    THEN the hostname, which the server registers hook users from, is sent
+    """
+    context = ScanContext(
+        scan_mode=ScanMode.PRE_COMMIT,
+        command_path="ggshield secret scan pre-commit",
+        target_path=tmp_path,
+        endpoint_registration=True,
+    )
+    with mock.patch(
+        "ggshield.core.scan.scan_context._get_hostname", return_value=hostname
+    ):
+        headers = context.get_http_headers()
+    assert headers["GGShield-Machine-Hostname"] == hostname
+
+
+@mock.patch("ggshield.core.scan.scan_context.running_on_ci", return_value=False)
+@mock.patch("ggshield.core.scan.scan_context._get_hostname", return_value="Łukasz-PC")
+def test_non_latin1_hostname_is_withheld(
+    _host: mock.MagicMock, _on_ci: mock.MagicMock, tmp_path: Path
+) -> None:
+    """
+    GIVEN a hostname that latin-1 cannot encode
+    WHEN building the HTTP headers
+    THEN it is not sent, since requests would fail the whole scan on it
+    """
+    context = ScanContext(
+        scan_mode=ScanMode.AI_HOOK,
+        command_path="ggshield secret scan ai-hook",
+        target_path=tmp_path,
+        endpoint_registration=True,
+    )
+    headers = context.get_http_headers()
+    assert "GGShield-Machine-Hostname" not in headers
+    assert "GGShield-Machine-Id" in headers
+
+
+@mock.patch("ggshield.core.scan.scan_context.running_on_ci", return_value=False)
+@mock.patch("ggshield.core.scan.scan_context._get_hostname", return_value="laptop-42")
+def test_registration_opt_out_withholds_the_hostname(
+    _host: mock.MagicMock,
+    _on_ci: mock.MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """
+    GIVEN GGSHIELD_NO_ENDPOINT_REGISTRATION set
+    WHEN a hook command builds the HTTP headers
+    THEN the hostname is not sent, while the machine id and username still are
+    """
+    monkeypatch.setenv("GGSHIELD_NO_ENDPOINT_REGISTRATION", "1")
+    context = ScanContext(
+        scan_mode=ScanMode.AI_HOOK,
+        command_path="ggshield secret scan ai-hook",
+        target_path=tmp_path,
+        endpoint_registration=True,
+    )
+    headers = context.get_http_headers()
+    assert "GGShield-Machine-Hostname" not in headers
+    assert "GGShield-Machine-Id" in headers
+    assert "GGShield-Machine-Username" in headers
+
+
+@mock.patch("ggshield.core.scan.scan_context.running_on_ci", return_value=True)
+@mock.patch("ggshield.core.scan.scan_context._get_hostname", return_value="laptop-42")
+def test_ci_withholds_the_hostname(
+    _host: mock.MagicMock, _on_ci: mock.MagicMock, tmp_path: Path
+) -> None:
+    """
+    GIVEN a scan running on a CI runner, such as a pre-commit hook in a pipeline
+    WHEN building the HTTP headers
+    THEN the hostname is not sent, so the server does not register the runner
+    """
+    context = ScanContext(
+        scan_mode=ScanMode.PRE_COMMIT,
+        command_path="ggshield secret scan pre-commit",
+        target_path=tmp_path,
+        endpoint_registration=True,
+    )
+    headers = context.get_http_headers()
+    assert "GGShield-Machine-Hostname" not in headers
+    assert "GGShield-Machine-Id" in headers
 
 
 def test_scan_context_no_repo(

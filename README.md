@@ -192,6 +192,21 @@ To use `ggshield` you need to authenticate against GitGuardian servers. To do so
 
 You can learn more about it from [`ggshield auth login` documentation](https://docs.gitguardian.com/internal-repositories-monitoring/ggshield/reference/auth/login).
 
+After authenticating, run `ggshield machine setup` to configure AI and git hooks,
+plant honeytokens, and register the machine on the Endpoints page before its first
+scan. Registration includes the current user, or all honeytoken target users when
+running as root. It is best effort, takes at most five seconds, and does not affect
+the command's exit code.
+
+The scans of `ggshield secret scan pre-commit`, `pre-push` and `ai-hook` also send
+the machine hostname, from which GitGuardian registers the users of these hooks.
+Other scan commands do not send it, nor does the native AI hook that standalone and
+platform-specific `pip` installs run.
+
+On CI, ggshield neither registers the machine nor sends the hostname. To turn both
+off elsewhere, set `endpoint_registration: false` in `.gitguardian.yaml`, or set
+`GGSHIELD_NO_ENDPOINT_REGISTRATION` to a non-empty value.
+
 ## Manual setup
 
 You can also create your personal access token manually and store it in the `GITGUARDIAN_API_KEY` environment variable to complete the setup.
