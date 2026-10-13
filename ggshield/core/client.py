@@ -26,6 +26,7 @@ from .errors import (
     ServiceUnavailableError,
     UnexpectedError,
     UnknownInstanceError,
+    is_html_page,
 )
 from .ui.client_callbacks import ClientCallbacks
 
@@ -302,6 +303,11 @@ def _check_metadata_response(client: GGClient, response: Detail | None) -> None:
             "The server returned a 404 error. Check your instance URL settings.",
         )
     if response.status_code is not None and 500 <= response.status_code < 600:
+        if is_html_page(response.detail):
+            logger.debug("detail=%s", response.detail)
+            raise ServiceUnavailableError(
+                message=f"The GitGuardian server returned an error (HTTP {response.status_code}).",
+            )
         raise ServiceUnavailableError(
             message=f"GitGuardian server is not responding.\nDetails: {response.detail}",
         )

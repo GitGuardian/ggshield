@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
-from pygitguardian.models import MultiScanResult
+from pygitguardian.models import Detail, MultiScanResult
 
 from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
@@ -557,6 +557,27 @@ class TestScanDirectory:
             and arg.get("GGShield-Repository-URL") == "github.com/owner/repository"
             for arg in scan_mock.call_args[0]
         )
+
+    @patch("pygitguardian.GGClient.multi_content_scan")
+    @my_vcr.use_cassette("test_scan_file")
+    def test_scan_path_html_server_error(
+        self,
+        scan_mock: Mock,
+        cli_fs_runner: CliRunner,
+    ) -> None:
+        """
+        GIVEN the API answers a scan with an HTML 500 page
+        WHEN executing a scan
+        THEN ggshield prints one readable line instead of the page
+        """
+        write_text(Path("file.txt"), "Hello")
+        scan_mock.return_value = Detail("<html><body><h1>Error</h1></body></html>", 500)
+
+        result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file.txt"])
+
+        assert_invoke_exited_with(result, ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE)
+        assert "internal error (HTTP 500)" in result.output
+        assert "<html>" not in result.output
 
     @pytest.mark.parametrize("filename_only", (True, False))
     @patch("pygitguardian.GGClient.multi_content_scan")

@@ -230,6 +230,11 @@ def handle_exception(exc: Exception) -> int:
     return exit_code
 
 
+def is_html_page(text: str) -> bool:
+    # pygitguardian drops the content-type of non-JSON bodies, so sniff the text.
+    return text.lstrip().startswith("<")
+
+
 def handle_api_error(detail: Detail) -> None:
     # Use %s for status_code because it can be None. Logger is OK with an int being
     # passed for a %s placeholder.
@@ -249,4 +254,11 @@ def handle_api_error(detail: Detail) -> None:
     if detail.status_code == 400 and "not found" in detail.detail:
         raise UnexpectedError(detail.detail)
     if 500 <= detail.status_code < 600:
+        if is_html_page(detail.detail):
+            raise ServiceUnavailableError(
+                "The GitGuardian API failed with an internal error"
+                f" (HTTP {detail.status_code}). This can happen when a scan takes"
+                " longer than the server allows. Re-run the command with --debug to"
+                " see the server response."
+            )
         raise ServiceUnavailableError(detail.detail)
