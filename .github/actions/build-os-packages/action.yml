@@ -77,13 +77,13 @@ runs:
           X64)
             ARCH=x86_64
             NFPM_ARCH=x86_64
-            PYTHON_SHA256=d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb
+            PYTHON_SHA256=ddc902fd26460f728758c67d80417c1031edf97589f1f162c4ba3aa158a35998
             NFPM_SHA256=9f8effa24bc6033b509611dbe68839542a63e825525b195672298c369051ef0b
             ;;
           ARM64)
             ARCH=aarch64
             NFPM_ARCH=arm64
-            PYTHON_SHA256=44f86d58f3bbc1aa6c95ee90f03226e0fdbd22475a98c4410e5a20042b7f40d3
+            PYTHON_SHA256=54f9cd13b97add6bbd077175b6d89f974cc582ece1c40ace1893067582edaf0e
             NFPM_SHA256=ccfc3a154dec318100c6b6e28deddef0a1ffddf5e258364d74b647a129c72a0e
             ;;
           *)
@@ -101,8 +101,8 @@ runs:
           findutils
 
         # Install Python 3.14 (we can't use the one from setup-python@v5: it requires a more recent version of libc)
-        PYTHON_VERSION=3.14.6
-        PYTHON_BUILD=20260728
+        PYTHON_VERSION=3.14.8
+        PYTHON_BUILD=20261009
         scripts/download \
           https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-unknown-linux-gnu-install_only_stripped.tar.gz \
           python.tar.gz \
@@ -132,12 +132,12 @@ runs:
         case "${{ runner.arch }}" in
           X64)
             ARCH=x86_64
-            PYTHON_SHA256=26e384a6000a2c6e7484bca9c6441553c0c9f701c87dcd2e632d994edd000e9c
+            PYTHON_SHA256=9694bf8c8c1fb1250dd6f05e7914ebbbe7180e0f11b7feaf5edb2f6acebe4153
             RCODESIGN_SHA256=bca6e648afaddd48f1c3d5dd25aa516659992cbbd2ba7131ba6add739aa895d3
             ;;
           ARM64)
             ARCH=aarch64
-            PYTHON_SHA256=1c7e8db27d1f5c029c232406103b7216baaa8a32a900a64f6dee20f8eaaca1af
+            PYTHON_SHA256=ff8e1ddc02a9df3190b62d5af475cb642a02cfc77901ef780f9826cc23b51934
             RCODESIGN_SHA256=163520079cd6ad1427791c792735a6ddfcb8eca0187bbcf0cc0bebfa4a62153d
             ;;
           *)
@@ -153,8 +153,8 @@ runs:
         # macs it installs the Framework version of Python, and the binaries
         # produced with that version do not pass Apple notarization step.
         # (tested with actions/setup-python@v4 and @v5)
-        PYTHON_VERSION=3.14.6
-        PYTHON_BUILD=20260728
+        PYTHON_VERSION=3.14.8
+        PYTHON_BUILD=20261009
 
         scripts/download \
           https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-apple-darwin-install_only.tar.gz \
