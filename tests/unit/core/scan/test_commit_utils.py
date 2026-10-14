@@ -1,3 +1,4 @@
+import re
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
@@ -197,3 +198,66 @@ def test_binary_file_in_patch_is_reported(display_warning):
     assert paths == [Path("notes.txt")]
     display_warning.assert_called_once()
     assert "credentials.txt" in display_warning.call_args[0][0]
+
+
+PATCH_WITH_BINARY_IMAGE = (
+    """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
+Author: Testificate Jose <test@test.test>
+Date:   Fri Oct 18 13:20:00 2012 +0100
+"""
+    + ":000000 100644 0000000 19465ef A\0notes.txt\0"
+    + ":100644 100644 6546aef b41653f M\0logo.png\0"
+    + """\0diff --git a/notes.txt b/notes.txt
+new file mode 100644
+index 0000000..19465ef
+--- /dev/null
++++ b/notes.txt
+@@ -0,0 +1 @@
++nothing to see
+
+diff --git a/logo.png b/logo.png
+index 6546aef..b41653f 100644
+Binary files a/logo.png and b/logo.png differ
+"""
+)
+
+
+@patch("ggshield.core.ui.display_verbose")
+@patch("ggshield.core.ui.display_warning")
+def test_expected_binary_file_in_patch_is_only_verbose(
+    display_warning, display_verbose
+):
+    """
+    GIVEN a patch where the file git considered binary has a binary extension
+    WHEN Commit.get_files() is called
+    THEN it is mentioned in verbose output rather than warned about
+    """
+    commit = Commit.from_patch(PATCH_WITH_BINARY_IMAGE)
+
+    paths = [file.path for file in commit.get_files()]
+
+    assert paths == [Path("notes.txt")]
+    display_warning.assert_not_called()
+    display_verbose.assert_called_once()
+    assert "logo.png" in display_verbose.call_args[0][0]
+
+
+@patch("ggshield.core.ui.display_verbose")
+@patch("ggshield.core.ui.display_warning")
+def test_excluded_binary_file_in_patch_is_not_reported(
+    display_warning, display_verbose
+):
+    """
+    GIVEN a patch where the file git considered binary is excluded from the scan
+    WHEN Commit.get_files() is called
+    THEN nothing is said about it
+    """
+    commit = Commit.from_patch(
+        PATCH_WITH_BINARY_FILE, exclusion_regexes={re.compile(r"credentials\.txt")}
+    )
+
+    paths = [file.path for file in commit.get_files()]
+
+    assert paths == [Path("notes.txt")]
+    display_warning.assert_not_called()
+    display_verbose.assert_not_called()

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Pattern, Set, Tuple
 
 from ggshield.core import ui
-from ggshield.utils.files import is_path_excluded
+from ggshield.utils.files import is_path_binary, is_path_excluded
 from ggshield.utils.git_shell import Filemode, git
 from ggshield.utils.itertools import batched
 
@@ -36,7 +36,9 @@ DIFF_EMPTY_COMMIT_INFO_BLOCK = """Author:   <>\nDate:  \n:"""
 _RX_HEADER_FILE_LINE_SEPARATOR = re.compile("[\n\0]:", re.MULTILINE)
 
 # Match the line git emits instead of a diff when it decides a file is binary
-BINARY_DIFF_RX = re.compile(r"^(Binary files .* differ|GIT binary patch)$", flags=re.MULTILINE)
+BINARY_DIFF_RX = re.compile(
+    r"^(Binary files .* differ|GIT binary patch)$", flags=re.MULTILINE
+)
 
 # Match the path in the "diff --git a/file_path b/file_path" line. A binary diff has no
 # "---" or "+++" lines, so this is the only place its path appears.
@@ -294,10 +296,22 @@ def parse_patch(
                 # instead of dropping it in silence.
                 if BINARY_DIFF_RX.search(diff):
                     name_match = GIT_DIFF_NAME_RX.search(diff)
-                    name = name_match.group(1) if name_match else "a file"
-                    ui.display_warning(
-                        f"Not scanning {name}: git considers it binary."
-                    )
+                    name = name_match.group(1) if name_match else None
+                    if name is None:
+                        ui.display_warning(
+                            "Not scanning a file: git considers it binary."
+                        )
+                    elif not is_path_excluded(name, exclusion_regexes):
+                        # A file whose extension is already known to be binary is
+                        # not a surprise, so keep those to verbose output. The rest
+                        # are worth a warning, since the user probably expected
+                        # them to be scanned.
+                        display = (
+                            ui.display_verbose
+                            if is_path_binary(name)
+                            else ui.display_warning
+                        )
+                        display(f"Not scanning {name}: git considers it binary.")
                 continue
             diff_header = diff[:content_start]
             content = diff[content_start:]
