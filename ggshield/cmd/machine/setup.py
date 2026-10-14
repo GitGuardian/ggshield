@@ -16,6 +16,7 @@ from ggshield.cmd.install import (
     install_system,
     upgrade_hook,
 )
+from ggshield.cmd.machine.registration import register_endpoint
 from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
@@ -103,6 +104,12 @@ def setup_cmd(
     `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
     narrow which assistants get the AI hook. When run as root (or with
     `--system`), the git hooks are installed machine-wide for every user.
+
+    Finally, registers this machine and the honeytoken target users on the
+    Endpoints page, even before the first scan. This best-effort step takes at
+    most five seconds and never changes the exit code. It is skipped on CI, with
+    `endpoint_registration: false` in .gitguardian.yaml, or when
+    GGSHIELD_NO_ENDPOINT_REGISTRATION is set to a non-empty value.
     """
     if agents and exclude_agents:
         raise click.UsageError("--agent and --exclude-agent cannot be used together.")
@@ -120,6 +127,8 @@ def setup_cmd(
     if not no_honeytokens:
         if not _setup_honeytokens(ctx):
             failed = True
+
+    _setup_endpoint_registration(ctx)
 
     return 1 if failed else 0
 
@@ -255,3 +264,11 @@ def _setup_honeytokens(ctx: click.Context) -> bool:
     """Plant a honeytoken on this machine (idempotent reconcile via `plant`)."""
     click.echo(click.style("Honeytoken", bold=True))
     return ctx.invoke(plant_cmd) == 0
+
+
+def _setup_endpoint_registration(ctx: click.Context) -> None:
+    try:
+        message = register_endpoint(ContextObj.get(ctx).config)
+    except Exception:
+        message = "warning: endpoint registration failed"
+    click.echo(click.style("Endpoints", bold=True) + f": {message}")

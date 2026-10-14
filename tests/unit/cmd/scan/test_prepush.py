@@ -171,6 +171,7 @@ class TestPrepush:
                 scan_mode=ScanMode.PRE_PUSH,
                 command_path="cli secret scan pre-push",
                 target_path=local_repo.path,
+                endpoint_registration=True,
             ),
             secret_config=ANY,
         )

@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Optional
 
 from ggshield.core.dirs import get_user_home_dir
+from ggshield.core.errors import UnexpectedError
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 
 
 _MAC_IOREG_UUID_RE = re.compile(r'"IOPlatformUUID"\s*=\s*"([^"]+)"')
@@ -29,6 +31,27 @@ _MAC_IOREG_UUID_RE = re.compile(r'"IOPlatformUUID"\s*=\s*"([^"]+)"')
 # startup (and thus git hooks) indefinitely — on timeout we fall through to the
 # cache/random path.
 _SUBPROCESS_TIMEOUT = 5
+
+
+def endpoint_registration_opt_out(enabled_in_config: bool) -> Optional[str]:
+    """What turned off registration from `machine setup` and the hostname on hook
+    scans, from which the server registers hook users, if anything."""
+    if os.getenv("GGSHIELD_NO_ENDPOINT_REGISTRATION"):
+        return "GGSHIELD_NO_ENDPOINT_REGISTRATION"
+    if not enabled_in_config:
+        return "endpoint_registration: false"
+    return None
+
+
+def running_on_ci() -> bool:
+    """A CI runner is not an endpoint, even when it runs git or AI hooks."""
+    if os.getenv("CI"):
+        return True
+    try:
+        SupportedCI.from_ci_env()
+    except UnexpectedError:
+        return False
+    return True
 
 
 def _get_hostname() -> str:

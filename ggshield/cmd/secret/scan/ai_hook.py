@@ -59,6 +59,7 @@ def ai_hook_cmd(
                 scan_mode=ScanMode.AI_HOOK,
                 command_path=ctx.command_path,
                 extra_headers=build_agent_headers(stdin_content),
+                endpoint_registration=config.user_config.endpoint_registration,
             ),
             # The hook always scans and never creates incidents: source_uuid
             # would route it to scan_and_create_incidents, which cannot request

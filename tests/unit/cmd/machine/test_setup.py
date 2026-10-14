@@ -17,6 +17,11 @@ from ggshield.verticals.ai.installation import (
 from tests.unit.conftest import assert_invoke_ok
 
 
+@pytest.fixture(autouse=True)
+def no_endpoint_registration(monkeypatch):
+    monkeypatch.setenv("GGSHIELD_NO_ENDPOINT_REGISTRATION", "1")
+
+
 AGENTS_PATH = "ggshield.verticals.ai.installation.AGENTS"
 
 

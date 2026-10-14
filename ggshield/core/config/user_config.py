@@ -106,6 +106,9 @@ class UserConfig(FilteredConfig):
     api_timeout: int = DEFAULT_API_TIMEOUT
     secret: SecretConfig = field(default_factory=SecretConfig)
     debug: bool = False
+    # Registration by `machine setup` and the hostname on hook scans. Can also be
+    # turned off with the GGSHIELD_NO_ENDPOINT_REGISTRATION environment variable.
+    endpoint_registration: bool = True
 
     # If we hit any deprecated syntax when loading a configuration file, we do not
     # display them directly, otherwise the messages would also be shown when running
