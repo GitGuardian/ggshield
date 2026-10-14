@@ -605,6 +605,22 @@ def test_create_client_from_config_accepts_the_highest_timeout(
     assert client.timeout == 3600
 
 
+def test_check_client_api_key_html_5xx():
+    """
+    GIVEN a metadata endpoint answering a 500 with an HTML error page
+    WHEN check_client_api_key() is called
+    THEN the ServiceUnavailableError names the status code, not the page
+    """
+    client_mock = _make_client_mock()
+    client_mock.read_metadata.return_value = Detail(
+        "<html><body><h1>Error</h1></body></html>", 500
+    )
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        check_client_api_key(client_mock, set())
+
+    assert str(exc_info.value) == "The GitGuardian server returned an error (HTTP 500)."
+
+
 # The tests below drive a real local server rather than mocking exceptions, so
 # the whole requests -> urllib3 -> Retry stack is exercised. pytest-socket's
 # allow_hosts marker keeps them to loopback; do not add enable_socket, which
