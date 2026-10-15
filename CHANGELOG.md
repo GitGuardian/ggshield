@@ -1,354 +1,205 @@
 # Changelog
 
+<a id='changelog-1.56.0'></a>
+
+## 1.56.0 — 2026-10-15
+
+### Added
+
+- `honeytoken plant` can now plant kubeconfig honeytokens (`--type kubeconfig`, `--method kubeconfig`). The decoy context, cluster and user are merged into `~/.kube/config` next to the user's real entries and removed again when the honeytoken is revoked. On a fresh kubeconfig the decoy becomes the `current-context`; an existing active context is never changed, so the owner's own `kubectl` cannot trip the decoy.
+
+- `ggshield machine setup` now registers the machine on the GitGuardian Endpoints page, so it is listed before its first scan.
+
+- `ggshield secret scan pre-commit`, `pre-push` and `ai-hook` now send the machine hostname, from which GitGuardian registers the users of these hooks. Other scan commands and the native AI hook do not send it, and no scan sends it on CI.
+
+- Set `endpoint_registration: false` in `.gitguardian.yaml`, or `GGSHIELD_NO_ENDPOINT_REGISTRATION` to a non-empty value, to turn both off.
+
+### Changed
+
+- Commands that need git now say so in their `--help`, and when git is not installed they report which command it needs, and how to install it.
+
+- `machine setup` and `machine doctor` no longer crash when git is not installed: the git hooks step is skipped with a warning, and `doctor` reports it as skipped without failing.
+
+- `secret scan path --use-gitignore` reports that it requires git instead of failing with an unexpected error.
+
+- The Linux and macOS release binaries now bundle Python 3.14.8 instead of 3.14.6, fixing `CVE-2026-19445` and `CVE-2026-19553` in the bundled interpreter.
+
+### Fixed
+
+- `honeytoken plant` no longer echoes a line of `~/.aws/credentials` when the file cannot be parsed. The parser quotes the offending line, so a corrupt credentials file printed the user's real secret key on stderr, and into the fleet logs when plant runs under an MDM. Only the error type and the line number are reported now.
+
+- `ggshield secret scan pre-receive` now uses the system trust store in its child process, which no longer inherited it on Python 3.14 (#1508).
+
+- `ggshield secret scan ai-hook` now verifies the instance's TLS certificate against the OS trust store.
+
+- `ggshield secret scan ai-hook` now honors `REQUESTS_CA_BUNDLE` and `CURL_CA_BUNDLE`, from the environment or `.env`, like the rest of ggshield. A path that does not exist makes the scan fail, as it already does for other commands.
+
+- On Windows, `ggshield` starts on machines without the Microsoft Visual C++ Redistributable. Since 1.54.0 it exited silently there, because the launcher needed `VCRUNTIME140.dll`. `install.ps1` also reports an error when the installed `ggshield` cannot run.
+
+- Secret scans no longer fail with a server error when a batch of files goes over the API payload limit once JSON-encoded (escaped quotes, newlines, non-ASCII or control characters). Batches are now sized by their encoded length, and a file too large to fit in any request is skipped with a message.
+
+- The AI hook no longer lets a tool call through unscanned when its content goes over the API payload limit once JSON-encoded: batches are sized the same way.
+
+- The AI hook no longer has Claude Code echo the blocked prompt back: a prompt blocked because it holds a secret used to be shown again after "Original prompt:" in the block message, secret included. The hook now sets `suppressOriginalPrompt`.
+
+- When the GitGuardian API fails with an HTML error page, for example on a scan that runs past the server time limit, ggshield now prints a one-line error with the HTTP status instead of the page. The page is still logged with `--debug`.
+
 <a id='changelog-1.55.0'></a>
 
 ## 1.55.0 — 2026-09-24
 
 ### Added
 
-- ggshield now supports Amazon Kiro, both the IDE and the CLI.
-  `ggshield machine setup` installs the secret-scanning hooks in
-  `~/.kiro/hooks/`, and MCP servers, tool calls and past usage are reported
-  like they are for every other assistant.
+- ggshield now supports Amazon Kiro, both the IDE and the CLI. `ggshield machine setup` installs the secret-scanning hooks in `~/.kiro/hooks/`, and MCP servers, tool calls and past usage are reported like they are for every other assistant.
 
-- ggshield now supports Junie CLI, JetBrains' terminal coding agent.
-  `ggshield machine setup` installs the secret-scanning hooks in
-  `~/.junie/config.json`, and MCP servers and past usage are reported like they
-  are for every other assistant. Junie inside a JetBrains IDE is not covered:
-  it embeds Junie over ACP, which invokes no hooks.
+- ggshield now supports Junie CLI, JetBrains' terminal coding agent. `ggshield machine setup` installs the secret-scanning hooks in `~/.junie/config.json`, and MCP servers and past usage are reported like they are for every other assistant. Junie inside a JetBrains IDE is not covered: it embeds Junie over ACP, which invokes no hooks.
 
 - The time ggshield waits for the GitGuardian API to answer, until now fixed at 60 seconds, can be changed with the `api_timeout` config key or the `GITGUARDIAN_API_TIMEOUT` environment variable, which takes precedence. It accepts 1 to 3600 seconds. Raise it if a large scan fails with a read timeout.
 
 ### Changed
 
-- The README now warns, at the top, that upgrading to 1.54.0 on macOS triggers
-  a Keychain prompt for `ggshield-py`, the second binary that reads the saved
-  token, and that clicking **Always Allow** settles it for good.
+- The README now warns, at the top, that upgrading to 1.54.0 on macOS triggers a Keychain prompt for `ggshield-py`, the second binary that reads the saved token, and that clicking **Always Allow** settles it for good.
 
-- The Linux rpm now owns its bundle directories, so upgrades no longer leave
-  empty `*.dist-info` directories behind.
+- The Linux rpm now owns its bundle directories, so upgrades no longer leave empty `*.dist-info` directories behind.
 
-- When the AI hook finds a secret in a tool output on Claude Code or Codex, the
-  output is now withheld from the assistant instead of being passed to it with a
-  warning attached. The assistant reads the block message in place of the output,
-  so the secret stays out of its context and out of the session transcript on
-  disk, and the message no longer tells you to revoke a credential the assistant
-  never read. Agents with no way to replace a tool output are unchanged and keep
-  reporting the secret as leaked.
-- On Codex, a blocked tool output was already hidden from the assistant, but the
-  message still said the secret had been exposed and told you to revoke it. It
-  now reports the output as withheld.
-- Mistral Vibe behaves the same way as Codex and now reports a blocked tool
-  output as withheld rather than leaked.
+- When the AI hook finds a secret in a tool output on Claude Code or Codex, the output is now withheld from the assistant instead of being passed to it with a warning attached. The assistant reads the block message in place of the output, so the secret stays out of its context and out of the session transcript on disk, and the message no longer tells you to revoke a credential the assistant never read. Agents with no way to replace a tool output are unchanged and keep reporting the secret as leaked.
+- On Codex, a blocked tool output was already hidden from the assistant, but the message still said the secret had been exposed and told you to revoke it. It now reports the output as withheld.
+- Mistral Vibe behaves the same way as Codex and now reports a blocked tool output as withheld rather than leaked.
 
-- The Docker image now ships bytecode for the standard library, so ggshield starts
-  faster in containers.
+- The Docker image now ships bytecode for the standard library, so ggshield starts faster in containers.
 
-- `secret scan pre-receive` no longer checks for a new ggshield version unless
-  `--check-for-updates` is passed.
+- `secret scan pre-receive` no longer checks for a new ggshield version unless `--check-for-updates` is passed.
 
-- The API key check fetches server metadata and token scopes concurrently instead of
-  one after the other, saving a round trip on every scan.
+- The API key check fetches server metadata and token scopes concurrently instead of one after the other, saving a round trip on every scan.
 
 - ggshield now requires `py-gitguardian` 1.35.0.
 
 ### Fixed
 
-- Report the raw `mcp_{server}_{tool}` name VSCode gives us when the server cannot
-  be identified from the local configuration, instead of guessing a server name that
-  the API cannot match. The API splits the name against the whole inventory.
+- Report the raw `mcp_{server}_{tool}` name VSCode gives us when the server cannot be identified from the local configuration, instead of guessing a server name that the API cannot match. The API splits the name against the whole inventory.
 
-- The Linux rpm package could crash on startup after an in-place upgrade,
-  because empty `*.dist-info` directories were left behind. They are now
-  removed during the upgrade.
+- The Linux rpm package could crash on startup after an in-place upgrade, because empty `*.dist-info` directories were left behind. They are now removed during the upgrade.
 
-- `ggshield auth login` can now be interrupted with Ctrl+C on Windows while it
-  waits for the browser callback. The local callback server used to block
-  indefinitely, so the interrupt was only noticed once the login completed.
+- `ggshield auth login` can now be interrupted with Ctrl+C on Windows while it waits for the browser callback. The local callback server used to block indefinitely, so the interrupt was only noticed once the login completed.
 
-- The AI hook no longer rejects a hook event whose payload starts with a UTF-8
-  BOM, which Cursor on Windows prepends. Prompts and tool calls were reaching
-  the agent unscanned.
+- The AI hook no longer rejects a hook event whose payload starts with a UTF-8 BOM, which Cursor on Windows prepends. Prompts and tool calls were reaching the agent unscanned.
 
-- Installing the AI hook for Codex now says that Codex will not run the hook
-  until it is approved in the Codex hook review, so the install no longer looks
-  complete while nothing is being scanned.
+- Installing the AI hook for Codex now says that Codex will not run the hook until it is approved in the Codex hook review, so the install no longer looks complete while nothing is being scanned.
 
-- `ggshield machine doctor` and the AI discovery no longer report an assistant as
-  unprotected when its hook command points at a live binary that a next upgrade
-  would break. Only a missing or dead command now reads as not installed, and the
-  command found in the settings file is reported either way.
+- `ggshield machine doctor` and the AI discovery no longer report an assistant as unprotected when its hook command points at a live binary that a next upgrade would break. Only a missing or dead command now reads as not installed, and the command found in the settings file is reported either way.
 
-- The AI hook no longer mistakes another assistant for Claude Code when the
-  transcript path merely contains "claude". A Cursor session working in a
-  project directory such as `claude-tools` was answered in Claude Code's output
-  format, which Cursor ignores, so a blocked tool call ran anyway. Every
-  assistant is now identified by a field only it sends, and Claude Code answers
-  for what remains, whatever directory it keeps its transcripts in.
+- The AI hook no longer mistakes another assistant for Claude Code when the transcript path merely contains "claude". A Cursor session working in a project directory such as `claude-tools` was answered in Claude Code's output format, which Cursor ignores, so a blocked tool call ran anyway. Every assistant is now identified by a field only it sends, and Claude Code answers for what remains, whatever directory it keeps its transcripts in.
 
 - A scan request that times out waiting for the server's response now fails immediately instead of being retried for several minutes. The server has already accepted the request by the time this happens, so retrying only made it redo the same (possibly large) scan up to six times while the user waited.
 
-- Commit scans (`secret scan repo`, `commit-range`, `changes`, `ci`, `pre-push`,
-  `pre-receive`) processed batches one at a time, ignoring `GG_MAX_WORKERS`.
-  Batches now run in parallel, which can speed up large scans considerably.
+- Commit scans (`secret scan repo`, `commit-range`, `changes`, `ci`, `pre-push`, `pre-receive`) processed batches one at a time, ignoring `GG_MAX_WORKERS`. Batches now run in parallel, which can speed up large scans considerably.
 
-- When two ggshield AI hooks are configured for the same event, the second one no
-  longer exits without a verdict. Both now answer with the same decision, and the
-  event still costs a single scan.
+- When two ggshield AI hooks are configured for the same event, the second one no longer exits without a verdict. Both now answer with the same decision, and the event still costs a single scan.
 
-- The AI hook no longer stops recognising Copilot CLI when its hook payload
-  carries a field ggshield has not seen before. Copilot CLI was identified by
-  an exact set of payload keys, so the first release adding any field would
-  have left its payloads claimed by no assistant at all, and an unrecognised
-  payload exits without a verdict and lets the tool call through unscanned.
+- The AI hook no longer stops recognising Copilot CLI when its hook payload carries a field ggshield has not seen before. Copilot CLI was identified by an exact set of payload keys, so the first release adding any field would have left its payloads claimed by no assistant at all, and an unrecognised payload exits without a verdict and lets the tool call through unscanned.
 
-- `ggshield --no-check-for-updates <command>` was ignored when the option came before
-  the subcommand.
+- `ggshield --no-check-for-updates <command>` was ignored when the option came before the subcommand.
 
-- Running a command without an API key for a self-hosted instance now says how to
-  authenticate against that instance, instead of reporting `Unknown instance`.
+- Running a command without an API key for a self-hosted instance now says how to authenticate against that instance, instead of reporting `Unknown instance`.
 
-- `ggshield` no longer hangs when the working directory contains a `.env` FIFO
-  with no writer attached, as mounted by 1Password Environments.
+- `ggshield` no longer hangs when the working directory contains a `.env` FIFO with no writer attached, as mounted by 1Password Environments.
 
-- `ggshield machine setup` and `ggshield machine doctor` no longer treat a global
-  or system git hook generated by an older ggshield as correctly configured. Those
-  hooks skip the repository's own hook in linked worktrees. Generated hooks now
-  carry a version stamp; `doctor` fails on an outdated one and `setup` rewrites the
-  block it generated, leaving any other line in the file untouched.
+- `ggshield machine setup` and `ggshield machine doctor` no longer treat a global or system git hook generated by an older ggshield as correctly configured. Those hooks skip the repository's own hook in linked worktrees. Generated hooks now carry a version stamp; `doctor` fails on an outdated one and `setup` rewrites the block it generated, leaving any other line in the file untouched.
 
-- `ggshield machine setup` now exits non-zero when a non-ggshield git hook is
-  already present, instead of reporting success on a machine with no ggshield hook.
+- `ggshield machine setup` now exits non-zero when a non-ggshield git hook is already present, instead of reporting success on a machine with no ggshield hook.
 
-- `ggshield machine doctor` and `ggshield machine setup` now judge only the hooks
-  directory `core.hooksPath` actually points at. Leftover files in the directory
-  ggshield installs into used to sway the verdict, and `setup` could repair such a
-  hook and report success without ever pointing git at it.
+- `ggshield machine doctor` and `ggshield machine setup` now judge only the hooks directory `core.hooksPath` actually points at. Leftover files in the directory ggshield installs into used to sway the verdict, and `setup` could repair such a hook and report success without ever pointing git at it.
 
 ### Security
 
-- The Docker image now installs its Python dependencies from `uv.lock` instead
-  of re-resolving the version ranges in `pyproject.toml` at build time. The
-  image therefore gets the same hash-verified versions as CI, and the rolling
-  `exclude-newer = "3 days"` quarantine now applies to it too.
+- The Docker image now installs its Python dependencies from `uv.lock` instead of re-resolving the version ranges in `pyproject.toml` at build time. The image therefore gets the same hash-verified versions as CI, and the rolling `exclude-newer = "3 days"` quarantine now applies to it too.
 
 <a id='changelog-1.54.0'></a>
 
 ## 1.54.0 — 2026-08-26
 
-- `pip`/`pipx` installs now ship the native Rust `ggshield` on common platforms
-  (Linux x86-64/aarch64 for glibc and musl, macOS universal2, Windows x86-64); the Python implementation is installed
-  alongside as `ggshield-py`. Platforms without a native wheel fall back to the
-  pure-Python wheel, where `ggshield` is the Python entry point — as does
-  Homebrew, which builds from the source distribution.
+- `pip`/`pipx` installs now ship the native Rust `ggshield` on common platforms (Linux x86-64/aarch64 for glibc and musl, macOS universal2, Windows x86-64); the Python implementation is installed alongside as `ggshield-py`. Platforms without a native wheel fall back to the pure-Python wheel, where `ggshield` is the Python entry point — as does Homebrew, which builds from the source distribution.
 
 ### Added
 
-- Add secret-scanning hook support for Mistral Vibe 2.21 and later. Global and
-  project installation preserves existing `hooks.toml` content and configures
-  Vibe's `pre_tool` and `post_tool` events.
+- Add secret-scanning hook support for Mistral Vibe 2.21 and later. Global and project installation preserves existing `hooks.toml` content and configures Vibe's `pre_tool` and `post_tool` events.
 
-- A native `ggshield-hook` binary implements `ggshield secret scan ai-hook`,
-  removing the interpreter startup cost the hook paid twice per tool call. It
-  resolves the instance's scan limits from the same places ggshield does
-  (`GG_MAX_DOC_SIZE` / `GG_MAX_DOCS`, the on-disk auth-check cache, then
-  `/v1/metadata`), so a document or a batch the instance would reject is split or
-  skipped instead of failing the scan. It caches what it learns from
-  `/v1/metadata` for five minutes, so a hook path where only the native binary
-  runs does not pay that round trip on every scan.
+- A native `ggshield-hook` binary implements `ggshield secret scan ai-hook`, removing the interpreter startup cost the hook paid twice per tool call. It resolves the instance's scan limits from the same places ggshield does (`GG_MAX_DOC_SIZE` / `GG_MAX_DOCS`, the on-disk auth-check cache, then `/v1/metadata`), so a document or a batch the instance would reject is split or skipped instead of failing the scan. It caches what it learns from `/v1/metadata` for five minutes, so a hook path where only the native binary runs does not pay that round trip on every scan.
 
-- The native hook now honours the `GITGUARDIAN_INSTANCE`, `GITGUARDIAN_API_URL`
-  and `GITGUARDIAN_API_KEY` settings a `.env` file provides, instead of declining
-  to scan when it found one. It reads the file from the same places ggshield does
-  (`GITGUARDIAN_DOTENV_PATH`, then the working directory, then the repository
-  root), and gives it the same precedence: a value in the `.env` overrides the
-  same variable already exported in the environment. A self-hosted instance
-  configured through a `.env` is therefore scanned against, rather than left
-  unscanned. Two caveats: an unbraced `$` in a value is expanded as a variable
-  reference (so `GITGUARDIAN_API_KEY=abc$def` resolves to `abc` — quote it as
-  `'abc$def'` to keep the `$`), and a `GITGUARDIAN_*` line the parser rejects
-  still leaves the action unscanned, with a message naming the variable.
+- The native hook now honours the `GITGUARDIAN_INSTANCE`, `GITGUARDIAN_API_URL` and `GITGUARDIAN_API_KEY` settings a `.env` file provides, instead of declining to scan when it found one. It reads the file from the same places ggshield does (`GITGUARDIAN_DOTENV_PATH`, then the working directory, then the repository root), and gives it the same precedence: a value in the `.env` overrides the same variable already exported in the environment. A self-hosted instance configured through a `.env` is therefore scanned against, rather than left unscanned. Two caveats: an unbraced `$` in a value is expanded as a variable reference (so `GITGUARDIAN_API_KEY=abc$def` resolves to `abc` — quote it as `'abc$def'` to keep the `$`), and a `GITGUARDIAN_*` line the parser rejects still leaves the action unscanned, with a message naming the variable.
 
-- AI discovery now reports, per agent, the email of the assistant subscription that agent is signed into, so a personal
-  subscription can be told apart from a company one. Read locally from Claude Code, Codex and Cursor. Mistral Vibe and
-  VSCode keep no account on disk and report nothing.
+- AI discovery now reports, per agent, the email of the assistant subscription that agent is signed into, so a personal subscription can be told apart from a company one. Read locally from Claude Code, Codex and Cursor. Mistral Vibe and VSCode keep no account on disk and report nothing.
 
-- `GGSHIELD_NO_NOTIFICATION` suppresses the AI hook's desktop notification. The
-  secret is still detected and the tool call still blocked; only the banner is
-  withheld.
+- `GGSHIELD_NO_NOTIFICATION` suppresses the AI hook's desktop notification. The secret is still detected and the tool call still blocked; only the banner is withheld.
 
 ### Changed
 
-- Release binaries are now built with Python 3.14 instead of 3.10, ahead of Python 3.10's
-  end-of-life. This also updates the SQLite bundled in the released binaries, fixing
-  `CVE-2025-6965` and `CVE-2025-7709`.
+- Release binaries are now built with Python 3.14 instead of 3.10, ahead of Python 3.10's end-of-life. This also updates the SQLite bundled in the released binaries, fixing `CVE-2025-6965` and `CVE-2025-7709`.
 
-- AI hooks no longer call the API twice for the same document. An unambiguously clean
-  scan result is cached locally for 15 minutes, keyed on the exact document sent and on
-  the instance and token it was sent with, so a file read costs one API round trip
-  instead of two (`PreToolUse` and `PostToolUse` scan the same file).
+- AI hooks no longer call the API twice for the same document. An unambiguously clean scan result is cached locally for 15 minutes, keyed on the exact document sent and on the instance and token it was sent with, so a file read costs one API round trip instead of two (`PreToolUse` and `PostToolUse` scan the same file).
 
-- `ggshield` starts faster: each command now imports only the modules it needs, and
-  plugin discovery runs only when a plugin command is actually resolved. This speeds
-  up every invocation, in particular the ones that run automatically on every git
-  commit (`secret scan pre-commit`) and on every AI agent tool call
-  (`secret scan ai-hook`).
+- `ggshield` starts faster: each command now imports only the modules it needs, and plugin discovery runs only when a plugin command is actually resolved. This speeds up every invocation, in particular the ones that run automatically on every git commit (`secret scan pre-commit`) and on every AI agent tool call (`secret scan ai-hook`).
 
-- `ggshield secret scan ai-hook` is now much faster on MCP tool calls: the local
-  discovery walk is cached for an hour instead of running on every call, and the
-  secret scan and the MCP activity call now run concurrently instead of one after
-  the other. Measured against a mock API at the production p50 latency, an MCP
-  `PreToolUse` event goes from 1183 ms to 387 ms (p50). Other events are
-  unaffected. As a consequence, an MCP tool call is now reported to GitGuardian
-  even when the secret scan blocks it.
+- `ggshield secret scan ai-hook` is now much faster on MCP tool calls: the local discovery walk is cached for an hour instead of running on every call, and the secret scan and the MCP activity call now run concurrently instead of one after the other. Measured against a mock API at the production p50 latency, an MCP `PreToolUse` event goes from 1183 ms to 387 ms (p50). Other events are unaffected. As a consequence, an MCP tool call is now reported to GitGuardian even when the secret scan blocks it.
 
-- AI hooks now scan all the payloads of an event in a single API call instead of one
-  call each. A prompt mentioning three files used to cost four round trips; measured
-  against a mock API at the production p50 latency, such a `UserPromptSubmit` goes from
-  1561 ms to 395 ms (p50). Single-payload events are unchanged.
+- AI hooks now scan all the payloads of an event in a single API call instead of one call each. A prompt mentioning three files used to cost four round trips; measured against a mock API at the production p50 latency, such a `UserPromptSubmit` goes from 1561 ms to 395 ms (p50). Single-payload events are unchanged.
 
-- In the standalone packages (`.pkg`, `.deb`, `.rpm`, `.msi`, Chocolatey, archives), `ggshield`
-  is now a small native dispatcher: it runs `ggshield secret scan ai-hook` and hands every other
-  command to the bundled Python implementation. There is still a single `ggshield` command, and
-  every command behaves as before.
+- In the standalone packages (`.pkg`, `.deb`, `.rpm`, `.msi`, Chocolatey, archives), `ggshield` is now a small native dispatcher: it runs `ggshield secret scan ai-hook` and hands every other command to the bundled Python implementation. There is still a single `ggshield` command, and every command behaves as before.
 
-- AI hooks now resolve the file paths of `Read` tool calls and prompt `@`-mentions to an
-  absolute path against the event's working directory. A file mentioned in a prompt and the
-  same file later read by a tool now share one verdict-cache key, so it is scanned once
-  instead of twice. As a result, the file path reported in block messages (and sent for
-  scanning) is now absolute for prompt-mentioned files.
+- AI hooks now resolve the file paths of `Read` tool calls and prompt `@`-mentions to an absolute path against the event's working directory. A file mentioned in a prompt and the same file later read by a tool now share one verdict-cache key, so it is scanned once instead of twice. As a result, the file path reported in block messages (and sent for scanning) is now absolute for prompt-mentioned files.
 
-- The native hook accepts a `.gitguardian.yaml` key spelled with `-` or with `_`,
-  but no longer resolves a config that sets the _same_ key in both spellings the
-  way the Python implementation does: the last spelling in the file wins. Using
-  one spelling per key, which every documented example does, is unaffected.
+- The native hook accepts a `.gitguardian.yaml` key spelled with `-` or with `_`, but no longer resolves a config that sets the _same_ key in both spellings the way the Python implementation does: the last spelling in the file wins. Using one spelling per key, which every documented example does, is unaffected.
 
-- When the AI hook blocks, its message now shows the `secret.ignored_matches`
-  entry that would silence it, one line per detected secret. The message censors
-  every match, so the entry could not previously be written by hand from what it
-  showed. The value shown is the ignore sha, a digest rather than the secret,
-  and is the same one `ggshield secret ignore --last-found` writes.
+- When the AI hook blocks, its message now shows the `secret.ignored_matches` entry that would silence it, one line per detected secret. The message censors every match, so the entry could not previously be written by hand from what it showed. The value shown is the ignore sha, a digest rather than the secret, and is the same one `ggshield secret ignore --last-found` writes.
 
-- `ggshield plugin install` and `ggshield plugin update` no longer send an
-  installation report to the GitGuardian instance. The endpoint it targeted was
-  never implemented, so the call always failed and was silently discarded.
+- `ggshield plugin install` and `ggshield plugin update` no longer send an installation report to the GitGuardian instance. The endpoint it targeted was never implemented, so the call always failed and was silently discarded.
 
-- The GitGuardian logo shipped with ggshield is the refreshed one: the Chocolatey
-  package icon uses the solid black mark, and the macOS desktop notification icon
-  uses the app icon on its own dark ground.
+- The GitGuardian logo shipped with ggshield is the refreshed one: the Chocolatey package icon uses the solid black mark, and the macOS desktop notification icon uses the app icon on its own dark ground.
 
-- ggshield now requires `py-gitguardian` 1.34.0, which carries the
-  `AgentInfo.subscription_email` field the AI discovery report sends.
+- ggshield now requires `py-gitguardian` 1.34.0, which carries the `AgentInfo.subscription_email` field the AI discovery report sends.
 
 ### Fixed
 
-- On macOS, `ggshield` no longer triggers the Xcode Command Line Tools install prompt
-  when the tools are not installed.
+- On macOS, `ggshield` no longer triggers the Xcode Command Line Tools install prompt when the tools are not installed.
 
-- On macOS, `ggshield` no longer pops a "Keychain Not Found" dialog when checking
-  whether the keyring is usable. The check now only reads from the credential
-  store instead of writing a probe entry, which also stops it from silently
-  falling back to file-based token storage on machines where the keychain can be
-  read but not written.
+- On macOS, `ggshield` no longer pops a "Keychain Not Found" dialog when checking whether the keyring is usable. The check now only reads from the credential store instead of writing a probe entry, which also stops it from silently falling back to file-based token storage on machines where the keychain can be read but not written.
 
-- `ggshield secret scan ai-hook` no longer skips the scan when a Bash command starting with
-  `cat` or `Get-Content` is not a plain file read (a heredoc, a redirection...).
-  Such commands are now always scanned as text.
+- `ggshield secret scan ai-hook` no longer skips the scan when a Bash command starting with `cat` or `Get-Content` is not a plain file read (a heredoc, a redirection...). Such commands are now always scanned as text.
 
-- `ggshield secret scan ai-hook` now scans only the lines an agent actually reads, instead of
-  the whole file. A file over the API's 1 MiB document limit was skipped outright — allowed
-  without being scanned at all — even when the agent only read a few hundred lines of it;
-  that slice now scans normally. Ranges are read from Claude Code (`offset`/`limit`) and
-  VS Code (`startLine`/`endLine`); a read without a range still scans the whole file.
+- `ggshield secret scan ai-hook` now scans only the lines an agent actually reads, instead of the whole file. A file over the API's 1 MiB document limit was skipped outright — allowed without being scanned at all — even when the agent only read a few hundred lines of it; that slice now scans normally. Ranges are read from Claude Code (`offset`/`limit`) and VS Code (`startLine`/`endLine`); a read without a range still scans the whole file.
 
-- The AI discovery is now submitted to GitGuardian only when the local AI/MCP
-  configuration actually changed, as it was always meant to be. A type mismatch
-  between a freshly discovered MCP configuration and one read back from the local
-  cache made the comparison always report a change, so every MCP tool call
-  uploaded a full discovery payload.
+- The AI discovery is now submitted to GitGuardian only when the local AI/MCP configuration actually changed, as it was always meant to be. A type mismatch between a freshly discovered MCP configuration and one read back from the local cache made the comparison always report a change, so every MCP tool call uploaded a full discovery payload.
 
-- When a secret is found in a file mentioned in a prompt (`@path`), AI hooks now name
-  that file in the block message instead of reporting it as a secret "in your prompt".
-  The previous wording pointed at the wrong content and asked the user to edit a prompt
-  that did not contain the secret.
+- When a secret is found in a file mentioned in a prompt (`@path`), AI hooks now name that file in the block message instead of reporting it as a secret "in your prompt". The previous wording pointed at the wrong content and asked the user to edit a prompt that did not contain the secret.
 
-- On macOS, the token stored by `ggshield auth login` is now created with a
-  Keychain ACL trusting every ggshield binary, so the native hook can read it
-  without prompting. Previously only the writing binary was trusted and each
-  login reset the ACL, making "Always Allow" wear off.
+- On macOS, the token stored by `ggshield auth login` is now created with a Keychain ACL trusting every ggshield binary, so the native hook can read it without prompting. Previously only the writing binary was trusted and each login reset the ACL, making "Always Allow" wear off.
 
-- On macOS, `ggshield` no longer asks for Keychain access again after every upgrade. The
-  code-signing identifier embedded a per-build hash, so the "Always Allow" grant recorded
-  for one release stopped matching the next one; it is now pinned to
-  `com.gitguardian.ggshield`. One grant made from a release built with this fix onwards
-  keeps working across upgrades.
+- On macOS, `ggshield` no longer asks for Keychain access again after every upgrade. The code-signing identifier embedded a per-build hash, so the "Always Allow" grant recorded for one release stopped matching the next one; it is now pinned to `com.gitguardian.ggshield`. One grant made from a release built with this fix onwards keeps working across upgrades.
 
-- The AI hooks no longer create incidents on your dashboard when `secret.source_uuid` is set
-  in your configuration (a setting shared with CI scanning): a hook event is not a source
-  scan, and every prompt and every file the agent read was creating an incident. They also
-  now always scan with `all_secrets`, so they can block on a secret that is already known to
-  GitGuardian instead of letting it through.
+- The AI hooks no longer create incidents on your dashboard when `secret.source_uuid` is set in your configuration (a setting shared with CI scanning): a hook event is not a source scan, and every prompt and every file the agent read was creating an incident. They also now always scan with `all_secrets`, so they can block on a secret that is already known to GitGuardian instead of letting it through.
 
-- `tomli` was added to the dev dependency group, without a marker, so dev environments always have it regardless of the
-  Python interpreter, and ty can resolve the fallback branch it insists on analyzing
+- `tomli` was added to the dev dependency group, without a marker, so dev environments always have it regardless of the Python interpreter, and ty can resolve the fallback branch it insists on analyzing
 
-- `secret scan ai-hook` now honours `secret.ignored_paths` from
-  `.gitguardian.yaml`, as every other `secret scan` command already did. A file
-  excluded there is no longer read, sent, or blocked on when an agent reads it.
-  Previously the setting was silently inert on this path. `ignored_matches` and
-  `ignored_detectors` were never affected. This also brings the default
-  exclusions to the hook: reads under `node_modules/`, `.venv/`, `vendor/`,
-  `.git/` and the other `IGNORED_DEFAULT_WILDCARDS` entries are no longer
-  scanned. Those defaults are matched against the path _relative to the project_
-  and with symlinks resolved, so a checkout that itself lives under a directory
-  named `vendor/`, `node_modules/` or `.venv/` is still scanned normally, and a
-  symlink parked in a vendored tree cannot hide a file living outside it.
+- `secret scan ai-hook` now honours `secret.ignored_paths` from `.gitguardian.yaml`, as every other `secret scan` command already did. A file excluded there is no longer read, sent, or blocked on when an agent reads it. Previously the setting was silently inert on this path. `ignored_matches` and `ignored_detectors` were never affected. This also brings the default exclusions to the hook: reads under `node_modules/`, `.venv/`, `vendor/`, `.git/` and the other `IGNORED_DEFAULT_WILDCARDS` entries are no longer scanned. Those defaults are matched against the path _relative to the project_ and with symlinks resolved, so a checkout that itself lives under a directory named `vendor/`, `node_modules/` or `.venv/` is still scanned normally, and a symlink parked in a vendored tree cannot hide a file living outside it.
 
-- On macOS, `ggshield auth login` no longer writes the token straight to the
-  Apple Keychain when `PYTHON_KEYRING_BACKEND` selects another backend: the write
-  now follows the backend the token is read back from. Previously login reported
-  success while nothing could authenticate afterwards.
-- `keyring` now requires 25.0 or later, the first version carrying the
-  `create_cf` binding the Keychain ACL is built with. On 24.x the ACL silently
-  never applied.
+- On macOS, `ggshield auth login` no longer writes the token straight to the Apple Keychain when `PYTHON_KEYRING_BACKEND` selects another backend: the write now follows the backend the token is read back from. Previously login reported success while nothing could authenticate afterwards.
+- `keyring` now requires 25.0 or later, the first version carrying the `create_cf` binding the Keychain ACL is built with. On 24.x the ACL silently never applied.
 
-- AI discovery no longer reports MCP server configurations for agents that are not
-  installed. A project `.mcp.json` is read by several agents, and Copilot also declared a
-  hardcoded GitHub MCP server, so machines without those agents reported configurations
-  they could not run.
+- AI discovery no longer reports MCP server configurations for agents that are not installed. A project `.mcp.json` is read by several agents, and Copilot also declared a hardcoded GitHub MCP server, so machines without those agents reported configurations they could not run.
 
-- On macOS and Windows, `ggshield` now finds VSCode's user directory, so its global MCP
-  servers and its known workspaces are discovered there too.
+- On macOS and Windows, `ggshield` now finds VSCode's user directory, so its global MCP servers and its known workspaces are discovered there too.
 
-- The `cryptography` shipped in the released binaries is now 50.0.0, fixing
-  `CVE-2026-69247`, a Bleichenbacher oracle in PKCS#7 `EnvelopedData` decryption.
-  ggshield does not use that code path.
+- The `cryptography` shipped in the released binaries is now 50.0.0, fixing `CVE-2026-69247`, a Bleichenbacher oracle in PKCS#7 `EnvelopedData` decryption. ggshield does not use that code path.
 
-- The AI hook installed from the macOS standalone package now points at
-  `/usr/local/bin/ggshield` instead of the versioned `/opt/gitguardian/ggshield-<version>/`
-  directory an upgrade removes, so it keeps scanning after an upgrade.
+- The AI hook installed from the macOS standalone package now points at `/usr/local/bin/ggshield` instead of the versioned `/opt/gitguardian/ggshield-<version>/` directory an upgrade removes, so it keeps scanning after an upgrade.
 
-- `ggshield machine setup` now repoints an AI hook command whose ggshield binary is gone,
-  or is reachable through a more stable path, instead of leaving the broken command in
-  place.
+- `ggshield machine setup` now repoints an AI hook command whose ggshield binary is gone, or is reachable through a more stable path, instead of leaving the broken command in place.
 
-- On macOS, `ggshield machine setup` now asks the Keychain for access as the binary
-  that actually runs the AI hook. Keychain grants are per binary, so the hook used to
-  raise its own authorization dialog inside an agent-spawned process, where the agent's
-  timeout could kill it before "Always Allow" was recorded and the dialog came back on
-  every prompt.
+- On macOS, `ggshield machine setup` now asks the Keychain for access as the binary that actually runs the AI hook. Keychain grants are per binary, so the hook used to raise its own authorization dialog inside an agent-spawned process, where the agent's timeout could kill it before "Always Allow" was recorded and the dialog came back on every prompt.
 
-- `ggshield` no longer reads the OS credential store on startup. The token is now
-  fetched when a command actually needs it, so commands that do not use one (such as
-  `ggshield config list`, `ggshield plugin list` and `ggshield install`) no longer
-  trigger a macOS Keychain password prompt.
+- `ggshield` no longer reads the OS credential store on startup. The token is now fetched when a command actually needs it, so commands that do not use one (such as `ggshield config list`, `ggshield plugin list` and `ggshield install`) no longer trigger a macOS Keychain password prompt.
 
-- `ggshield secret scan ai-hook` no longer leaves a whole event unscanned when the file path
-  it guessed from a Bash command or an `@`-mention cannot be read. Such a candidate is
-  dropped instead of being sent to the scanner, where the read error aborted the event and
-  allowed the action with a "could not scan" warning, so the command or prompt text of that
-  same event is now always scanned. A candidate longer than the filesystem's limits (a
-  heredoc mistaken for a file name) is also recognized as text without a filesystem call.
+- `ggshield secret scan ai-hook` no longer leaves a whole event unscanned when the file path it guessed from a Bash command or an `@`-mention cannot be read. Such a candidate is dropped instead of being sent to the scanner, where the read error aborted the event and allowed the action with a "could not scan" warning, so the command or prompt text of that same event is now always scanned. A candidate longer than the filesystem's limits (a heredoc mistaken for a file name) is also recognized as text without a filesystem call.
 
 <a id='changelog-1.53.0'></a>
 
@@ -356,10 +207,7 @@
 
 ### Added
 
-- `ggshield ai discover --activity` now also collects raw AI-agent activity
-  (transcript lines / database rows) from Claude Code, Codex, Cursor, Copilot
-  CLI and VSCode and ships it to GitGuardian, which scans the content and strips
-  secrets server-side. This is an experimental feature.
+- `ggshield ai discover --activity` now also collects raw AI-agent activity (transcript lines / database rows) from Claude Code, Codex, Cursor, Copilot CLI and VSCode and ships it to GitGuardian, which scans the content and strips secrets server-side. This is an experimental feature.
 
 - ggshield now officially supports Python 3.13: it is covered by the CI test matrix, advertised through the trove classifiers, and `pip install ggshield` works on a Python 3.13 interpreter.
 
@@ -402,9 +250,7 @@
 
 - Relaxed the upper version bounds of several dependencies (`click`, `oauthlib`, `python-dotenv`, `pyyaml`, `requests` and `marshmallow-dataclass`) from the next minor release to the next major. This lets ggshield be installed alongside projects that require newer versions of these packages (for example `click` 8.2+) and lets users pull in dependency security fixes without waiting for a new ggshield release.
 
-- `ggshield machine doctor` now also verifies the token carries the
-  `ai-discover:send` scope, so a passing doctor run guarantees AI agent
-  discovery telemetry can be uploaded.
+- `ggshield machine doctor` now also verifies the token carries the `ai-discover:send` scope, so a passing doctor run guarantees AI agent discovery telemetry can be uploaded.
 
 - AI hook block messages now clearly state whether the secret already reached the agent, and add a "How to remediate" section with numbered steps and a `ggshield secret ignore --last-found` reminder for false positives. Known secrets link back to their GitGuardian incident. The block reason is now chosen from the event (UserPromptSubmit / PreToolUse / PostToolUse) before the tool, so a `PostToolUse` Read or MCP call is correctly reported as an actual leak instead of the "not executed yet" wording used before the tool call.
 
@@ -449,44 +295,18 @@
 - Placeholder SMBIOS UUIDs reported by unconfigured or cloned firmware (all-zeros, all-Fs, the AMI default) are no longer used as the machine identifier — machines with such firmware fall back to the shared cache instead of all colliding on one identity.
 - The shared machine-id cache is now written with owner-only permissions and validated on the open file descriptor before being trusted, so the identifier stays stable under restrictive-umask setups and cannot be redirected through symlinks.
 
-- AI hooks no longer crash under Codex. Codex sends `transcript_path` as a
-  present-but-null field, which made agent detection raise a `TypeError` before
-  Codex could be recognized, so every `PreToolUse`/`PostToolUse` hook exited 1.
-  The detectors now treat a null `transcript_path` as absent, and the fail-open
-  safety net catches any detection error so a hook can never break the agent.
+- AI hooks no longer crash under Codex. Codex sends `transcript_path` as a present-but-null field, which made agent detection raise a `TypeError` before Codex could be recognized, so every `PreToolUse`/`PostToolUse` hook exited 1. The detectors now treat a null `transcript_path` as absent, and the fail-open safety net catches any detection error so a hook can never break the agent.
 
 - `ggshield ai discover` now finds MCP servers that Cursor, Claude Code and Codex plugins declare through a `mcpServers` manifest field holding an inline block, a path to a config file, or a list of either (e.g. the Datadog Cursor plugin), instead of silently skipping them.
 - `ggshield ai discover` now reports the SSE transport for MCP servers declared with the `"type": "sse"` spelling used by Cursor, instead of HTTP.
 
-- AI hook desktop notifications no longer crash the hook on macOS. The
-  notification is now delivered through native `osascript` on macOS, so it
-  works on Homebrew installs (which strip notifypy's bundled notifier) and on
-  Apple Silicon (notifypy's bundled applet is Intel-only and Apple-deprecated).
-  The whole notification step is also fully guarded, so a notifier failure can
-  never prevent the `PostToolUse` block decision from being emitted.
+- AI hook desktop notifications no longer crash the hook on macOS. The notification is now delivered through native `osascript` on macOS, so it works on Homebrew installs (which strip notifypy's bundled notifier) and on Apple Silicon (notifypy's bundled applet is Intel-only and Apple-deprecated). The whole notification step is also fully guarded, so a notifier failure can never prevent the `PostToolUse` block decision from being emitted.
 
-- `ggshield install` for AI hooks no longer pins the hook to a non-existent
-  binary path. When ggshield was invoked by bare name (`ggshield`, the normal
-  pip/pipx/Homebrew case), `sys.argv[0]` is not rewritten by the shell, so the
-  hook command was resolved against the current directory and pointed nowhere —
-  the installed hooks then silently never ran. The running ggshield is now
-  resolved against the install-time `PATH` (or `sys.executable` for the frozen
-  standalone packages), so the hook command always points at a real binary.
+- `ggshield install` for AI hooks no longer pins the hook to a non-existent binary path. When ggshield was invoked by bare name (`ggshield`, the normal pip/pipx/Homebrew case), `sys.argv[0]` is not rewritten by the shell, so the hook command was resolved against the current directory and pointed nowhere — the installed hooks then silently never ran. The running ggshield is now resolved against the install-time `PATH` (or `sys.executable` for the frozen standalone packages), so the hook command always points at a real binary.
 
-- AI hooks now scan the arguments of MCP and unrecognized tool calls for
-  secrets. Previously a `PreToolUse` event for such tools left the scanned
-  content empty, so a secret passed as a tool argument was sent to the
-  (potentially external) MCP server without being inspected. The serialized
-  tool input is now scanned, so such a secret is blocked like one in a shell
-  command.
+- AI hooks now scan the arguments of MCP and unrecognized tool calls for secrets. Previously a `PreToolUse` event for such tools left the scanned content empty, so a secret passed as a tool argument was sent to the (potentially external) MCP server without being inspected. The serialized tool input is now scanned, so such a secret is blocked like one in a shell command.
 
-- AI hooks no longer lose scans under parallel execution. Each hook reads the
-  GitGuardian token from the OS keyring, and macOS rejects most _concurrent_
-  reads of the login Keychain, so a fan-out of hooks (parallel agents or
-  sub-agents, parallel tool calls) failed most reads with a spurious
-  authentication error and silently skipped scanning. Keyring reads are now
-  serialized with an advisory lock, so concurrent hooks all authenticate. No
-  effect on file-based (non-keyring) setups or on Windows.
+- AI hooks no longer lose scans under parallel execution. Each hook reads the GitGuardian token from the OS keyring, and macOS rejects most _concurrent_ reads of the login Keychain, so a fan-out of hooks (parallel agents or sub-agents, parallel tool calls) failed most reads with a spurious authentication error and silently skipped scanning. Keyring reads are now serialized with an advisory lock, so concurrent hooks all authenticate. No effect on file-based (non-keyring) setups or on Windows.
 
 ### Security
 
@@ -536,13 +356,11 @@
 
 - Improved MCP server name detection for more human-readable names.
 
-- `ggshield honeytoken plant` reconciles this machine's honeytokens with
-  GitGuardian and writes or removes the decoy AWS credential profiles on disk. Existing comments and file permissions are preserved.
+- `ggshield honeytoken plant` reconciles this machine's honeytokens with GitGuardian and writes or removes the decoy AWS credential profiles on disk. Existing comments and file permissions are preserved.
 
 - `ggshield install -t <agent>` now verifies after installing the hooks that ggshield can authenticate to GitGuardian, and warns with remediation steps if it cannot. On macOS, this also triggers the Keychain authorization prompt at a time the user can answer it, instead of inside a non-interactive agent-spawned hook.
 
-- Standalone Linux artifacts are now also built for ARM (aarch64): tar.gz
-  archive, .deb and .rpm packages.
+- Standalone Linux artifacts are now also built for ARM (aarch64): tar.gz archive, .deb and .rpm packages.
 
 ### Changed
 
@@ -552,9 +370,7 @@
 
 - `ggshield install -t <agent>` now pins the AI hook to the absolute path of the ggshield that ran the install, instead of a bare `ggshield`. The hook runs with a PATH that differs from the user's shell and across launch contexts, so on machines with several ggshield installations a bare command could resolve to a different binary than the one the user authenticated with. The stable launcher path is used (symlinks are not resolved) so it survives version upgrades; the bare command remains a fallback when the path cannot be determined.
 
-- `ggshield plugin list` shows a verified plugin simply as `signed` instead of
-  `signed (<signing-repository>)`. The signing identity is still recorded in the plugin
-  manifest for auditing.
+- `ggshield plugin list` shows a verified plugin simply as `signed` instead of `signed (<signing-repository>)`. The signing identity is still recorded in the plugin manifest for auditing.
 
 ### Fixed
 
@@ -570,11 +386,7 @@
 
 - Ignored secrets (for example secrets on context or deleted lines of a patch) no longer appear in plaintext when they show up in the context lines of another displayed secret.
 
-- `ggshield plugin install` no longer fails with "failed to refresh TUF metadata" on
-  locked-down or proxied networks (most often seen on Windows). Plugin signatures are
-  now always verified against the sigstore trust root bundled with ggshield's
-  dependencies rather than refreshing TUF metadata over the network. Plugin identity is
-  still fully enforced; only trust-root freshness now tracks the pinned sigstore version.
+- `ggshield plugin install` no longer fails with "failed to refresh TUF metadata" on locked-down or proxied networks (most often seen on Windows). Plugin signatures are now always verified against the sigstore trust root bundled with ggshield's dependencies rather than refreshing TUF metadata over the network. Plugin identity is still fully enforced; only trust-root freshness now tracks the pinned sigstore version.
 
 <a id='changelog-1.51.0'></a>
 
@@ -844,8 +656,7 @@
 
 ### Changed
 
-- `ggshield secret scan` now provides an `--source-uuid` option. When this option is set, it will create the incidents on the GIM
-  dashboard on the corresponding source. Note that the token should have the scope `scan:create-incidents`.
+- `ggshield secret scan` now provides an `--source-uuid` option. When this option is set, it will create the incidents on the GIM dashboard on the corresponding source. Note that the token should have the scope `scan:create-incidents`.
 
 <a id='changelog-1.41.0'></a>
 
@@ -1263,8 +1074,7 @@ Yanked: release process issue.
 
 ### Changed
 
-- `ggshield iac scan diff --json` output was changed. `added_vulns`, `persisting_vulns` and `removed_vulns` were renamed as `new`, `unchanged` and `deleted`. They also were moved into a `entities_with_incidents` similarly to the scan all JSON output.
-  <details>
+- `ggshield iac scan diff --json` output was changed. `added_vulns`, `persisting_vulns` and `removed_vulns` were renamed as `new`, `unchanged` and `deleted`. They also were moved into a `entities_with_incidents` similarly to the scan all JSON output. <details>
     <summary>Sample IaC diff JSON output</summary>
 
       ```json
@@ -1412,9 +1222,7 @@ Yanked: release process issue.
 
   They use the same arguments and options as the other `ggshield iac scan` commands.
 
-- The new `ggshield iac scan ci` command can be used to perform IaC scans in CI environments.
-  It supports the same arguments as hook subcommands (in particular, `--all` to scan the whole repository).
-  Supported CIs are:
+- The new `ggshield iac scan ci` command can be used to perform IaC scans in CI environments. It supports the same arguments as hook subcommands (in particular, `--all` to scan the whole repository). Supported CIs are:
   - Azure
   - Bitbucket
   - CircleCI
@@ -1519,8 +1327,7 @@ Yanked: release process issue.
 
 ### Added
 
-- Add a new `ggshield honeytoken create` command to let you create honeytokens if enabled in your workspace.
-  Learn more about honeytokens at https://www.gitguardian.com/honeytoken
+- Add a new `ggshield honeytoken create` command to let you create honeytokens if enabled in your workspace. Learn more about honeytokens at https://www.gitguardian.com/honeytoken
 
 ### Changed
 
