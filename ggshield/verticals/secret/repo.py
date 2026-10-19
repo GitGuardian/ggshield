@@ -16,7 +16,7 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import ExitCode, handle_exception
+from ggshield.core.errors import ExitCode, UnexpectedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import STYLE, format_text
@@ -90,7 +90,7 @@ def scan_commits_content(
                 commit_files, scan_threads=SCAN_THREADS, scanner_ui=scanner_ui
             )
     except ClickException:
-        # The API did not scan the batch: scan_commit_range decides whether to fail
+        # scan_commit_range decides whether a failed batch fails the command
         raise
     except Exception as exc:
         logger.error(
@@ -100,9 +100,7 @@ def scan_commits_content(
             exc,
             traceback.format_exc(),
         )
-        results = Results.from_exception(exc)
-        for error in results.errors:
-            ui.display_error(error.description)
+        raise UnexpectedError(f"Scanning failed: {exc}") from exc
     finally:
         progress_callback(len(commits))
         for commit in commits:

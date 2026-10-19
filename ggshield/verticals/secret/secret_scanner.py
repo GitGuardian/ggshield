@@ -321,24 +321,19 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     if "Source" in detail.detail and "not found" in detail.detail:
         raise UnexpectedError("The provided source was not found in GitGuardian.")
 
-    # An empty body or an HTML page is not an answer from the GitGuardian API
-    server_message = (
-        None if not detail.detail or is_html_page(detail.detail) else detail.detail
-    )
     status = f"HTTP {detail.status_code}"
-    if server_message:
-        status += f": {server_message}"
+    if detail.detail and not is_html_page(detail.detail):
+        status += f": {detail.detail}"
 
     # Only a 400 faults the files we sent. Any other status means the API scanned
     # nothing, and dropping the chunk would report it as clean.
     if detail.status_code == 403:
-        message = f"GitGuardian refused to scan the content ({status})."
-        if server_message is None:
-            message += (
-                " Check that this machine is allowed to reach GitGuardian"
-                " (IP allowlist, proxy, firewall)."
-            )
-        raise UnexpectedError(message)
+        # A proxy's plain-text answer looks just like one from GitGuardian
+        raise UnexpectedError(
+            f"GitGuardian refused to scan the content ({status})."
+            " If this machine is behind a proxy, a firewall or an IP allowlist,"
+            " check that it can reach GitGuardian."
+        )
     if detail.status_code != 400:
         message = f"GitGuardian did not scan the content ({status})."
         if detail.status_code == 413:
