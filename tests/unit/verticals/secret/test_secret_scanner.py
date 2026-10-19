@@ -259,26 +259,25 @@ def test_handle_scan_chunk_error_forbidden_is_not_skippable():
 
 
 @pytest.mark.parametrize(
-    "body, expects_network_hint",
+    "body",
     [
-        pytest.param("IP address not allowed", False, id="GitGuardian answer"),
-        pytest.param("<html><body>Forbidden</body></html>", True, id="proxy page"),
-        pytest.param("", True, id="empty"),
+        pytest.param("IP address not allowed", id="GitGuardian answer"),
+        pytest.param("Nope", id="proxy plain text"),
+        pytest.param("<html><body>Forbidden</body></html>", id="proxy page"),
+        pytest.param("", id="empty"),
     ],
 )
-def test_handle_scan_chunk_error_forbidden_network_hint(
-    body: str, expects_network_hint: bool
-):
+def test_handle_scan_chunk_error_forbidden_network_hint(body: str):
     """
     GIVEN a 403 on a chunk
     WHEN handle_scan_chunk_error() is called
-    THEN the network hint is only given when the server sent no message of its
-    own: an HTML page or nothing points at a proxy or firewall
+    THEN the error suggests checking the network, since a proxy's plain-text
+    answer cannot be told apart from one from GitGuardian
     """
     detail = Detail(detail=body, status_code=403)
     with pytest.raises(UnexpectedError) as exc_info:
         handle_scan_chunk_error(detail, [])
-    assert ("IP allowlist" in exc_info.value.message) == expects_network_hint
+    assert "IP allowlist" in exc_info.value.message
 
 
 def test_handle_scan_chunk_error_payload_too_large_names_the_files():

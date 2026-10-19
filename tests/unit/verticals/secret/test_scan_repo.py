@@ -476,24 +476,35 @@ def test_scan_commit_range_failure_that_cannot_be_skipped_wins(
         )
 
 
+@pytest.mark.parametrize(
+    "exception, expected",
+    [
+        pytest.param(
+            ServiceUnavailableError("throttled"),
+            ServiceUnavailableError,
+            id="API did not scan",
+        ),
+        pytest.param(RuntimeError("parse bug"), UnexpectedError, id="other error"),
+    ],
+)
 @patch("ggshield.verticals.secret.repo.SecretScanner")
-def test_scan_commits_content_lets_scan_failures_through(secret_scanner_mock):
+def test_scan_commits_content_lets_scan_failures_through(
+    secret_scanner_mock, exception, expected
+):
     """
-    GIVEN a scanner that raises because the API did not scan the content
+    GIVEN a scanner that raises
     WHEN scan_commits_content is called
     THEN the error propagates instead of being turned into an error message,
     so the command cannot exit 0
     """
-    secret_scanner_mock.return_value.scan.side_effect = ServiceUnavailableError(
-        "throttled"
-    )
+    secret_scanner_mock.return_value.scan.side_effect = exception
     commit = Commit(
         sha="sha",
         patch_parser=lambda commit: [],
         info=CommitInformation(author="", email="", date="", paths=[]),
     )
 
-    with pytest.raises(ServiceUnavailableError):
+    with pytest.raises(expected):
         scan_commits_content(
             commits=[commit],
             client=MagicMock(),
