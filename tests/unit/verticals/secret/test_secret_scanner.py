@@ -39,7 +39,7 @@ from ggshield.core.scan import (
 from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.utils.git_shell import Filemode
 from ggshield.utils.os import get_os_info
-from ggshield.verticals.secret import SecretScanner
+from ggshield.verticals.secret import Results, SecretScanner
 from ggshield.verticals.secret.secret_scanner import (
     _SIZE_METADATA_OVERHEAD,
     handle_scan_chunk_error,
@@ -230,6 +230,192 @@ def test_handle_scan_quota_limit_reached():
     detail = Detail(detail="Quota limit reached.", status_code=403)
     with pytest.raises(QuotaLimitReachedError):
         handle_scan_chunk_error(detail, Mock())
+
+
+@pytest.mark.parametrize("status_code", [404, 406, 408, 409, 413, 422, 429, 499])
+def test_handle_scan_chunk_error_server_did_not_scan(status_code: int):
+    """
+    GIVEN the API answers a chunk with a status meaning it did not scan it
+    (rate limit, gateway or firewall error, timeout)
+    WHEN handle_scan_chunk_error() is called
+    THEN it raises ServiceUnavailableError instead of letting the chunk be dropped,
+    so --no-fail-on-server-error can still let a hook through
+    """
+    detail = Detail(detail="Nope", status_code=status_code)
+    with pytest.raises(ServiceUnavailableError, match=f"HTTP {status_code}"):
+        handle_scan_chunk_error(detail, [])
+
+
+def test_handle_scan_chunk_error_forbidden_is_not_skippable():
+    """
+    GIVEN the API refuses a chunk with a 403 that is not the quota message
+    (IP allowlist, firewall)
+    WHEN handle_scan_chunk_error() is called
+    THEN it raises an error that --no-fail-on-server-error does not skip
+    """
+    detail = Detail(detail="Forbidden", status_code=403)
+    with pytest.raises(UnexpectedError, match="HTTP 403"):
+        handle_scan_chunk_error(detail, [])
+
+
+def test_handle_scan_chunk_error_does_not_print_html_pages():
+    """
+    GIVEN a proxy answers a chunk with an HTML error page
+    WHEN handle_scan_chunk_error() is called
+    THEN the error names the status without dumping the page
+    """
+    detail = Detail(
+        detail="<html><body>Too Many Requests</body></html>", status_code=429
+    )
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        handle_scan_chunk_error(detail, [])
+    assert "HTTP 429" in exc_info.value.message
+    assert "<html>" not in exc_info.value.message
+
+
+def test_scan_source_uuid_not_found_whatever_the_status():
+    """
+    GIVEN the API reports the source as not found with a status other than 400
+    WHEN handle_scan_chunk_error() is called
+    THEN it raises instead of letting the chunk be dropped
+    """
+    detail = Detail(detail="Source not found.", status_code=404)
+    with pytest.raises(UnexpectedError, match="source was not found"):
+        handle_scan_chunk_error(detail, Mock())
+
+
+def _multi_scan_result_with_secret() -> MultiScanResult:
+    policy_break = PolicyBreak(
+        break_type="leak",
+        policy="Secrets detection",
+        detector_name="leak",
+        detector_group_name="leak",
+        documentation_url=None,
+        validity="valid",
+        known_secret=False,
+        matches=[
+            Match(
+                match="leak",
+                match_type="apikey",
+                line_start=0,
+                line_end=0,
+                index_start=0,
+                index_end=1,
+            )
+        ],
+    )
+    result = MultiScanResult(
+        [ScanResult(policy_break_count=1, policy_breaks=[policy_break], policies=[])]
+    )
+    result.status_code = 200
+    return result
+
+
+def _scan_one_document_per_chunk(
+    scan_mock: Mock,
+    client: GGClient,
+    monkeypatch: pytest.MonkeyPatch,
+    responses: List[Any],
+) -> Results:
+    """
+    Scan one document per chunk, the API answering chunk i with responses[i]:
+    a response object, or an exception to raise. Chunks are collected in
+    submission order.
+    """
+    monkeypatch.setenv("GG_MAX_DOCS", "1")
+    by_content = {f"content{i}": response for i, response in enumerate(responses)}
+
+    def scan(documents: List[Dict[str, str]], *args: Any, **kwargs: Any) -> Any:
+        response = by_content[documents[0]["document"]]
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    scan_mock.side_effect = scan
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(scan_mode=ScanMode.PATH, command_path="ggshield"),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    scannables = [
+        StringScannable(url=f"file{i}", content=content)
+        for i, content in enumerate(by_content)
+    ]
+    with patch("concurrent.futures.as_completed", side_effect=list):
+        return scanner.scan(scannables, scanner_ui=Mock())
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        pytest.param(Detail("Too many requests", 429), id="429"),
+        pytest.param(Detail("Bad gateway", 503), id="503"),
+        pytest.param(requests.exceptions.ConnectionError("boom"), id="unreachable"),
+    ],
+)
+@pytest.mark.parametrize("refused_first", [True, False])
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_reports_secrets_found_next_to_a_refused_chunk(
+    scan_mock: Mock,
+    client: GGClient,
+    monkeypatch: pytest.MonkeyPatch,
+    refusal: Any,
+    refused_first: bool,
+):
+    """
+    GIVEN one chunk with a secret and one chunk the API did not scan
+    WHEN SecretScanner.scan() is called
+    THEN the secret is returned instead of being discarded with the scan, so
+    --no-fail-on-server-error cannot turn a found secret into a pass
+    """
+    responses = [refusal, _multi_scan_result_with_secret()]
+    if not refused_first:
+        responses.reverse()
+
+    results = _scan_one_document_per_chunk(scan_mock, client, monkeypatch, responses)
+
+    assert results.has_secrets
+
+
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_fails_when_a_chunk_is_refused_and_no_secret_is_found(
+    scan_mock: Mock, client: GGClient, monkeypatch: pytest.MonkeyPatch
+):
+    """
+    GIVEN one clean chunk and one chunk the API did not scan
+    WHEN SecretScanner.scan() is called
+    THEN it raises instead of reporting the scan as clean
+    """
+    responses = [
+        _clean_multi_scan_result([{}]),
+        Detail("Too many requests", 429),
+    ]
+    with pytest.raises(ServiceUnavailableError):
+        _scan_one_document_per_chunk(scan_mock, client, monkeypatch, responses)
+
+
+@pytest.mark.parametrize("forbidden_first", [True, False])
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_refusal_that_cannot_be_skipped_wins(
+    scan_mock: Mock,
+    client: GGClient,
+    monkeypatch: pytest.MonkeyPatch,
+    forbidden_first: bool,
+):
+    """
+    GIVEN one chunk refused with a 403 and one throttled with a 429
+    WHEN SecretScanner.scan() is called
+    THEN the 403 is raised whatever the order, so --no-fail-on-server-error
+    cannot skip it
+    """
+    responses = [Detail("Forbidden", 403), Detail("Too many requests", 429)]
+    if not forbidden_first:
+        responses.reverse()
+
+    with pytest.raises(UnexpectedError, match="HTTP 403"):
+        _scan_one_document_per_chunk(scan_mock, client, monkeypatch, responses)
 
 
 def test_scan_merge_commit(client, cache):
