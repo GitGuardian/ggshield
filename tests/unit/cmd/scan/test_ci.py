@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 import click
 import pytest
+from pygitguardian.models import Detail
 
 from ggshield.__main__ import cli
 from ggshield.core import ui
@@ -289,6 +290,51 @@ def test_ci_connection_error_opt_in_fail_open(
     result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
     assert_invoke_ok(result)
     assert "Skipping ggshield checks" in result.output
+
+
+@pytest.mark.parametrize(
+    "status_code, args, exit_code",
+    [
+        (429, [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (503, [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (429, ["--no-fail-on-server-error"], ExitCode.SUCCESS),
+        (403, ["--no-fail-on-server-error"], ExitCode.UNEXPECTED_ERROR),
+    ],
+)
+@patch("ggshield.verticals.secret.repo.check_client_api_key")
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_ci_refused_scan_does_not_pass(
+    scan_mock: Mock,
+    _check_api_key: Mock,
+    status_code: int,
+    args: List[str],
+    exit_code: ExitCode,
+    tmp_path: Path,
+    cli_runner: click.testing.CliRunner,
+    monkeypatch,
+):
+    """
+    GIVEN a CI job on a commit adding a file
+    WHEN the API does not scan it
+    THEN `secret scan ci` fails, unless --no-fail-on-server-error lets a
+    skippable failure through
+    """
+    repo = Repository.create(tmp_path)
+    repo.create_commit("initial commit")
+    (tmp_path / "config.py").write_text("VALUE = 1\n")
+    repo.add("config.py")
+    sha = repo.create_commit("add config")
+    monkeypatch.setenv("CI", "1")
+    monkeypatch.setenv("GITLAB_CI", "1")
+    monkeypatch.setenv("CI_COMMIT_SHA", sha)
+    scan_mock.return_value = Detail("Nope", status_code)
+
+    with cd(str(tmp_path)):
+        result = cli_runner.invoke(cli, ["secret", "scan", "ci", *args])
+
+    assert_invoke_exited_with(result, exit_code)
+    assert scan_mock.called
+    assert "No secrets have been found" not in result.output
 
 
 @patch("ggshield.cmd.secret.scan.ci.scan_commit_range")
