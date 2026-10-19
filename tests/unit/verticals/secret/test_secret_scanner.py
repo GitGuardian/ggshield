@@ -258,6 +258,46 @@ def test_handle_scan_chunk_error_forbidden_is_not_skippable():
         handle_scan_chunk_error(detail, [])
 
 
+@pytest.mark.parametrize(
+    "body, expects_network_hint",
+    [
+        pytest.param("IP address not allowed", False, id="GitGuardian answer"),
+        pytest.param("<html><body>Forbidden</body></html>", True, id="proxy page"),
+        pytest.param("", True, id="empty"),
+    ],
+)
+def test_handle_scan_chunk_error_forbidden_network_hint(
+    body: str, expects_network_hint: bool
+):
+    """
+    GIVEN a 403 on a chunk
+    WHEN handle_scan_chunk_error() is called
+    THEN the network hint is only given when the server sent no message of its
+    own: an HTML page or nothing points at a proxy or firewall
+    """
+    detail = Detail(detail=body, status_code=403)
+    with pytest.raises(UnexpectedError) as exc_info:
+        handle_scan_chunk_error(detail, [])
+    assert ("IP allowlist" in exc_info.value.message) == expects_network_hint
+
+
+def test_handle_scan_chunk_error_payload_too_large_names_the_files():
+    """
+    GIVEN a proxy answers a chunk with a 413
+    WHEN handle_scan_chunk_error() is called
+    THEN the error names the files of the chunk, since retrying never helps
+    """
+    detail = Detail(detail="Request Entity Too Large", status_code=413)
+    chunk = [
+        StringScannable(content="a", url="big.bin"),
+        StringScannable(content="b", url="other.txt"),
+    ]
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        handle_scan_chunk_error(detail, chunk)
+    assert "big.bin" in exc_info.value.message
+    assert "other.txt" in exc_info.value.message
+
+
 def test_handle_scan_chunk_error_does_not_print_html_pages():
     """
     GIVEN a proxy answers a chunk with an HTML error page
@@ -369,6 +409,7 @@ def test_scan_reports_secrets_found_next_to_a_refused_chunk(
     WHEN SecretScanner.scan() is called
     THEN the secret is returned instead of being discarded with the scan, so
     --no-fail-on-server-error cannot turn a found secret into a pass
+    AND the failure is part of the results, for the JSON report
     """
     responses = [refusal, _multi_scan_result_with_secret()]
     if not refused_first:
@@ -377,6 +418,8 @@ def test_scan_reports_secrets_found_next_to_a_refused_chunk(
     results = _scan_one_document_per_chunk(scan_mock, client, monkeypatch, responses)
 
     assert results.has_secrets
+    assert len(results.errors) == 1
+    assert results.errors[0].description.startswith("Some files were not scanned")
 
 
 @patch("pygitguardian.GGClient.multi_content_scan")
