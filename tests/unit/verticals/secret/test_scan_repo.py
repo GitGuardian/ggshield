@@ -457,16 +457,17 @@ def test_scan_commit_range_failure_that_cannot_be_skipped_wins(
     scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes, forbidden_first
 ):
     """
-    GIVEN two batches running together, one refused with a 403, one throttled
+    GIVEN two batches running together, one failing with an error
+    --no-fail-on-server-error cannot skip, one throttled
     WHEN scanning the commit range
-    THEN the 403 is raised whatever the order
+    THEN the error the flag cannot skip is raised whatever the order
     """
     failures = [UnexpectedError("forbidden"), ServiceUnavailableError("throttled")]
     if not forbidden_first:
         failures.reverse()
 
-    # A batch that has not started when another fails is cancelled, so the 403
-    # batch must already be running for its failure to exist
+    # A batch that has not started when another fails is cancelled, so both
+    # batches must already be running for both failures to exist
     with pytest.raises(UnexpectedError, match="forbidden"):
         _scan_commit_range_of_batches(
             scan_commits_content_mock,

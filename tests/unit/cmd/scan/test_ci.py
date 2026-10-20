@@ -293,12 +293,18 @@ def test_ci_connection_error_opt_in_fail_open(
 
 
 @pytest.mark.parametrize(
-    "status_code, args, exit_code",
+    "status_code, detail, args, exit_code",
     [
-        (429, [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
-        (503, [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
-        (429, ["--no-fail-on-server-error"], ExitCode.SUCCESS),
-        (403, ["--no-fail-on-server-error"], ExitCode.UNEXPECTED_ERROR),
+        (429, "Nope", [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (503, "Nope", [], ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (429, "Nope", ["--no-fail-on-server-error"], ExitCode.SUCCESS),
+        (403, "Forbidden", ["--no-fail-on-server-error"], ExitCode.SUCCESS),
+        (
+            403,
+            "Quota limit reached.",
+            ["--no-fail-on-server-error"],
+            ExitCode.UNEXPECTED_ERROR,
+        ),
     ],
 )
 @patch("ggshield.verticals.secret.repo.check_client_api_key")
@@ -307,6 +313,7 @@ def test_ci_refused_scan_does_not_pass(
     scan_mock: Mock,
     _check_api_key: Mock,
     status_code: int,
+    detail: str,
     args: List[str],
     exit_code: ExitCode,
     tmp_path: Path,
@@ -327,7 +334,7 @@ def test_ci_refused_scan_does_not_pass(
     monkeypatch.setenv("CI", "1")
     monkeypatch.setenv("GITLAB_CI", "1")
     monkeypatch.setenv("CI_COMMIT_SHA", sha)
-    scan_mock.return_value = Detail("Nope", status_code)
+    scan_mock.return_value = Detail(detail, status_code)
 
     with cd(str(tmp_path)):
         result = cli_runner.invoke(cli, ["secret", "scan", "ci", *args])

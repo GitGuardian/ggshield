@@ -327,15 +327,15 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
 
     # Only a 400 faults the files we sent. Any other status means the API scanned
     # nothing, and dropping the chunk would report it as clean.
-    if detail.status_code == 403:
-        # A proxy's plain-text answer looks just like one from GitGuardian
-        raise UnexpectedError(
-            f"GitGuardian refused to scan the content ({status})."
-            " If this machine is behind a proxy, a firewall or an IP allowlist,"
-            " check that it can reach GitGuardian."
-        )
     if detail.status_code != 400:
         message = f"GitGuardian did not scan the content ({status})."
+        if detail.status_code == 403:
+            # A firewall usually blocks with a 403, and its plain-text answer
+            # looks just like one from GitGuardian
+            message += (
+                " If this machine is behind a proxy, a firewall or an IP allowlist,"
+                " check that it can reach GitGuardian."
+            )
         if detail.status_code == 413:
             # Retrying never helps: name the files so they can be excluded
             filenames = "\n".join(f"- {file.filename}" for file in chunk)
