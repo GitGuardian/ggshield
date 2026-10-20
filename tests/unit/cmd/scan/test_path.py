@@ -260,8 +260,9 @@ secret:
         (429, "Too many requests", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
         # The 2024 firewall incident
         (406, "", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
-        # Not the quota message: IP allowlist, firewall
-        (403, "Forbidden", ExitCode.UNEXPECTED_ERROR),
+        # Not the quota message: a proxy, firewall or IP allowlist
+        (403, "Forbidden", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (403, "Quota limit reached.", ExitCode.UNEXPECTED_ERROR),
     ),
 )
 @patch("ggshield.verticals.secret.secret_scanner.check_client_api_key")

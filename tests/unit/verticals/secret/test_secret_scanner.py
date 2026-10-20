@@ -232,29 +232,17 @@ def test_handle_scan_quota_limit_reached():
         handle_scan_chunk_error(detail, Mock())
 
 
-@pytest.mark.parametrize("status_code", [404, 406, 408, 409, 413, 422, 429, 499])
+@pytest.mark.parametrize("status_code", [403, 404, 406, 408, 409, 413, 422, 429, 499])
 def test_handle_scan_chunk_error_server_did_not_scan(status_code: int):
     """
     GIVEN the API answers a chunk with a status meaning it did not scan it
-    (rate limit, gateway or firewall error, timeout)
+    (rate limit, a gateway, proxy or firewall refusing it, timeout)
     WHEN handle_scan_chunk_error() is called
     THEN it raises ServiceUnavailableError instead of letting the chunk be dropped,
     so --no-fail-on-server-error can still let a hook through
     """
     detail = Detail(detail="Nope", status_code=status_code)
     with pytest.raises(ServiceUnavailableError, match=f"HTTP {status_code}"):
-        handle_scan_chunk_error(detail, [])
-
-
-def test_handle_scan_chunk_error_forbidden_is_not_skippable():
-    """
-    GIVEN the API refuses a chunk with a 403 that is not the quota message
-    (IP allowlist, firewall)
-    WHEN handle_scan_chunk_error() is called
-    THEN it raises an error that --no-fail-on-server-error does not skip
-    """
-    detail = Detail(detail="Forbidden", status_code=403)
-    with pytest.raises(UnexpectedError, match="HTTP 403"):
         handle_scan_chunk_error(detail, [])
 
 
@@ -275,7 +263,7 @@ def test_handle_scan_chunk_error_forbidden_network_hint(body: str):
     answer cannot be told apart from one from GitGuardian
     """
     detail = Detail(detail=body, status_code=403)
-    with pytest.raises(UnexpectedError) as exc_info:
+    with pytest.raises(ServiceUnavailableError) as exc_info:
         handle_scan_chunk_error(detail, [])
     assert "IP allowlist" in exc_info.value.message
 
@@ -447,16 +435,16 @@ def test_scan_refusal_that_cannot_be_skipped_wins(
     forbidden_first: bool,
 ):
     """
-    GIVEN one chunk refused with a 403 and one throttled with a 429
+    GIVEN one chunk refused for lack of quota and one throttled with a 429
     WHEN SecretScanner.scan() is called
-    THEN the 403 is raised whatever the order, so --no-fail-on-server-error
-    cannot skip it
+    THEN the quota error is raised whatever the order, so
+    --no-fail-on-server-error cannot skip it
     """
-    responses = [Detail("Forbidden", 403), Detail("Too many requests", 429)]
+    responses = [Detail("Quota limit reached.", 403), Detail("Too many requests", 429)]
     if not forbidden_first:
         responses.reverse()
 
-    with pytest.raises(UnexpectedError, match="HTTP 403"):
+    with pytest.raises(QuotaLimitReachedError):
         _scan_one_document_per_chunk(scan_mock, client, monkeypatch, responses)
 
 
