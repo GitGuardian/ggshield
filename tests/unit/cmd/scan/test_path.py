@@ -252,6 +252,45 @@ secret:
             assert kwargs["session"].verify is False
 
 
+@pytest.mark.parametrize(
+    "status_code, detail, exit_code",
+    (
+        # py-gitguardian hands a 429 back when Retry-After is missing, as a
+        # proxy or gateway may send it
+        (429, "Too many requests", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        # The 2024 firewall incident
+        (406, "", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        # Not the quota message: a proxy, firewall or IP allowlist
+        (403, "Forbidden", ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE),
+        (403, "Quota limit reached.", ExitCode.UNEXPECTED_ERROR),
+    ),
+)
+@patch("ggshield.verticals.secret.secret_scanner.check_client_api_key")
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_refused_scan_does_not_exit_zero(
+    scan_mock: Mock,
+    _api_key_mock: Mock,
+    status_code: int,
+    detail: str,
+    exit_code: ExitCode,
+    cli_fs_runner: CliRunner,
+) -> None:
+    """
+    GIVEN a server that refuses to scan with a status ggshield has no special
+    handling for
+    WHEN `secret scan path` runs
+    THEN the command fails with the matching exit code instead of reporting
+    "No secrets have been found"
+    """
+    write_text(Path("file_secret"), "SOME_SECRET_VALUE")
+    scan_mock.return_value = Detail(detail, status_code)
+
+    result = cli_fs_runner.invoke(cli, ["secret", "scan", "path", "file_secret"])
+
+    assert result.exit_code == exit_code, result.output
+    assert "No secrets have been found" not in result.output
+
+
 class TestScanDirectory:
     """
     Tests related to ggshield secret scan path -r

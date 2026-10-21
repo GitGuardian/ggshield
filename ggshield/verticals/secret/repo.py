@@ -7,7 +7,7 @@ from pathlib import Path
 from re import Pattern
 from typing import Callable, List, Set
 
-from click import UsageError
+from click import ClickException, UsageError
 from pygitguardian import GGClient
 
 from ggshield.core import ui
@@ -16,7 +16,7 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.config import Config
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.constants import MAX_WORKERS
-from ggshield.core.errors import ExitCode, QuotaLimitReachedError, handle_exception
+from ggshield.core.errors import ExitCode, UnexpectedError, handle_exception
 from ggshield.core.scan import Commit, ScanContext
 from ggshield.core.scanner_ui import create_message_only_scanner_ui
 from ggshield.core.text_utils import STYLE, format_text
@@ -24,6 +24,7 @@ from ggshield.utils.git_shell import get_list_commit_SHA, is_git_dir
 from ggshield.utils.os import cd
 from ggshield.verticals.secret.secret_scanner import (
     get_required_token_scopes_from_config,
+    report_scan_failures,
 )
 
 from .output import SecretOutputHandler
@@ -88,7 +89,8 @@ def scan_commits_content(
             results = scanner.scan(
                 commit_files, scan_threads=SCAN_THREADS, scanner_ui=scanner_ui
             )
-    except QuotaLimitReachedError:
+    except ClickException:
+        # scan_commit_range decides whether a failed batch fails the command
         raise
     except Exception as exc:
         logger.error(
@@ -98,7 +100,7 @@ def scan_commits_content(
             exc,
             traceback.format_exc(),
         )
-        results = Results.from_exception(exc)
+        raise UnexpectedError(f"Scanning failed: {exc}") from exc
     finally:
         progress_callback(len(commits))
         for commit in commits:
@@ -222,23 +224,32 @@ def scan_commit_range(
                     )
                 )
 
+            failures: List[ClickException] = []
             try:
                 # in submission order so we preserve the order
                 for future in futures:
-                    scan_collection = future.result()
-                    for scan in scan_collection.scans_with_results:
-                        if scan.results and scan.results.errors:
-                            for error in scan.results.errors:
-                                ui.display_error(error.description)
-                        scans.append(scan)
+                    if future.cancelled():
+                        continue
+                    try:
+                        scan_collection = future.result()
+                    except ClickException as exc:
+                        # Don't run the remaining batches, but keep what the
+                        # running ones find
+                        failures.append(exc)
+                        executor.shutdown(cancel_futures=True)
+                        continue
+                    scans.extend(scan_collection.scans_with_results)
             except Exception:
                 # Don't run the remaining batches if one already failed
                 executor.shutdown(cancel_futures=True)
                 raise
 
-    return_code = output_handler.process_scan(
-        SecretScanCollection(
-            id=scan_context.command_id, type="commit-range", scans=scans
-        )
+    collection = SecretScanCollection(
+        id=scan_context.command_id, type="commit-range", scans=scans
     )
-    return return_code
+    error = report_scan_failures(
+        failures, found_secrets=collection.total_secrets_count > 0
+    )
+    if error is not None:
+        collection.results = Results(errors=[error])
+    return output_handler.process_scan(collection)

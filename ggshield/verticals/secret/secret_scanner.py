@@ -8,6 +8,7 @@ from ast import literal_eval
 from concurrent.futures import Future
 from typing import Dict, Iterable, List, Optional, Union
 
+import click
 import requests
 from pygitguardian import GGClient
 from pygitguardian.models import Detail, MultiScanResult, TokenScope
@@ -21,13 +22,14 @@ from ggshield.core.errors import (
     ServiceUnavailableError,
     UnexpectedError,
     handle_api_error,
+    is_html_page,
 )
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.scan.scannable import NonSeekableFileError
 from ggshield.core.scanner_ui.scanner_ui import ScannerUI
 from ggshield.core.text_utils import pluralize
 
-from .secret_scan_collection import Result, Results
+from .secret_scan_collection import Error, Result, Results
 
 
 # GitGuardian API does not accept paths longer than this
@@ -228,33 +230,20 @@ class SecretScanner:
         self.cache.purge()
 
         results = []
+        failures: List[click.ClickException] = []
         for future in concurrent.futures.as_completed(chunks_for_futures):
             chunk = chunks_for_futures[future]
             scanner_ui.on_scanned(chunk)
 
-            exception = future.exception()
-            if exception is None:
-                scan = future.result()
-            else:
-                # Only connectivity failures are eligible for the
-                # --no-fail-on-server-error skip path. Any other exception is
-                # opaque (SSL failure, JSON decode, internal bug, ...) and must
-                # not be silently swallowed when fail-open is enabled.
-                if isinstance(
-                    exception,
-                    (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
-                ):
-                    raise ServiceUnavailableError(
-                        f"Scanning failed: {exception}"
-                    ) from exception
-                raise UnexpectedError(f"Scanning failed: {exception}") from exception
-
-            if not scan.success:
-                assert isinstance(scan, Detail)
-                handle_scan_chunk_error(scan, chunk)
+            try:
+                scan = _get_chunk_scan(future, chunk)
+            except click.ClickException as exc:
+                # Collect every chunk: raising early drops the secrets found so far
+                failures.append(exc)
+                continue
+            if scan is None:
                 continue
 
-            assert isinstance(scan, MultiScanResult)
             for file, scan_result in zip(chunk, scan.scan_results):
                 result = Result.from_scan_result(file, scan_result, self.secret_config)
                 for secret in result.secrets:
@@ -266,17 +255,92 @@ class SecretScanner:
                 results.append(result)
 
         self.cache.save()
-        return Results(results=results)
+        collected = Results(results=results)
+        error = report_scan_failures(failures, found_secrets=collected.has_secrets)
+        if error is not None:
+            collected.errors.append(error)
+        return collected
+
+
+def report_scan_failures(
+    failures: List[click.ClickException], found_secrets: bool
+) -> Optional[Error]:
+    """
+    Raise the failure to report, preferring one --no-fail-on-server-error cannot
+    skip. If secrets were found, they already fail the command: display the failure
+    and return it as an Error to report next to them instead.
+    """
+    if not failures:
+        return None
+    failure = next(
+        (f for f in failures if not isinstance(f, ServiceUnavailableError)),
+        failures[-1],
+    )
+    if not found_secrets:
+        raise failure
+    description = f"Some files were not scanned: {failure.format_message()}"
+    ui.display_error(description)
+    return Error(files=[], description=description)
+
+
+def _get_chunk_scan(
+    future: ScanFuture, chunk: List[Scannable]
+) -> Optional[MultiScanResult]:
+    """
+    Return the scan of `chunk`, or None if the API rejected its files. Raise if the
+    API did not scan it.
+    """
+    exception = future.exception()
+    if exception is not None:
+        # Only connectivity failures are eligible for the
+        # --no-fail-on-server-error skip path. Any other exception is
+        # opaque (SSL failure, JSON decode, internal bug, ...) and must
+        # not be silently swallowed when fail-open is enabled.
+        if isinstance(
+            exception,
+            (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
+        ):
+            raise ServiceUnavailableError(
+                f"Scanning failed: {exception}"
+            ) from exception
+        raise UnexpectedError(f"Scanning failed: {exception}") from exception
+
+    scan = future.result()
+    if not scan.success:
+        assert isinstance(scan, Detail)
+        handle_scan_chunk_error(scan, chunk)
+        return None
+    assert isinstance(scan, MultiScanResult)
+    return scan
 
 
 def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     handle_api_error(detail)
     details = None
 
-    # Handle source_uuid not found error specifically
     if "Source" in detail.detail and "not found" in detail.detail:
-        ui.display_error("The provided source was not found in GitGuardian.")
-        return
+        raise UnexpectedError("The provided source was not found in GitGuardian.")
+
+    status = f"HTTP {detail.status_code}"
+    if detail.detail and not is_html_page(detail.detail):
+        status += f": {detail.detail}"
+
+    # Only a 400 faults the files we sent. Any other status means the API scanned
+    # nothing, and dropping the chunk would report it as clean.
+    if detail.status_code != 400:
+        message = f"GitGuardian did not scan the content ({status})."
+        if detail.status_code == 403:
+            # A firewall usually blocks with a 403, and its plain-text answer
+            # looks just like one from GitGuardian
+            message += (
+                " If this machine is behind a proxy, a firewall or an IP allowlist,"
+                " check that it can reach GitGuardian."
+            )
+        if detail.status_code == 413:
+            # Retrying never helps: name the files so they can be excluded
+            filenames = "\n".join(f"- {file.filename}" for file in chunk)
+            message += f" The request was too large for:\n{filenames}"
+        raise ServiceUnavailableError(message)
 
     ui.display_error("Scanning failed. Results may be incomplete.")
     try:

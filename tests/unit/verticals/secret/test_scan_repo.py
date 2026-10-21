@@ -1,12 +1,14 @@
+import threading
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from ggshield.core.config.user_config import SecretConfig
+from ggshield.core.errors import ExitCode, ServiceUnavailableError, UnexpectedError
 from ggshield.core.scan import Commit, ScanContext, ScanMode
 from ggshield.core.scan.commit_information import CommitInformation
 from ggshield.core.scan.commit_utils import CommitScannable
@@ -357,3 +359,159 @@ def test_scan_commit_range_scans_batches_in_parallel(
 
     # Sequential scanning would give ["start", "end", "start", "end"]
     assert events[:2] == ["start", "start"]
+
+
+def _batch_with_secret(sha: str) -> SecretScanCollection:
+    scannable = CommitScannable(sha, Path("f"), _ONE_LINE_AND_MULTILINE_PATCH_CONTENT)
+    result = Result.from_scan_result(
+        scannable, deepcopy(TWO_POLICY_BREAKS), secret_config=SecretConfig()
+    )
+    commit_scan = SecretScanCollection(
+        id=sha, type="commit", results=Results(results=[result], errors=[])
+    )
+    return SecretScanCollection(id="batch", type="commit-range", scans=[commit_scan])
+
+
+def _scan_commit_range_of_batches(
+    scan_commits_content_mock,
+    from_sha_mock,
+    batches,
+    started_together: Optional[threading.Barrier] = None,
+):
+    """
+    Scan one commit per batch, scan_commits_content answering batch i with
+    batches[i]: a SecretScanCollection, or an exception to raise. With
+    `started_together`, no batch answers before they have all started.
+    """
+
+    def scan(commits, *args):
+        if started_together is not None:
+            started_together.wait(timeout=5)
+        batch = batches[int(commits[0].sha)]
+        if isinstance(batch, Exception):
+            raise batch
+        return batch
+
+    scan_commits_content_mock.side_effect = scan
+    from_sha_mock.side_effect = lambda sha, exclusion_regexes: Commit(
+        sha=sha,
+        patch_parser=MagicMock(),
+        info=CommitInformation(author="", email="", date="", paths=[Path("f")]),
+    )
+    client = MagicMock()
+    client.secret_scan_preferences.maximum_documents_per_scan = 1
+    output_handler = MagicMock()
+    output_handler.process_scan.side_effect = lambda collection: (
+        ExitCode.SCAN_FOUND_PROBLEMS
+        if collection.total_secrets_count
+        else ExitCode.SUCCESS
+    )
+
+    exit_code = scan_commit_range(
+        client=client,
+        cache=MagicMock(),
+        commit_list=[str(i) for i in range(len(batches))],
+        output_handler=output_handler,
+        exclusion_regexes=set(),
+        scan_context=ScanContext(scan_mode=ScanMode.PRE_RECEIVE, command_path="x"),
+        secret_config=SecretConfig(),
+    )
+    return exit_code, output_handler.process_scan.call_args.args[0]
+
+
+@patch("ggshield.verticals.secret.repo.MAX_WORKERS", 1)
+@patch("ggshield.verticals.secret.repo.get_required_token_scopes_from_config")
+@patch("ggshield.verticals.secret.repo.check_client_api_key")
+@patch("ggshield.verticals.secret.repo.Commit.from_sha")
+@patch("ggshield.verticals.secret.repo.scan_commits_content")
+def test_scan_commit_range_reports_secrets_found_before_a_failed_batch(
+    scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes
+):
+    """
+    GIVEN a batch with a secret, then a batch the API did not scan
+    WHEN scanning the commit range
+    THEN the secret is reported and the command fails with exit code 1
+    AND the failure is part of the report
+    """
+    exit_code, collection = _scan_commit_range_of_batches(
+        scan_commits_content_mock,
+        from_sha_mock,
+        [_batch_with_secret("0"), ServiceUnavailableError("throttled")],
+    )
+
+    assert exit_code == ExitCode.SCAN_FOUND_PROBLEMS
+    assert collection.total_secrets_count > 0
+    assert collection.results is not None
+    assert [
+        "throttled" in error.description for error in collection.results.errors
+    ] == [True]
+
+
+@pytest.mark.parametrize("forbidden_first", [True, False])
+@patch("ggshield.verticals.secret.repo.MAX_WORKERS", 2)
+@patch("ggshield.verticals.secret.repo.get_required_token_scopes_from_config")
+@patch("ggshield.verticals.secret.repo.check_client_api_key")
+@patch("ggshield.verticals.secret.repo.Commit.from_sha")
+@patch("ggshield.verticals.secret.repo.scan_commits_content")
+def test_scan_commit_range_failure_that_cannot_be_skipped_wins(
+    scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes, forbidden_first
+):
+    """
+    GIVEN two batches running together, one failing with an error
+    --no-fail-on-server-error cannot skip, one throttled
+    WHEN scanning the commit range
+    THEN the error the flag cannot skip is raised whatever the order
+    """
+    failures = [UnexpectedError("forbidden"), ServiceUnavailableError("throttled")]
+    if not forbidden_first:
+        failures.reverse()
+
+    # A batch that has not started when another fails is cancelled, so both
+    # batches must already be running for both failures to exist
+    with pytest.raises(UnexpectedError, match="forbidden"):
+        _scan_commit_range_of_batches(
+            scan_commits_content_mock,
+            from_sha_mock,
+            failures,
+            started_together=threading.Barrier(2),
+        )
+
+
+@pytest.mark.parametrize(
+    "exception, expected",
+    [
+        pytest.param(
+            ServiceUnavailableError("throttled"),
+            ServiceUnavailableError,
+            id="API did not scan",
+        ),
+        pytest.param(RuntimeError("parse bug"), UnexpectedError, id="other error"),
+    ],
+)
+@patch("ggshield.verticals.secret.repo.SecretScanner")
+def test_scan_commits_content_lets_scan_failures_through(
+    secret_scanner_mock, exception, expected
+):
+    """
+    GIVEN a scanner that raises
+    WHEN scan_commits_content is called
+    THEN the error propagates instead of being turned into an error message,
+    so the command cannot exit 0
+    """
+    secret_scanner_mock.return_value.scan.side_effect = exception
+    commit = Commit(
+        sha="sha",
+        patch_parser=lambda commit: [],
+        info=CommitInformation(author="", email="", date="", paths=[]),
+    )
+
+    with pytest.raises(expected):
+        scan_commits_content(
+            commits=[commit],
+            client=MagicMock(),
+            cache=MagicMock(),
+            scan_context=MagicMock(),
+            progress_callback=(lambda advance: None),
+            commit_scanned_callback=(lambda commit: None),
+            secret_config=SecretConfig(),
+        )
