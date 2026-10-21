@@ -327,3 +327,4 @@ runs:
           dist/ggshield_*.deb
           dist/ggshield.*.nupkg
           dist/ggshield-*.msi
+          dist/ggshield-*.cdx.json
