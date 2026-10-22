@@ -5,7 +5,7 @@ PROGNAME=$(basename "$0")
 SCRIPT_DIR=$(cd "$(dirname "$0")" ; pwd)
 ROOT_DIR=$(cd "$SCRIPT_DIR/../.." ; pwd)
 
-DEFAULT_STEPS="req build copy_files test sign create_archive"
+DEFAULT_STEPS="req build copy_files test sign sbom create_archive"
 
 # Intermediate build artifacts (PyInstaller bundle, package staging, scratch)
 # live under build/; only the final shippable packages go to dist/.
@@ -565,6 +565,26 @@ step_test() {
         "$BUILD_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX/ggshield${EXE_EXT}" $args
         info "test: running $args: OK"
     done
+}
+
+# Write the CycloneDX SBOM of the bundle next to the packages. Runs after
+# `sign`, so the hashes it records are those of the shipped files, and before
+# `create_archive`, which moves the macOS files away. See scripts/sbom/.
+step_sbom() {
+    local bundle_dir="$BUILD_DIR/$ARCHIVE_DIR_NAME/$INSTALL_PREFIX"
+    local sbom_path="$DIST_DIR/$ARCHIVE_DIR_NAME.cdx.json"
+    mkdir -p "$DIST_DIR"
+    if [ -f "$HOME/.cargo/env" ] ; then
+        . "$HOME/.cargo/env"
+    fi
+    # --describe-interpreter: this is the Python PyInstaller bundled
+    python "$ROOT_DIR/scripts/sbom/generate_sbom.py" "$bundle_dir" \
+        --version "$VERSION" \
+        --target "$TARGET" \
+        --cargo-manifest "$ROOT_DIR/rust/Cargo.toml" \
+        --describe-interpreter \
+        --output "$sbom_path"
+    info "SBOM created in $sbom_path"
 }
 
 step_functests() {
