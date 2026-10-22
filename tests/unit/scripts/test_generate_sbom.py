@@ -9,6 +9,12 @@ import generate_sbom
 import pytest
 
 
+# The SBOM generator runs on the Python that the OS packages bundle, and needs
+# Python 3.10 or later (sys.stdlib_module_names)
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 10), reason="generate_sbom.py needs Python 3.10+"
+)
+
 def make_dist(
     site_packages: Path,
     name: str,
