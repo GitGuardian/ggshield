@@ -15,6 +15,7 @@ pytestmark = pytest.mark.skipif(
     sys.version_info < (3, 10), reason="generate_sbom.py needs Python 3.10+"
 )
 
+
 def make_dist(
     site_packages: Path,
     name: str,
