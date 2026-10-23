@@ -191,7 +191,7 @@ runs:
         $PYTHON_CMD -m pip install --upgrade pip
         # Install uv
         $PYTHON_CMD -m pip install uv==$UV_VERSION
-        uv sync --locked --no-default-groups --group tests --group standalone
+        uv sync --locked --no-default-groups --group standalone
 
     - name: Prepare macOS secrets
       if: runner.os == 'macOS' && inputs.sign == 'true'
@@ -306,6 +306,7 @@ runs:
       if: ${{ !github.event.pull_request.head.repo.fork }}
       shell: bash
       run: |
+        uv sync --locked --no-default-groups --group tests --group standalone
         uv run --no-sync bash -c "scripts/build-os-packages/build-os-packages functests"
       env:
         GITGUARDIAN_API_KEY: ${{ inputs.gitguardian-api-key }}
