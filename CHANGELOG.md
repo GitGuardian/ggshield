@@ -1,5 +1,13 @@
 # Changelog
 
+<a id='changelog-1.56.1'></a>
+
+## 1.56.1 — 2026-10-26
+
+### Security
+
+- Stop trusting the compromised eMudhra emSign G3 intermediate CAs: update the bundled CA certificates (certifi 2026.10.19, webpki-root-certs 1.0.10) and rustls-webpki 0.103.16.
+
 <a id='changelog-1.56.0'></a>
 
 ## 1.56.0 — 2026-10-15
