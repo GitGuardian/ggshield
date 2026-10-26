@@ -310,8 +310,12 @@ def _get_chunk_scan(
         raise UnexpectedError(f"Scanning failed: {exception}") from exception
 
     scan = future.result()
-    if not scan.success:
-        assert isinstance(scan, Detail)
+    # Not `scan.success`: a proxy page with status 200 is a Detail too
+    if isinstance(scan, Detail):
+        if scan.status_code == 200 and scan.detail.lstrip().startswith(("[", "{")):
+            # py-gitguardian only reads a result sent as exactly "application/json":
+            # this one may hold a secret, so --no-fail-on-server-error must not skip it
+            raise UnexpectedError("Could not read the scan result sent by GitGuardian.")
         handle_scan_chunk_error(scan, chunk)
         return None
     assert isinstance(scan, MultiScanResult)

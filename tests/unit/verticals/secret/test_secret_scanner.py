@@ -268,6 +268,55 @@ def test_handle_scan_chunk_error_forbidden_network_hint(body: str):
     assert "IP allowlist" in exc_info.value.message
 
 
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_proxy_page_with_status_200_is_not_a_scan(scan_mock: Mock, client):
+    """
+    GIVEN a proxy that answers a chunk with an HTML page and status 200
+    WHEN SecretScanner.scan() is called
+    THEN it raises ServiceUnavailableError, like for other refusals
+    """
+    scan_mock.return_value = Detail("<html>Sign in</html>", 200)
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(scan_mode=ScanMode.PATH, command_path="ggshield"),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    with pytest.raises(ServiceUnavailableError, match="HTTP 200"):
+        scanner.scan([StringScannable(url="f", content="x")], scanner_ui=Mock())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param('[{"policy_break_count": 1}]', id="list"),
+        pytest.param(' {"detail": "x"}', id="object"),
+    ],
+)
+@patch("pygitguardian.GGClient.multi_content_scan")
+def test_scan_unreadable_scan_result_is_not_skippable(
+    scan_mock: Mock, client, body: str
+):
+    """
+    GIVEN a chunk answered with status 200 and a JSON body py-gitguardian did not
+    read as a scan result (e.g. a content type rewritten by a proxy)
+    WHEN SecretScanner.scan() is called
+    THEN it raises an error --no-fail-on-server-error does not skip, since the
+    body may hold a secret
+    """
+    scan_mock.return_value = Detail(body, 200)
+    scanner = SecretScanner(
+        client=client,
+        cache=Cache(),
+        scan_context=ScanContext(scan_mode=ScanMode.PATH, command_path="ggshield"),
+        check_api_key=False,
+        secret_config=SecretConfig(),
+    )
+    with pytest.raises(UnexpectedError):
+        scanner.scan([StringScannable(url="f", content="x")], scanner_ui=Mock())
+
+
 def test_handle_scan_chunk_error_shortens_long_bodies():
     """
     GIVEN a proxy answers a chunk with a long plain-text body
@@ -393,6 +442,7 @@ def _scan_one_document_per_chunk(
         pytest.param(Detail("Too many requests", 429), id="429"),
         pytest.param(Detail("Bad gateway", 503), id="503"),
         pytest.param(requests.exceptions.ConnectionError("boom"), id="unreachable"),
+        pytest.param(Detail("<html>Sign in</html>", 200), id="200 proxy page"),
     ],
 )
 @pytest.mark.parametrize("refused_first", [True, False])

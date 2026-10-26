@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Iterator, Optional, Union
 
 import click
 import requests
@@ -281,14 +282,26 @@ def safe_response_json(response: requests.Response) -> Any:
         raise _non_json_error(response.url, exc) from exc
 
 
-def _read_metadata(client: GGClient) -> Detail | None:
+@contextmanager
+def _raise_unavailable_on_network_error() -> Iterator[None]:
     try:
-        return client.read_metadata()
+        yield
     except requests.exceptions.ConnectionError as e:
         raise ServiceUnavailableError(
             message="Failed to connect to GitGuardian server. Check your"
             f" instance URL settings.\nDetails: {e}.",
         )
+    # A 502, 503 or 504 still there once the retries are exhausted. A read timeout
+    # on these GET requests ends as a ConnectionError.
+    except requests.exceptions.RetryError as e:
+        raise ServiceUnavailableError(
+            message=f"GitGuardian server is not responding.\nDetails: {e}."
+        )
+
+
+def _read_metadata(client: GGClient) -> Detail | None:
+    with _raise_unavailable_on_network_error():
+        return client.read_metadata()
 
 
 def _check_metadata_response(client: GGClient, response: Detail | None) -> None:
@@ -317,13 +330,8 @@ def _check_metadata_response(client: GGClient, response: Detail | None) -> None:
 
 
 def _read_api_tokens(client: GGClient) -> APITokensResponse | Detail:
-    try:
+    with _raise_unavailable_on_network_error():
         return safe_api_tokens(client)
-    except requests.exceptions.ConnectionError as e:
-        raise ServiceUnavailableError(
-            message="Failed to connect to GitGuardian server. Check your"
-            f" instance URL settings.\nDetails: {e}.",
-        )
 
 
 def check_client_api_key(client: GGClient, required_scopes: set[TokenScope]) -> None:
