@@ -292,13 +292,17 @@ def _get_chunk_scan(
     """
     exception = future.exception()
     if exception is not None:
-        # Only connectivity failures are eligible for the
-        # --no-fail-on-server-error skip path. Any other exception is
-        # opaque (SSL failure, JSON decode, internal bug, ...) and must
-        # not be silently swallowed when fail-open is enabled.
+        # Only failing to get an answer (unreachable, SSL, timeout, retries
+        # exhausted on a 5xx) is eligible for the --no-fail-on-server-error skip
+        # path. Any other exception is opaque (JSON decode, internal bug, ...)
+        # and must not be silently swallowed when fail-open is enabled.
         if isinstance(
             exception,
-            (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
+            (
+                requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                requests.exceptions.RetryError,
+            ),
         ):
             raise ServiceUnavailableError(
                 f"Scanning failed: {exception}"
@@ -323,7 +327,8 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
 
     status = f"HTTP {detail.status_code}"
     if detail.detail and not is_html_page(detail.detail):
-        status += f": {detail.detail}"
+        # A proxy may answer with a whole page of plain text
+        status += ": " + " ".join(detail.detail.split())[:100]
 
     # Only a 400 faults the files we sent. Any other status means the API scanned
     # nothing, and dropping the chunk would report it as clean.

@@ -268,6 +268,19 @@ def test_handle_scan_chunk_error_forbidden_network_hint(body: str):
     assert "IP allowlist" in exc_info.value.message
 
 
+def test_handle_scan_chunk_error_shortens_long_bodies():
+    """
+    GIVEN a proxy answers a chunk with a long plain-text body
+    WHEN handle_scan_chunk_error() is called
+    THEN the error only quotes the start of it
+    """
+    detail = Detail(detail="x" * 500, status_code=429)
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        handle_scan_chunk_error(detail, [])
+    assert "x" * 100 in exc_info.value.message
+    assert "x" * 101 not in exc_info.value.message
+
+
 def test_handle_scan_chunk_error_payload_too_large_names_the_files():
     """
     GIVEN a proxy answers a chunk with a 413
@@ -726,6 +739,8 @@ def test_scan_opaque_exception_raises_unexpected_error(scan_mock: Mock, client):
     [
         pytest.param(requests.exceptions.ConnectionError("boom"), id="ConnectionError"),
         pytest.param(requests.exceptions.Timeout("boom"), id="Timeout"),
+        # A 502, 503 or 504 still there once the session's retries are exhausted
+        pytest.param(requests.exceptions.RetryError("boom"), id="RetryError"),
     ],
 )
 @patch("pygitguardian.GGClient.multi_content_scan")

@@ -160,9 +160,11 @@ def prereceive_cmd(
         return 0
     if process.exitcode == ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE:
         if config.user_config.secret.fail_on_server_error:
-            ui.display_error("\nGitGuardian server is not responding.")
+            ui.display_error("\nGitGuardian did not scan the pushed commits.")
             return ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE
-        ui.display_error("\nGitGuardian server is not responding. Skipping checks.")
+        ui.display_error(
+            "\nGitGuardian did not scan the pushed commits. Skipping checks."
+        )
         return 0
 
     return process.exitcode

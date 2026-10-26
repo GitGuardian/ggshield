@@ -322,6 +322,53 @@ def test_scan_commit_range_stops_on_error(
 @patch("ggshield.verticals.secret.repo.check_client_api_key")
 @patch("ggshield.verticals.secret.repo.Commit.from_sha")
 @patch("ggshield.verticals.secret.repo.scan_commits_content")
+def test_scan_commit_range_stops_sending_batches_after_a_failed_one(
+    scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes
+):
+    """
+    GIVEN a range of commits, scanned one commit per batch
+    WHEN the API does not scan one of them
+    THEN the error is raised
+    AND the remaining batches are not scanned
+    """
+    nb_commits = 50
+    started = []
+
+    def scan(commits, *args):
+        started.append(commits)
+        if len(started) == 3:
+            raise ServiceUnavailableError("throttled")
+        time.sleep(0.05)
+        return SecretScanCollection(id="batch", type="commit-range", scans=[])
+
+    scan_commits_content_mock.side_effect = scan
+    from_sha_mock.side_effect = lambda sha, exclusion_regexes: Commit(
+        sha=sha,
+        patch_parser=MagicMock(),
+        info=CommitInformation(author="", email="", date="", paths=[Path("f")]),
+    )
+    client = MagicMock()
+    client.secret_scan_preferences.maximum_documents_per_scan = 1
+
+    with pytest.raises(ServiceUnavailableError, match="throttled"):
+        scan_commit_range(
+            client=client,
+            cache=MagicMock(),
+            commit_list=[f"sha{i}" for i in range(nb_commits)],
+            output_handler=MagicMock(),
+            exclusion_regexes=set(),
+            scan_context=ScanContext(scan_mode=ScanMode.PRE_RECEIVE, command_path="x"),
+            secret_config=SecretConfig(),
+        )
+
+    assert len(started) < nb_commits
+
+
+@patch("ggshield.verticals.secret.repo.MAX_WORKERS", 2)
+@patch("ggshield.verticals.secret.repo.get_required_token_scopes_from_config")
+@patch("ggshield.verticals.secret.repo.check_client_api_key")
+@patch("ggshield.verticals.secret.repo.Commit.from_sha")
+@patch("ggshield.verticals.secret.repo.scan_commits_content")
 def test_scan_commit_range_scans_batches_in_parallel(
     scan_commits_content_mock, from_sha_mock, _check_api_key, _scopes
 ):
