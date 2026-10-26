@@ -21,8 +21,8 @@ from ggshield.core.constants import MAX_WORKERS
 from ggshield.core.errors import (
     ServiceUnavailableError,
     UnexpectedError,
+    describe_http_error,
     handle_api_error,
-    is_html_page,
 )
 from ggshield.core.scan import DecodeError, ScanContext, Scannable
 from ggshield.core.scan.scannable import NonSeekableFileError
@@ -325,10 +325,7 @@ def handle_scan_chunk_error(detail: Detail, chunk: List[Scannable]) -> None:
     if "Source" in detail.detail and "not found" in detail.detail:
         raise UnexpectedError("The provided source was not found in GitGuardian.")
 
-    status = f"HTTP {detail.status_code}"
-    if detail.detail and not is_html_page(detail.detail):
-        # A proxy may answer with a whole page of plain text
-        status += ": " + " ".join(detail.detail.split())[:100]
+    status = describe_http_error(detail)
 
     # Only a 400 faults the files we sent. Any other status means the API scanned
     # nothing, and dropping the chunk would report it as clean.

@@ -336,7 +336,7 @@ def test_scan_commit_range_stops_sending_batches_after_a_failed_one(
 
     def scan(commits, *args):
         started.append(commits)
-        if len(started) == 3:
+        if commits[0].sha == "sha2":
             raise ServiceUnavailableError("throttled")
         time.sleep(0.05)
         return SecretScanCollection(id="batch", type="commit-range", scans=[])

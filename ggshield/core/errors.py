@@ -235,6 +235,14 @@ def is_html_page(text: str) -> bool:
     return text.lstrip().startswith("<")
 
 
+def describe_http_error(detail: Detail) -> str:
+    description = f"HTTP {detail.status_code}"
+    if detail.detail and not is_html_page(detail.detail):
+        # A proxy may answer with a whole page of plain text
+        description += ": " + " ".join(detail.detail.split())[:100]
+    return description
+
+
 def handle_api_error(detail: Detail) -> None:
     # Use %s for status_code because it can be None. Logger is OK with an int being
     # passed for a %s placeholder.
@@ -261,4 +269,6 @@ def handle_api_error(detail: Detail) -> None:
                 " longer than the server allows. Re-run the command with --debug to"
                 " see the server response."
             )
-        raise ServiceUnavailableError(detail.detail)
+        raise ServiceUnavailableError(
+            f"The GitGuardian server returned an error ({describe_http_error(detail)})."
+        )
