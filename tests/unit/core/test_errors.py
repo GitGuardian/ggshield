@@ -64,10 +64,25 @@ def test_handle_api_error_plain_text_5xx_keeps_detail():
     """
     GIVEN a 503 whose body is plain text
     WHEN handle_api_error() is called
-    THEN the error shows that text unchanged
+    THEN the error shows the status and that text
     """
-    with pytest.raises(ServiceUnavailableError, match="^Service is unavailable$"):
+    with pytest.raises(
+        ServiceUnavailableError, match=r"\(HTTP 503: Service is unavailable\)"
+    ):
         handle_api_error(Detail("Service is unavailable", 503))
+
+
+def test_handle_api_error_shortens_long_5xx_bodies():
+    """
+    GIVEN a 500 whose body is a long plain text
+    WHEN handle_api_error() is called
+    THEN the error only quotes the start of it
+    """
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        handle_api_error(Detail("x" * 500, 500))
+    assert "HTTP 500" in exc_info.value.message
+    assert "x" * 100 in exc_info.value.message
+    assert "x" * 101 not in exc_info.value.message
 
 
 def test_handle_api_error_unknown_status_raises_unexpected_error():

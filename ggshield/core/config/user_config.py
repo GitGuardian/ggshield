@@ -48,7 +48,7 @@ class SecretConfig(FilteredConfig):
     source_uuid: Optional[UUID] = None
     # When False, pre-commit / pre-push / pre-receive / ci hooks exit 0 instead
     # of blocking git operations when the GitGuardian server is unreachable or
-    # returns a 5xx. Defaults to True so upgrades keep blocking behavior.
+    # does not scan the content. Defaults to True so upgrades keep blocking behavior.
     fail_on_server_error: bool = True
     # When True, only the file name (not its full path) is sent to GitGuardian,
     # so incidents record just the filename (e.g. `config.py` instead of

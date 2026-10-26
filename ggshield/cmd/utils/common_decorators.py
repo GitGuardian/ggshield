@@ -34,7 +34,9 @@ fail_on_server_error_option = click.option(
     envvar="GITGUARDIAN_FAIL_ON_SERVER_ERROR",
     help=(
         "Whether git hook and CI scan commands should fail when the GitGuardian"
-        " server is unreachable or returns a 5xx response. When disabled, the"
+        " server is unreachable or does not scan the content (rate limit, 5xx"
+        " response, or a refusal from a proxy, gateway or firewall). When"
+        " disabled, the"
         " command exits with code 0 and a warning is displayed instead of"
         " blocking the git operation. Defaults to enabled. Can also be set with"
         " the `GITGUARDIAN_FAIL_ON_SERVER_ERROR` environment variable."

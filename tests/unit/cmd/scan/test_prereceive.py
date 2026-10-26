@@ -495,7 +495,7 @@ class TestPreReceive:
                 input=f"{old_sha} {shas[-1]} origin/main\n",
             )
         assert_invoke_exited_with(result, ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE)
-        assert "GitGuardian server is not responding" in result.output
+        assert "GitGuardian did not scan the pushed commits" in result.output
         assert "Skipping checks" not in result.output
 
     @patch(
@@ -521,7 +521,7 @@ class TestPreReceive:
                 env={"GITGUARDIAN_FAIL_ON_SERVER_ERROR": "false"},
             )
         assert_invoke_ok(result)
-        assert "GitGuardian server is not responding" in result.output
+        assert "GitGuardian did not scan the pushed commits" in result.output
         assert "Skipping checks" in result.output
 
     @patch(
@@ -546,7 +546,7 @@ class TestPreReceive:
                 input=f"{old_sha} {shas[-1]} origin/main\n",
             )
         assert_invoke_exited_with(result, ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE)
-        assert "GitGuardian server is not responding" in result.output
+        assert "GitGuardian did not scan the pushed commits" in result.output
         assert "Skipping checks" not in result.output
 
     @patch(
@@ -572,5 +572,5 @@ class TestPreReceive:
                 env={"GITGUARDIAN_FAIL_ON_SERVER_ERROR": "false"},
             )
         assert_invoke_ok(result)
-        assert "GitGuardian server is not responding" in result.output
+        assert "GitGuardian did not scan the pushed commits" in result.output
         assert "Skipping checks" in result.output

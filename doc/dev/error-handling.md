@@ -12,6 +12,7 @@ It is important for users (and for our tests) to be able to make the distinction
 - 1: Scan was successful but it found problems (e.g. leaked secrets)
 - 2: Error on the command-line, like a missing parameter
 - 3: An authentication subcommand failed
+- 4: The GitGuardian server did not scan the content (unreachable, rate limited, 5xx, or refused by a proxy, gateway or firewall). `--no-fail-on-server-error` turns it into a 0 for git hook and CI commands
 - 128: Something else
 
 Refer to the `ExitCode` enum in [core.errors][errors] for an up-to-date list.
