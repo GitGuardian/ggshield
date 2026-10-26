@@ -72,18 +72,43 @@ def test_check_client_api_key_error(response: Detail, error_class: Type[Exceptio
         check_client_api_key(client_mock, set())
 
 
-def test_check_client_api_key_network_error():
+@pytest.mark.parametrize(
+    "exception",
+    [
+        pytest.param(
+            requests.exceptions.ConnectionError("Connection refused"),
+            id="ConnectionError",
+        ),
+        # A 502, 503 or 504 still there once the session's retries are exhausted
+        pytest.param(requests.exceptions.RetryError("too many 503"), id="RetryError"),
+    ],
+)
+def test_check_client_api_key_network_error(exception: Exception):
     """
-    GIVEN a client with a wrong instance URL
+    GIVEN a server that does not answer the API key check
     WHEN check_client_api_key() is called
+    THEN it raises a ServiceUnavailableError, which --no-fail-on-server-error
+    can skip
+    """
+    client_mock = _make_client_mock()
+    client_mock.read_metadata = Mock(side_effect=exception)
+    with pytest.raises(ServiceUnavailableError):
+        check_client_api_key(client_mock, set())
+
+
+def test_check_client_api_key_scopes_network_error():
+    """
+    GIVEN a server that answers the metadata check but not the token scopes check
+    WHEN check_client_api_key() is called with required scopes
     THEN it raises a ServiceUnavailableError
     """
     client_mock = _make_client_mock()
-    client_mock.read_metadata = Mock(
-        side_effect=requests.exceptions.ConnectionError("Connection refused")
+    client_mock.read_metadata.return_value = None
+    client_mock.api_tokens = Mock(
+        side_effect=requests.exceptions.RetryError("too many 503")
     )
     with pytest.raises(ServiceUnavailableError):
-        check_client_api_key(client_mock, set())
+        check_client_api_key(client_mock, {TokenScope.SCAN})
 
 
 def test_check_client_api_key_with_source_uuid_success():
