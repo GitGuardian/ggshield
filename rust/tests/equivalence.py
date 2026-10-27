@@ -2288,6 +2288,14 @@ def main():
                 "is the reference implementation and this change is not "
                 "back-ported."
             ),
+            "secret/copilot/post_bash": (
+                "Copilot CLI already replaces a blocked tool result, so the "
+                "secret never reached the model on either side. Rust says so; "
+                "Python still tells the user the secret was exposed and to "
+                "revoke it. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change "
+                "is not back-ported."
+            ),
             "secret/claude/post_bash": (
                 "Rust returns `hookSpecificOutput.updatedToolOutput`, so the "
                 "command output holding the secret is replaced before Claude reads "

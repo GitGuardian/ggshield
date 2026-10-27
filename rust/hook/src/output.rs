@@ -123,13 +123,17 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // model reads, so like Codex the reason we send is all it gets and
             // the tool matters no more than it does there. Vibe also keeps the
             // raw output in its own session log, out of a hook's reach.
-            Agent::Codex | Agent::Vibe => true,
+            // Copilot CLI sends "Tool result blocked: <reason>" to the model in
+            // place of the output, whatever the tool (checked on the request
+            // bodies of 1.0.83 and 1.0.104). Its session log on disk still
+            // records the raw output it handed the hook.
+            Agent::Codex | Agent::Vibe | Agent::Copilot => true,
             // Cursor can replace an MCP tool's output only, and the rest cannot
             // at all. Until each is established against a real payload they
             // keep the leaked wording: telling someone to rotate a secret that
             // never left is a nuisance, telling them not to rotate one that did
             // is a breach.
-            Agent::Copilot | Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
+            Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
         }
 }
 
@@ -788,9 +792,9 @@ mod tests {
                 );
             }
         }
-        // Codex and Vibe replace the tool result whatever the tool, so neither
-        // needs a shape of its own and every tool redacts.
-        for agent in [Agent::Codex, Agent::Vibe] {
+        // Codex, Vibe and Copilot replace the tool result whatever the tool, so
+        // none needs a shape of its own and every tool redacts.
+        for agent in [Agent::Codex, Agent::Vibe, Agent::Copilot] {
             for tool in [Some(Tool::Bash), Some(Tool::Read), Some(Tool::Mcp), None] {
                 assert!(
                     can_redact_tool_output(&payload_with_tool(agent, EventType::PostToolUse, tool)),
@@ -798,13 +802,7 @@ mod tests {
                 );
             }
         }
-        for agent in [
-            Agent::Copilot,
-            Agent::Cursor,
-            Agent::Junie,
-            Agent::Kiro,
-            Agent::VsCode,
-        ] {
+        for agent in [Agent::Cursor, Agent::Junie, Agent::Kiro, Agent::VsCode] {
             assert!(
                 !can_redact_tool_output(&payload(agent, EventType::PostToolUse)),
                 "{agent:?} has no verified way to replace an output"
