@@ -96,7 +96,15 @@ def revoke_token(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
 
     assert instance.account is not None
-    token = instance.token
+    try:
+        token = instance.token
+    except AuthError as exc:
+        raise AuthError(
+            instance_url,
+            f"{exc.message}\n"
+            "To log out without revoking the token, run:\n"
+            "  ggshield auth logout --no-revoke",
+        ) from exc
 
     client = create_client(
         token,

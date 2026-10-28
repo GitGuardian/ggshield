@@ -7,7 +7,13 @@ from requests.exceptions import ConnectionError
 from ggshield.__main__ import cli
 from ggshield.core import auth_check_cache
 from ggshield.core.config import Config
-from ggshield.core.config.token_store import OSKeystore, reset_keystore
+from ggshield.core.config.token_store import (
+    KEYRING_SENTINEL,
+    KeystoreError,
+    KeystoreFailure,
+    OSKeystore,
+    reset_keystore,
+)
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode
 
@@ -185,6 +191,49 @@ class TestAuthLogout:
 
         assert exit_code == ExitCode.SUCCESS, output
         mock_store.delete_token.assert_called_once_with(DEFAULT_INSTANCE_URL)
+        reset_keystore()
+
+    def test_logout_suggests_no_revoke_when_keystore_read_fails(
+        self, monkeypatch, cli_fs_runner
+    ):
+        """
+        GIVEN a saved instance whose token is in a keystore that refuses reads
+        WHEN running the logout command (with implied token revokation)
+        THEN no revoke request is sent, the config remains unchanged
+        AND the message suggests `ggshield auth logout --no-revoke`, not a login
+        """
+        post_mock = Mock(return_value=Mock(status_code=204, ok=True))
+        monkeypatch.setattr("ggshield.core.client.GGClient.post", post_mock)
+        reset_keystore()
+
+        add_instance_config()
+        config = Config()
+        account = config.auth_config.get_instance(DEFAULT_INSTANCE_URL).account
+        assert account is not None
+        account.token = KEYRING_SENTINEL
+        config.save()
+
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.DENIED, "keyring locked")
+        )
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
+        ):
+            exit_code, output = self.run_cmd(cli_fs_runner)
+
+        post_mock.assert_not_called()
+        assert Config().auth_config.get_instance(DEFAULT_INSTANCE_URL).account
+        assert exit_code == ExitCode.AUTHENTICATION_ERROR, output
+        assert "cannot read it in this session (keyring locked)" in output
+        assert output.endswith(
+            "To log out without revoking the token, run:\n"
+            "  ggshield auth logout --no-revoke\n"
+        )
+        assert "auth login" not in output
         reset_keystore()
 
     def test_logout_invalidates_auth_check_cache(self, monkeypatch, cli_fs_runner):
