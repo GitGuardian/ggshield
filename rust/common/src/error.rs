@@ -1,5 +1,24 @@
 //! The failure modes of `ai_hook_cmd`, kept apart because they behave differently.
 
+#[cfg(target_os = "macos")]
+const CREDENTIAL_STORE: &str = "macOS Keychain";
+#[cfg(windows)]
+const CREDENTIAL_STORE: &str = "Windows Credential Manager";
+#[cfg(target_os = "linux")]
+const CREDENTIAL_STORE: &str = "Secret Service";
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+const CREDENTIAL_STORE: &str = "OS credential store";
+
+#[cfg(target_os = "macos")]
+const CREDENTIAL_STORE_DENIED_CAUSE: &str =
+    "The Keychain may be locked, or its item may not trust this ggshield binary.";
+#[cfg(windows)]
+const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The Windows Credential Manager may be locked.";
+#[cfg(target_os = "linux")]
+const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The Secret Service may be locked.";
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The OS credential store may be locked.";
+
 /// `Invalid` mirrors Python's `except ValueError` arm: the message on stderr, exit
 /// 1, **nothing** on stdout. Agents treat a non-zero exit with no JSON as a
 /// non-blocking error and surface stderr to the user.
@@ -36,6 +55,22 @@ impl Error {
              agent-spawned processes can read the token."
                 .into(),
         )
+    }
+
+    pub fn credential_store_denied() -> Self {
+        Error::Fail(format!(
+            "ggshield could not read its token from the {CREDENTIAL_STORE} — this \
+             action was NOT scanned for secrets. {CREDENTIAL_STORE_DENIED_CAUSE} Run \
+             'ggshield auth login' in a terminal to store the token again."
+        ))
+    }
+
+    pub fn credential_store_missing() -> Self {
+        Error::Fail(format!(
+            "ggshield's token should be in the {CREDENTIAL_STORE}, but it is not \
+             there — this action was NOT scanned for secrets. Run 'ggshield auth \
+             login' to store a new one."
+        ))
     }
 
     /// `_cannot_scan_warning()` for anything else.
@@ -122,5 +157,49 @@ mod tests {
         assert!(msg.starts_with(
             "ggshield could not authenticate to GitGuardian — this action was NOT scanned for secrets."
         ));
+    }
+
+    /// GIVEN a refused or a missing macOS Keychain read
+    /// WHEN each becomes a fail-open warning
+    /// THEN it is the text Python's `_cannot_scan_warning()` gives
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn keychain_warnings_match_the_python_wording() {
+        let Error::Fail(denied) = Error::credential_store_denied() else {
+            panic!("expected Fail");
+        };
+        assert_eq!(
+            denied,
+            "ggshield could not read its token from the macOS Keychain — this action \
+             was NOT scanned for secrets. The Keychain may be locked, or its item may \
+             not trust this ggshield binary. Run 'ggshield auth login' in a terminal \
+             to store the token again."
+        );
+        let Error::Fail(missing) = Error::credential_store_missing() else {
+            panic!("expected Fail");
+        };
+        assert_eq!(
+            missing,
+            "ggshield's token should be in the macOS Keychain, but it is not there — \
+             this action was NOT scanned for secrets. Run 'ggshield auth login' to \
+             store a new one."
+        );
+    }
+
+    /// GIVEN a refused Secret Service read
+    /// WHEN it becomes a fail-open warning
+    /// THEN it is the text Python's `_cannot_scan_warning()` gives
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn secret_service_warning_matches_the_python_wording() {
+        let Error::Fail(denied) = Error::credential_store_denied() else {
+            panic!("expected Fail");
+        };
+        assert_eq!(
+            denied,
+            "ggshield could not read its token from the Secret Service — this action \
+             was NOT scanned for secrets. The Secret Service may be locked. Run \
+             'ggshield auth login' in a terminal to store the token again."
+        );
     }
 }

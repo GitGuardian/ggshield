@@ -14,7 +14,14 @@ from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES, MAXIMUM_PAYLOAD_
 from pygitguardian.models import MCPActivityResponse, MultiScanResult
 from pygitguardian.models import ScanResult as ApiScanResult
 
+from ggshield.core.config.auth_config import AccountConfig, AuthConfig, InstanceConfig
+from ggshield.core.config.token_store import (
+    KEYRING_SENTINEL,
+    KeystoreError,
+    KeystoreFailure,
+)
 from ggshield.core.config.user_config import SecretConfig
+from ggshield.core.errors import AuthError
 from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
@@ -34,6 +41,7 @@ from ggshield.verticals.ai.cache import (
 )
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
+    _cannot_scan_warning,
     _send_desktop_notification,
     build_agent_headers,
     find_filepaths,
@@ -3002,3 +3010,86 @@ def test_a_falsy_no_notification_switch_still_notifies(mock_run, monkeypatch, va
     monkeypatch.setenv("GGSHIELD_NO_NOTIFICATION", value)
     _send_desktop_notification("ggshield - Secrets Detected", "a banner appears")
     mock_run.assert_called_once()
+
+
+class TestCannotScanWarning:
+    """The Rust hook gives the same warnings, see rust/common/src/error.rs."""
+
+    @staticmethod
+    def _token_read_error(failure: KeystoreFailure) -> AuthError:
+        url = "https://dashboard.gitguardian.com"
+        account = AccountConfig(
+            workspace_id=1,
+            token=KEYRING_SENTINEL,
+            type="pat",
+            token_name="t",
+            expire_at=None,
+        )
+        auth_config = AuthConfig(instances=[InstanceConfig(account=account, url=url)])
+        store = MagicMock()
+        store.read_token.side_effect = KeystoreError(failure, "SecItemCopyMatching")
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore", return_value=store
+        ), pytest.raises(AuthError) as exc_info:
+            auth_config.get_instance_token(url)
+        return exc_info.value
+
+    @pytest.mark.parametrize(
+        ("platform", "expected"),
+        [
+            (
+                "darwin",
+                "ggshield could not read its token from the macOS Keychain — this "
+                "action was NOT scanned for secrets. The Keychain may be locked, or "
+                "its item may not trust this ggshield binary. Run 'ggshield auth "
+                "login' in a terminal to store the token again.",
+            ),
+            (
+                "linux",
+                "ggshield could not read its token from the Secret Service — this "
+                "action was NOT scanned for secrets. The Secret Service may be "
+                "locked. Run 'ggshield auth login' in a terminal to store the "
+                "token again.",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "failure", [KeystoreFailure.DENIED, KeystoreFailure.UNAVAILABLE]
+    )
+    def test_an_unreadable_token_names_the_credential_store(
+        self, monkeypatch, platform, expected, failure
+    ):
+        """
+        GIVEN a token the credential store refuses to return
+        WHEN the hook builds its warning
+        THEN it names the store and the likely cause, as the Rust hook does
+        """
+        monkeypatch.setattr("sys.platform", platform)
+
+        assert _cannot_scan_warning(self._token_read_error(failure)) == expected
+
+    def test_a_missing_token_says_it_is_not_there(self, monkeypatch):
+        """
+        GIVEN a token marked as stored in the macOS Keychain, with no Keychain item
+        WHEN the hook builds its warning
+        THEN it says the token is missing, as the Rust hook does
+        """
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        assert _cannot_scan_warning(
+            self._token_read_error(KeystoreFailure.NOT_FOUND)
+        ) == (
+            "ggshield's token should be in the macOS Keychain, but it is not there "
+            "— this action was NOT scanned for secrets. Run 'ggshield auth login' "
+            "to store a new one."
+        )
+
+    def test_a_disabled_keystore_keeps_the_authentication_warning(self):
+        """
+        GIVEN a token in the credential store while GGSHIELD_NO_KEYRING is set
+        WHEN the hook builds its warning
+        THEN it gives the authentication warning, as the Rust hook does
+        """
+        warning = _cannot_scan_warning(self._token_read_error(KeystoreFailure.DISABLED))
+
+        assert warning.startswith("ggshield could not authenticate to GitGuardian")

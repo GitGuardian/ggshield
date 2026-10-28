@@ -18,6 +18,7 @@ from ggshield.core.config.token_store import (
     OSKeystore,
     _macos_trusted_binaries,
     get_keystore,
+    keychain_prompts_disabled,
     reset_keystore,
 )
 
@@ -341,6 +342,79 @@ class TestMacOSKeychainACL:
             from keyring.backends.macOS import api
 
             assert hasattr(api, "create_cf")
+
+
+class TestKeychainPrompts:
+    """A hook started by an agent cannot answer a Keychain dialog. The agent
+    stops the hook before the user can choose "Always Allow", so the dialog
+    returned on every turn. The hook therefore reads the token inside
+    keychain_prompts_disabled(), where a read fails instead of showing a
+    dialog."""
+
+    @pytest.fixture(autouse=True)
+    def _macos(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(token_store, "_writes_to_the_apple_keychain", lambda: True)
+
+    @staticmethod
+    def _security_api(status: int = 0) -> MagicMock:
+        fake_api = MagicMock()
+        fake_api._sec.SecKeychainGetUserInteractionAllowed.return_value = 0
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.return_value = status
+        return fake_api
+
+    @staticmethod
+    def _read(fake_api: MagicMock, guarded: bool) -> list:
+        set_allowed = fake_api._sec.SecKeychainSetUserInteractionAllowed
+        seen = []
+
+        def fake_get(service, url):
+            seen.append(
+                set_allowed.call_args_list[-1].args[0] if set_allowed.called else None
+            )
+            return TOKEN
+
+        with (
+            patch("keyring.backends.macOS.api", fake_api, create=True),
+            patch("keyring.get_password", side_effect=fake_get),
+        ):
+            if guarded:
+                with keychain_prompts_disabled():
+                    OSKeystore().read_token(INSTANCE_URL)
+            else:
+                OSKeystore().read_token(INSTANCE_URL)
+        return seen
+
+    def test_a_read_in_the_block_shows_no_dialog(self):
+        """GIVEN a read inside keychain_prompts_disabled() WHEN the token is read
+        THEN user interaction is off during the read and restored after the
+        block"""
+        fake_api = self._security_api()
+
+        assert self._read(fake_api, guarded=True) == [0]
+
+        set_allowed = fake_api._sec.SecKeychainSetUserInteractionAllowed
+        assert set_allowed.call_count == 2
+        assert set_allowed.call_args_list[-1].args[0] != 0
+
+    def test_a_read_outside_the_block_is_left_alone(self):
+        """GIVEN an interactive command, which reads outside the block WHEN it
+        reads the token THEN user interaction is not changed"""
+        fake_api = self._security_api()
+
+        assert self._read(fake_api, guarded=False) == [None]
+
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.assert_not_called()
+
+    def test_a_refused_change_is_not_restored(self):
+        """GIVEN the Security framework refuses to change the setting WHEN the
+        hook reads inside the block THEN the read goes ahead and the setting is
+        not written again"""
+        fake_api = self._security_api(status=-1)
+
+        self._read(fake_api, guarded=True)
+
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.assert_called_once_with(0)
 
 
 class TestFileTokenStore:
