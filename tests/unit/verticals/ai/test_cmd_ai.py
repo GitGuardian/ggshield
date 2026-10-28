@@ -1,6 +1,7 @@
+import contextlib
 import json
 from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import click
 import pytest
@@ -199,6 +200,62 @@ class TestAiHookCmd:
         assert response["continue"] is True
         assert "NOT scanned" in response["systemMessage"]
         assert "ggshield auth login" in response["systemMessage"]
+
+    @pytest.mark.parametrize(("terminal", "guarded"), [(True, False), (False, True)])
+    def test_keychain_dialogs_follow_the_terminal(self, monkeypatch, terminal, guarded):
+        """
+        GIVEN a hook whose stderr is a terminal, as in the setup warm-up, or not,
+              as when an agent runs it
+        WHEN the hook chooses how to read the token
+        THEN Keychain dialogs are turned off only without a terminal
+        """
+        from ggshield.cmd.secret.scan import ai_hook
+
+        monkeypatch.setattr(ai_hook.sys, "stderr", Mock(isatty=lambda: terminal))
+        guard = MagicMock()
+        monkeypatch.setattr(ai_hook, "keychain_prompts_disabled", guard)
+
+        ai_hook._keychain_dialogs()
+
+        assert guard.called is guarded
+
+    def test_the_hook_reads_the_token_with_keychain_dialogs_off(self):
+        """
+        GIVEN a hook started by an agent, which cannot answer a Keychain dialog
+        WHEN it runs
+        THEN it reads the token inside keychain_prompts_disabled()
+        """
+        events = []
+
+        @contextlib.contextmanager
+        def fake_guard():
+            events.append("dialogs off")
+            try:
+                yield
+            finally:
+                events.append("dialogs restored")
+
+        def fake_client(config):
+            events.append("token read")
+            raise MissingTokenError(instance="https://dashboard.gitguardian.com")
+
+        with (
+            patch(
+                "ggshield.cmd.secret.scan.ai_hook.keychain_prompts_disabled",
+                fake_guard,
+            ),
+            patch(
+                "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+                side_effect=fake_client,
+            ),
+        ):
+            CliRunner().invoke(
+                cli,
+                ["secret", "scan", "ai-hook"],
+                input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+            )
+
+        assert events == ["dialogs off", "token read", "dialogs restored"]
 
     @patch("ggshield.cmd.secret.scan.ai_hook.AIHookScanner")
     @patch("ggshield.cmd.secret.scan.ai_hook.SecretScanner")

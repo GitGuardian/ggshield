@@ -1,4 +1,5 @@
 import contextlib
+import ctypes
 import logging
 import os
 import sys
@@ -122,6 +123,38 @@ def _keyring_lock() -> Iterator[None]:
         lock.release()
 
 
+@contextlib.contextmanager
+def keychain_prompts_disabled() -> Iterator[None]:
+    """Make Keychain reads in this block fail instead of showing a dialog.
+
+    The setting applies to the whole process while the block runs, and the
+    previous setting is restored afterwards.
+    """
+    if sys.platform != "darwin" or not _writes_to_the_apple_keychain():
+        yield
+        return
+    try:
+        from keyring.backends.macOS import api
+
+        set_allowed = api._sec.SecKeychainSetUserInteractionAllowed
+        set_allowed.argtypes = [ctypes.c_ubyte]
+        set_allowed.restype = ctypes.c_int32
+        get_allowed = api._sec.SecKeychainGetUserInteractionAllowed
+        get_allowed.argtypes = [ctypes.POINTER(ctypes.c_ubyte)]
+        get_allowed.restype = ctypes.c_int32
+        previous = ctypes.c_ubyte(1)
+        if get_allowed(ctypes.byref(previous)) != 0 or set_allowed(0) != 0:
+            raise OSError("the Security framework refused the change")
+    except Exception:
+        logger.debug("Could not disable Keychain user interaction", exc_info=True)
+        yield
+        return
+    try:
+        yield
+    finally:
+        set_allowed(previous.value)
+
+
 # Names of the sibling binaries that must be able to read the token without a
 # Keychain prompt: the native dispatcher and the Python entry point.
 _MACOS_TRUSTED_BINARY_NAMES = ("ggshield", "ggshield-py")
@@ -186,8 +219,6 @@ def _macos_store_token(instance_url: str, token: str) -> None:
     SecAccessCreate/SecTrustedApplicationCreateFromPath are deprecated but they
     remain the only way to set a per-item ACL.
     """
-    import ctypes
-
     from keyring.backends.macOS import api
 
     paths = _macos_trusted_binaries()
