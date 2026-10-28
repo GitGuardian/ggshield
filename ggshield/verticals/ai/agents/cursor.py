@@ -69,7 +69,18 @@ class BubbleActivitySource(CursorActivitySource):
 
 class ComposerActivitySource(CursorActivitySource):
     kind = "5_composer_data"
-    query = "SELECT key, value FROM cursorDiskKV WHERE key LIKE 'composerData:%'"
+    # The server reads the composer's name, model and timestamps. The fields
+    # dropped here grow with the conversation (one header per bubble, the
+    # conversation state, the edited files' original content) and push a long
+    # chat past MAX_CONTENT_BYTES, where the truncation turns the record into
+    # invalid JSON that the server cannot read, and the chat loses its name.
+    query = (
+        "SELECT key, "
+        "CASE WHEN json_valid(value) THEN json_remove(value, "
+        "'$.fullConversationHeadersOnly', '$.conversationState', "
+        "'$.originalFileStates') ELSE value END AS value "
+        "FROM cursorDiskKV WHERE key LIKE 'composerData:%'"
+    )
 
 
 class Cursor(Agent):
