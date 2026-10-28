@@ -11,7 +11,7 @@ from voluptuous.validators import All, Match
 
 from ggshield.__main__ import cli
 from ggshield.core.config import Config
-from ggshield.core.config.token_store import KeyringTokenStore
+from ggshield.core.config.token_store import OSKeystore
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import find_global_config_path
 from ggshield.core.errors import ExitCode
@@ -136,13 +136,13 @@ class TestConfigList:
         # The env key short-circuits token resolution, hiding what is tested here
         monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
 
-        mock_store = KeyringTokenStore()
+        mock_store = OSKeystore()
         mock_store.get_token = MagicMock()
         mock_store.store_token = MagicMock()
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             # Save once so the config file holds the sentinel instead of the token
