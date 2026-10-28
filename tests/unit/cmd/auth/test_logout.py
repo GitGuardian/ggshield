@@ -175,15 +175,9 @@ class TestAuthLogout:
 
         add_instance_config()
 
-        with (
-            patch(
-                "ggshield.cmd.auth.logout.get_keystore",
-                return_value=mock_store,
-            ),
-            patch(
-                "ggshield.core.config.auth_config.get_keystore",
-                return_value=mock_store,
-            ),
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
         ):
             exit_code, output = self.run_cmd(
                 cli_fs_runner, DEFAULT_INSTANCE_URL, revoke=False
