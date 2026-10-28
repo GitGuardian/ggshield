@@ -15,6 +15,7 @@ from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
 from ggshield.utils.os import getenv_bool
 
+
 logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "ggshield"
@@ -32,7 +33,10 @@ def keystore_display_name() -> str:
 
 
 class KeystoreFailure(Enum):
+    DISABLED = "disabled"
+    UNAVAILABLE = "unavailable"
     DENIED = "denied"
+    NOT_FOUND = "not_found"
 
 
 class KeystoreError(Exception):
@@ -218,7 +222,7 @@ class Keystore(ABC):
     def store_token(self, instance_url: str, token: str) -> None: ...
 
     @abstractmethod
-    def get_token(self, instance_url: str) -> Optional[str]: ...
+    def read_token(self, instance_url: str) -> str: ...
 
     @abstractmethod
     def delete_token(self, instance_url: str) -> None: ...
@@ -229,6 +233,9 @@ class Keystore(ABC):
 
 class OSKeystore(Keystore):
     """Stores tokens in the OS credential store via the keyring library."""
+
+    def __init__(self) -> None:
+        self.unavailable_reason = ""
 
     @property
     def uses_external_storage(self) -> bool:
@@ -255,9 +262,15 @@ class OSKeystore(Keystore):
                     "answer that dialog."
                 )
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        with _keyring_lock():
-            return keyring.get_password(KEYRING_SERVICE, instance_url)
+    def read_token(self, instance_url: str) -> str:
+        try:
+            with _keyring_lock():
+                token = keyring.get_password(KEYRING_SERVICE, instance_url)
+        except Exception as exc:
+            raise KeystoreError(KeystoreFailure.DENIED, str(exc)) from exc
+        if token is None:
+            raise KeystoreError(KeystoreFailure.NOT_FOUND)
+        return token
 
     def delete_token(self, instance_url: str) -> None:
         with _keyring_lock():
@@ -283,18 +296,28 @@ class OSKeystore(Keystore):
         try:
             kr = keyring.get_keyring()
             if isinstance(kr, keyring.backends.fail.Keyring):
+                self.unavailable_reason = "no credential store backend is available"
                 return False
             # Hold the lock across the probe so it doesn't race the token
             # reads of concurrent processes.
             with _keyring_lock():
                 keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
             return True
-        except Exception:
+        except Exception as exc:
+            self.unavailable_reason = str(exc) or type(exc).__name__
             return False
 
 
 class FileKeystore(Keystore):
     """Fallback: tokens remain in the YAML config file."""
+
+    def __init__(
+        self,
+        failure: KeystoreFailure = KeystoreFailure.DISABLED,
+        detail: str = "",
+    ):
+        self.failure = failure
+        self.detail = detail
 
     @property
     def uses_external_storage(self) -> bool:
@@ -303,8 +326,8 @@ class FileKeystore(Keystore):
     def store_token(self, instance_url: str, token: str) -> None:
         pass
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        return None
+    def read_token(self, instance_url: str) -> str:
+        raise KeystoreError(self.failure, self.detail)
 
     def delete_token(self, instance_url: str) -> None:
         pass
@@ -324,7 +347,7 @@ def get_keystore() -> Keystore:
 
     if getenv_bool("GGSHIELD_NO_KEYRING", default=False):
         logger.debug("Keyring disabled via GGSHIELD_NO_KEYRING env var")
-        _keystore = FileKeystore()
+        _keystore = FileKeystore(KeystoreFailure.DISABLED)
         return _keystore
 
     store = OSKeystore()
@@ -332,9 +355,10 @@ def get_keystore() -> Keystore:
         _keystore = store
     else:
         logger.debug(
-            "Keyring is not available, falling back to file-based token storage"
+            "Keyring is not available (%s), falling back to file-based token storage",
+            store.unavailable_reason,
         )
-        _keystore = FileKeystore()
+        _keystore = FileKeystore(KeystoreFailure.UNAVAILABLE, store.unavailable_reason)
     return _keystore
 
 

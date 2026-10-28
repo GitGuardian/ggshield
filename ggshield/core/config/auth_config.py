@@ -13,6 +13,7 @@ from ggshield.core.config.token_store import (
     KEYRING_SENTINEL,
     Keystore,
     KeystoreError,
+    KeystoreFailure,
     get_keystore,
     keystore_display_name,
 )
@@ -23,6 +24,7 @@ from ggshield.core.config.utils import (
     save_yaml_dict,
 )
 from ggshield.core.errors import (
+    AuthError,
     AuthExpiredError,
     MissingTokenError,
     UnknownInstanceError,
@@ -42,6 +44,32 @@ class AccountConfig:
     expire_at: Optional[datetime]
 
 
+def token_read_failure_message(error: KeystoreError, instance_url: str) -> str:
+    store = keystore_display_name()
+    prefix = f"The token for '{instance_url}' is in the {store}"
+    if error.failure == KeystoreFailure.DISABLED:
+        return f"{prefix}, but GGSHIELD_NO_KEYRING is set."
+    if error.failure == KeystoreFailure.UNAVAILABLE:
+        return (
+            f"{prefix}, but the {store} cannot be reached in this session "
+            f"({error.detail})."
+        )
+    if error.failure == KeystoreFailure.NOT_FOUND:
+        return (
+            f"The token for '{instance_url}' should be in the {store}, but it "
+            "is not there."
+        )
+    cause = (
+        "The Keychain may be locked, or its item may not trust this ggshield binary."
+        if sys.platform == "darwin"
+        else f"The {store} may be locked."
+    )
+    return (
+        f"{prefix}, but ggshield cannot read it in this session "
+        f"({error.detail}). {cause}"
+    )
+
+
 def _token_write_failure_message(
     error: KeystoreError, instance_url: str, config_path: str
 ) -> str:
@@ -58,38 +86,6 @@ def _token_write_failure_message(
         f"({error.detail}). "
         f"It is saved in clear text in {config_path}. {remedy}"
     )
-
-
-def _read_token_from_keystore(instance_url: str) -> str:
-    """Read a sentinel-marked token from the credential store, "" if unavailable."""
-    store = get_keystore()
-    if not store.uses_external_storage:
-        logger.warning(
-            "Token for %s is stored in keyring but keyring is disabled. "
-            "Unset GGSHIELD_NO_KEYRING or re-authenticate with "
-            "'ggshield auth login'.",
-            instance_url,
-        )
-        return ""
-
-    try:
-        token = store.get_token(instance_url)
-    except Exception:
-        logger.warning(
-            "Failed to retrieve token from keyring for %s",
-            instance_url,
-            exc_info=True,
-        )
-        return ""
-
-    if token is None:
-        logger.warning(
-            "Token for %s was expected in keyring but not found. "
-            "Re-authenticate with 'ggshield auth login'.",
-            instance_url,
-        )
-        return ""
-    return token
 
 
 @dataclass
@@ -119,13 +115,16 @@ class InstanceConfig:
         Reading the keystore can show a macOS Keychain dialog, so the read waits
         until a caller needs the token. The account keeps the `__KEYRING__`
         marker, so save() does not write a token that was only read.
+
+        Raise KeystoreError when the keystore holds the token but cannot
+        return it.
         """
         if self.account is None:
             return ""
         if not self.token_in_keystore:
             return self.account.token
         if self._cached_token is None:
-            self._cached_token = _read_token_from_keystore(self.url)
+            self._cached_token = get_keystore().read_token(self.url)
         return self._cached_token
 
     @property
@@ -285,12 +284,21 @@ class AuthConfig(FromDictMixin, ToDictMixin):
         """
         Return the API token associated with the given instance if it is still valid.
 
-        Raise AuthExpiredError if it is not.
+        Raise AuthExpiredError if it is not, and AuthError, caused by the
+        KeystoreError, if the keystore cannot return it.
         """
         instance = self.get_instance(instance_name)
         if instance.expired:
             raise AuthExpiredError(instance=instance_name)
-        token = instance.token
+        try:
+            token = instance.token
+        except KeystoreError as exc:
+            raise AuthError(
+                instance_name,
+                f"{token_read_failure_message(exc, instance.url)} Run "
+                "`ggshield auth login` to store a new token, or set "
+                "GITGUARDIAN_API_KEY.",
+            ) from exc
         if not token:
             raise MissingTokenError(instance=instance_name)
         return token

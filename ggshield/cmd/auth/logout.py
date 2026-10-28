@@ -9,6 +9,8 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import auth_check_cache
 from ggshield.core.client import api_timeout_from_config, create_client
 from ggshield.core.config import Config
+from ggshield.core.config.auth_config import token_read_failure_message
+from ggshield.core.config.token_store import KeystoreError
 from ggshield.core.errors import AuthError, UnexpectedError
 from ggshield.core.url_utils import dashboard_to_api_url
 
@@ -96,7 +98,15 @@ def revoke_token(config: Config, instance_url: str) -> None:
     instance = config.auth_config.get_instance(instance_url)
 
     assert instance.account is not None
-    token = instance.token
+    try:
+        token = instance.token
+    except KeystoreError as exc:
+        raise AuthError(
+            instance_url,
+            f"{token_read_failure_message(exc, instance.url)}\n"
+            "To log out without revoking the token, run:\n"
+            "  ggshield auth logout --no-revoke",
+        ) from exc
 
     client = create_client(
         token,
