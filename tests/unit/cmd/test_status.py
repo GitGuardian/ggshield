@@ -10,9 +10,17 @@ from pytest_voluptuous import S
 from voluptuous.validators import All, Contains, In, Match
 
 from ggshield.__main__ import cli
+from ggshield.core.config.auth_config import AccountConfig, AuthConfig, InstanceConfig
 from ggshield.core.config.config import ConfigSource
+from ggshield.core.config.token_store import (
+    KEYRING_SENTINEL,
+    FileKeystore,
+    OSKeystore,
+)
+from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
+from tests.unit.cmd.utils import add_instance_config
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok, my_vcr
 
 
@@ -64,10 +72,6 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
 
 
 @mock.patch(
-    "ggshield.core.config.auth_config.AuthConfig.get_instance_token",
-    return_value="token",
-)
-@mock.patch(
     "pygitguardian.GGClient.health_check",
     return_value=HealthCheckResponse(detail="", status_code=200),
 )
@@ -85,12 +89,13 @@ def test_api_status(cli_fs_runner, api_status_json_schema):
         }
     ),
 )
-def test_api_status_sources(_, __, hs_mock, cli_fs_runner, tmp_path, monkeypatch):
+def test_api_status_sources(_, hs_mock, cli_fs_runner, tmp_path, monkeypatch):
     """
     GIVEN an api_key and an instance configured anywhere
     WHEN running the api-status command
     THEN the correct api key and instance source are returned
     """
+    add_instance_config()
     (tmp_path / ".env").touch()
 
     monkeypatch.delenv("GITGUARDIAN_INSTANCE", raising=False)
@@ -141,6 +146,63 @@ def test_api_status_sources(_, __, hs_mock, cli_fs_runner, tmp_path, monkeypatch
         get_api_status(env, instance="https://dashboard.gitguardian.com")[0]
         == ConfigSource.CMD_OPTION.name
     )
+
+
+@pytest.mark.parametrize(
+    ("stored_token", "expected_source"),
+    [
+        (KEYRING_SENTINEL, ConfigSource.KEYRING),
+        ("some token", ConfigSource.USER_CONFIG),
+    ],
+)
+@mock.patch(
+    "pygitguardian.GGClient.health_check",
+    return_value=HealthCheckResponse(detail="", status_code=200),
+)
+@mock.patch("ggshield.cmd.status.safe_api_tokens", return_value=None)
+def test_api_status_key_source_follows_where_the_token_is(
+    _, __, cli_fs_runner, monkeypatch, stored_token, expected_source
+):
+    """
+    GIVEN a usable keystore, and a token that is either in the keystore or in
+          clear text in the auth config
+    WHEN api-status runs
+    THEN the API key source is the place the token was read from
+    """
+    monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
+    monkeypatch.delenv("GITGUARDIAN_INSTANCE", raising=False)
+    monkeypatch.delenv("GITGUARDIAN_API_URL", raising=False)
+    auth_config = AuthConfig(
+        instances=[
+            InstanceConfig(
+                account=AccountConfig(
+                    workspace_id=1,
+                    token=stored_token,
+                    expire_at=None,
+                    token_name="some token name",
+                    type="",
+                ),
+                url=DEFAULT_INSTANCE_URL,
+            )
+        ]
+    )
+    with mock.patch(
+        "ggshield.core.config.auth_config.get_keystore",
+        return_value=FileKeystore(),
+    ):
+        auth_config.save()
+
+    keyring_store = OSKeystore()
+    keyring_store.get_token = mock.MagicMock(return_value="some token")
+    with mock.patch(
+        "ggshield.core.config.auth_config.get_keystore",
+        return_value=keyring_store,
+    ):
+        cli_fs_runner.mix_stderr = False
+        result = cli_fs_runner.invoke(cli, ["api-status", "--json"], color=False)
+
+    assert_invoke_ok(result)
+    assert json.loads(result.stdout)["api_key_source"] == expected_source.name
 
 
 @pytest.mark.parametrize("verify", [True, False])

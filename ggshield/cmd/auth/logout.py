@@ -10,7 +10,7 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import auth_check_cache
 from ggshield.core.client import api_timeout_from_config, create_client
 from ggshield.core.config import Config
-from ggshield.core.config.token_store import get_token_store
+from ggshield.core.config.token_store import get_keystore
 from ggshield.core.errors import AuthError, UnexpectedError
 from ggshield.core.url_utils import dashboard_to_api_url
 
@@ -131,7 +131,7 @@ def delete_account_config(config: Config, instance: str) -> None:
 
     assert account_config is not None
 
-    store = get_token_store()
+    store = get_keystore()
     if store.uses_external_storage:
         try:
             store.delete_token(instance_config.url)
