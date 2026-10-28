@@ -38,6 +38,25 @@ impl Error {
         )
     }
 
+    pub fn credential_store_denied() -> Self {
+        Error::Fail(
+            "ggshield could not read its token from the macOS Keychain — this action \
+             was NOT scanned for secrets. The Keychain may be locked, or its item may \
+             not trust this ggshield binary. Run 'ggshield auth login' in a terminal \
+             to store the token again."
+                .into(),
+        )
+    }
+
+    pub fn credential_store_missing() -> Self {
+        Error::Fail(
+            "ggshield's token should be in the macOS Keychain, but it is not there — \
+             this action was NOT scanned for secrets. Run 'ggshield auth login' to \
+             store a new one."
+                .into(),
+        )
+    }
+
     /// `_cannot_scan_warning()` for anything else.
     pub fn scan(detail: impl AsRef<str>) -> Self {
         Error::Fail(format!(

@@ -634,6 +634,21 @@ class TestHookCredentialStoreWarmUp:
         assert json.loads(kwargs["input"])["hook_event_name"] == "UserPromptSubmit"
         assert kwargs["timeout"] > 0
 
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_the_hook_keeps_the_terminal_as_stderr(self, run_mock: Mock, bundle):
+        """
+        GIVEN a hook binary that allows a Keychain dialog only when its stderr is
+              a terminal
+        WHEN the warm-up runs it
+        THEN stderr is not captured, so the hook writes to the terminal of the
+             user and may show the dialog
+        """
+        _warm_hook_credential_store()
+
+        kwargs = run_mock.call_args.kwargs
+        assert "stderr" not in kwargs
+        assert "capture_output" not in kwargs
+
     @pytest.mark.parametrize("platform", ["linux", "win32"])
     @patch("ggshield.verticals.ai.installation.subprocess.run")
     def test_no_warm_up_outside_macos(

@@ -608,7 +608,7 @@ fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
     // `_hydrate_from_keyring`: the sentinel means the real token lives in the OS
     // credential store; any other value IS the token (auth_config.py:237).
     if account.token == KEYRING_SENTINEL {
-        // `GGSHIELD_NO_KEYRING` makes Python pick the FileTokenStore, which cannot
+        // `GGSHIELD_NO_KEYRING` makes Python pick the FileKeystore, which cannot
         // hydrate the sentinel: the blank token fails auth at client creation,
         // before the debounce, so it is eager here too.
         if getenv_bool("GGSHIELD_NO_KEYRING") {
@@ -743,10 +743,38 @@ fn keyring_token(instance_url: &str) -> Result<String, Error> {
 
 #[cfg(target_os = "macos")]
 fn read_credential_store(instance_url: &str) -> Result<String, Error> {
+    use security_framework::os::macos::keychain::SecKeychain;
+    use std::io::IsTerminal;
+
+    let _no_dialog = if std::io::stderr().is_terminal() {
+        None
+    } else {
+        SecKeychain::disable_user_interaction().ok()
+    };
     // Read only: a write probe is what popped blocking Keychain modals in Python.
     let raw = security_framework::passwords::get_generic_password(KEYRING_SERVICE, instance_url)
-        .map_err(|_| Error::auth())?;
+        .map_err(|e| keychain_read_error(e.code()))?;
     String::from_utf8(raw).map_err(|_| Error::auth())
+}
+
+#[cfg(any(target_os = "macos", test))]
+const ERR_SEC_USER_CANCELED: i32 = -128;
+#[cfg(any(target_os = "macos", test))]
+const ERR_SEC_AUTH_FAILED: i32 = -25293;
+#[cfg(any(target_os = "macos", test))]
+const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
+#[cfg(any(target_os = "macos", test))]
+const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
+
+#[cfg(any(target_os = "macos", test))]
+fn keychain_read_error(code: i32) -> Error {
+    match code {
+        ERR_SEC_INTERACTION_NOT_ALLOWED | ERR_SEC_AUTH_FAILED | ERR_SEC_USER_CANCELED => {
+            Error::credential_store_denied()
+        }
+        ERR_SEC_ITEM_NOT_FOUND => Error::credential_store_missing(),
+        _ => Error::auth(),
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -1515,7 +1543,7 @@ mod tests {
     /// GIVEN `GGSHIELD_NO_KEYRING` is set
     /// WHEN the sentinel token is resolved
     /// THEN auth fails without touching the credential store, as Python's
-    /// FileTokenStore does (it cannot hydrate the sentinel).
+    /// FileKeystore does (it cannot hydrate the sentinel).
     #[test]
     fn no_keyring_env_var_fails_auth_without_touching_the_store() {
         let _guard = exclusive();
@@ -1598,6 +1626,30 @@ mod tests {
             matches!(result, Err(Error::Fail(_))),
             "an absent keyring item must fail open, got {result:?}"
         );
+    }
+
+    /// GIVEN the Keychain status of a denied, missing or failed read
+    /// WHEN it becomes a hook error
+    /// THEN the message names the cause, and a denied read is not reported as
+    /// a missing login
+    #[test]
+    fn keychain_read_errors_name_their_cause() {
+        let message = |code| match keychain_read_error(code) {
+            Error::Fail(message) => message,
+            other => panic!("a Keychain read must fail open, got {other:?}"),
+        };
+        for code in [
+            ERR_SEC_INTERACTION_NOT_ALLOWED,
+            ERR_SEC_AUTH_FAILED,
+            ERR_SEC_USER_CANCELED,
+        ] {
+            assert!(
+                message(code).contains("may not trust this ggshield binary"),
+                "{code}"
+            );
+        }
+        assert!(message(ERR_SEC_ITEM_NOT_FOUND).contains("it is not there"));
+        assert!(message(-1).contains("could not authenticate"));
     }
 
     /// GIVEN a token that lives in the credential store, and no item to find

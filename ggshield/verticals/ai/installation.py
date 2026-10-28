@@ -578,6 +578,10 @@ def _warm_hook_credential_store() -> None:
     Only macOS grants per binary, and only the bundle runs the hook from another
     binary: everywhere else the token has already been read by the identity the
     hook will use.
+
+    The hook allows a Keychain dialog only when its stderr is a terminal. Agents
+    capture the output of the hook, so the hook does not show a dialog there.
+    Setup leaves stderr connected to the terminal, so the dialog can appear here.
     """
     if sys.platform != "darwin" or not getattr(sys, "frozen", False):
         return
@@ -589,7 +593,7 @@ def _warm_hook_credential_store() -> None:
             [executable, "secret", "scan", "ai-hook"],
             input=_WARM_UP_EVENT,
             text=True,
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
             # Room to answer a Keychain dialog, and a bound so setup cannot hang
             # on one nobody answers.
             timeout=60,
