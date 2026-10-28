@@ -9,9 +9,27 @@ from pygitguardian.models import AIDiscovery, MCPActivityRequest
 
 from ggshield.core.dirs import get_user_home_dir
 
-from ..agent_activity.sources import JSONLActivitySource
+from ..agent_activity.sources import JSONLActivitySource, SQLiteActivitySource
 from ..models import Agent, EventType, HookPayload, HookResult, MCPConfiguration, Scope
 from .claude_code import _mangle_server_name
+
+
+class ThreadActivitySource(SQLiteActivitySource):
+    """The title and name of every Codex thread.
+
+    The rollout JSONL carries no title: Codex stores the LLM-generated title
+    and the user-set name of a thread in the threads table of
+    ~/.codex/state_<N>.sqlite, keyed by the same id as the rollout session. Only
+    these four columns are shipped; the rest of the row (first user message,
+    preview, cwd, …) is already in the rollout or is of no use to the server.
+    """
+
+    kind = "4_thread_metadata"
+    query = "SELECT id, title, name, updated_at FROM threads"
+    key_columns = ("id",)
+
+    def discover(self) -> Iterator[Path]:
+        return iter(sorted((get_user_home_dir() / ".codex").glob("state_*.sqlite")))
 
 
 class CodexActivitySource(JSONLActivitySource):
@@ -51,7 +69,8 @@ def _id_token_email(token: Any) -> Optional[str]:
 class Codex(Agent):
     """Behavior specific to OpenAI Codex."""
 
-    agent_activity_sources = [CodexActivitySource()]
+    # Threads must be first, to have the title to name the rollout session.
+    agent_activity_sources = [ThreadActivitySource(), CodexActivitySource()]
 
     @property
     def name(self) -> str:

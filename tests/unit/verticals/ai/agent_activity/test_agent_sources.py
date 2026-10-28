@@ -95,6 +95,55 @@ def test_codex_agent_ships_raw_rollout_lines(fake_home: Path) -> None:
     assert event.content == line
 
 
+def test_codex_agent_ships_thread_titles(fake_home: Path) -> None:
+    """The rollout carries no title: it comes from the threads table of the
+    state database, keyed by the rollout's session id."""
+    from ggshield.verticals.ai.agents.codex import Codex
+
+    codex_dir = fake_home / ".codex"
+    codex_dir.mkdir()
+    conn = sqlite3.connect(codex_dir / "state_5.sqlite")
+    conn.execute(
+        "CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT, name TEXT, "
+        "updated_at INTEGER, first_user_message TEXT, preview TEXT)"
+    )
+    conn.execute(
+        "INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?)",
+        ("t1", "Fix the login page", "login", 1700000000, "please fix", "preview"),
+    )
+    conn.commit()
+    conn.close()
+
+    [event] = list(Codex().iter_agent_activity_events())
+
+    assert event.agent_name == "codex"
+    assert event.source_kind == "4_thread_metadata"
+    assert event.source_path == "state_5.sqlite"
+    assert event.record_offset == "t1"
+    assert json.loads(event.content) == {
+        "id": "t1",
+        "title": "Fix the login page",
+        "name": "login",
+        "updated_at": 1700000000,
+    }
+
+
+def test_codex_agent_skips_state_database_without_threads_table(
+    fake_home: Path,
+) -> None:
+    """An older state database has no threads table yet: it is skipped, not fatal."""
+    from ggshield.verticals.ai.agents.codex import Codex
+
+    codex_dir = fake_home / ".codex"
+    codex_dir.mkdir()
+    conn = sqlite3.connect(codex_dir / "state_1.sqlite")
+    conn.execute("CREATE TABLE other (id TEXT)")
+    conn.commit()
+    conn.close()
+
+    assert list(Codex().iter_agent_activity_events()) == []
+
+
 def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.cursor import Cursor
 
