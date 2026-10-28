@@ -275,5 +275,19 @@ class AuthConfig(FromDictMixin, ToDictMixin):
             raise MissingTokenError(instance=instance_name)
         return token
 
+    def forget_account(self, instance_name: str) -> None:
+        instance = self.get_instance(instance_name)
+        store = get_keystore()
+        if store.uses_external_storage:
+            try:
+                store.delete_token(instance.url)
+            except Exception:
+                logger.warning(
+                    "Failed to delete token from keyring for %s",
+                    instance.url,
+                    exc_info=True,
+                )
+        instance.account = None
+
 
 AuthConfig.SCHEMA = marshmallow_dataclass.class_schema(AuthConfig)()
