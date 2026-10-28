@@ -56,18 +56,40 @@ class TestKeyringTokenStore:
         assert exc_info.value.failure == KeystoreFailure.DENIED
         assert exc_info.value.detail == "Keychain is locked"
 
-    def test_get_token(self):
+    def test_read_token(self):
         store = OSKeystore()
         with patch("keyring.get_password", return_value=TOKEN) as mock_get:
-            result = store.get_token(INSTANCE_URL)
+            result = store.read_token(INSTANCE_URL)
             mock_get.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL)
             assert result == TOKEN
 
-    def test_get_token_not_found(self):
+    def test_read_token_not_found(self):
+        """GIVEN no item for the instance WHEN the token is read THEN NOT_FOUND
+        is raised"""
         store = OSKeystore()
         with patch("keyring.get_password", return_value=None):
-            result = store.get_token(INSTANCE_URL)
-            assert result is None
+            with pytest.raises(KeystoreError) as exc_info:
+                store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.NOT_FOUND
+
+    def test_read_token_denied(self):
+        """GIVEN a keystore that refuses the read WHEN the token is read THEN
+        DENIED is raised with the reason from the keystore"""
+        import keyring.errors
+
+        store = OSKeystore()
+        with patch(
+            "keyring.get_password",
+            side_effect=keyring.errors.KeyringLocked(
+                "User interaction is not allowed."
+            ),
+        ):
+            with pytest.raises(KeystoreError) as exc_info:
+                store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.DENIED
+        assert exc_info.value.detail == "User interaction is not allowed."
 
     def test_delete_token(self):
         store = OSKeystore()
@@ -326,9 +348,15 @@ class TestFileTokenStore:
         store = FileKeystore()
         store.store_token(INSTANCE_URL, TOKEN)  # should not raise
 
-    def test_get_token_returns_none(self):
-        store = FileKeystore()
-        assert store.get_token(INSTANCE_URL) is None
+    def test_read_token_raises_why_the_store_is_not_used(self):
+        """GIVEN a file keystore chosen because the OS keystore is unreachable
+        WHEN a stored token is read THEN the reason for that choice is raised"""
+        store = FileKeystore(KeystoreFailure.UNAVAILABLE, "no D-Bus session")
+        with pytest.raises(KeystoreError) as exc_info:
+            store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.UNAVAILABLE
+        assert exc_info.value.detail == "no D-Bus session"
 
     def test_delete_token_is_noop(self):
         store = FileKeystore()
@@ -367,6 +395,8 @@ class TestGetTokenStore:
         with patch("keyring.get_keyring", return_value=fail_keyring):
             store = get_keystore()
             assert isinstance(store, FileKeystore)
+            assert store.failure == KeystoreFailure.UNAVAILABLE
+            assert store.detail == "no credential store backend is available"
 
     def test_returns_file_store_when_probe_raises(self, monkeypatch):
         """GIVEN a keystore that cannot be read WHEN a keystore is selected THEN
@@ -379,12 +409,15 @@ class TestGetTokenStore:
         ):
             store = get_keystore()
             assert isinstance(store, FileKeystore)
+            assert store.failure == KeystoreFailure.UNAVAILABLE
+            assert store.detail == "no keychain"
 
     @pytest.mark.parametrize("value", ("1", "true", "yes", "TRUE", "Yes"))
     def test_env_var_disables_keyring(self, monkeypatch, value):
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", value)
         store = get_keystore()
         assert isinstance(store, FileKeystore)
+        assert store.failure == KeystoreFailure.DISABLED
 
     def test_caches_result(self, monkeypatch):
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
@@ -411,7 +444,7 @@ class TestKeyringConcurrency:
     run in parallel then failed to authenticate. read_token therefore
     serializes keystore access across processes and threads."""
 
-    def test_get_token_is_serialized(self, monkeypatch, tmp_path):
+    def test_read_token_is_serialized(self, monkeypatch, tmp_path):
         monkeypatch.setenv("GG_CACHE_DIR", str(tmp_path))
         store = OSKeystore()
 
@@ -430,7 +463,7 @@ class TestKeyringConcurrency:
         results = []
 
         def worker():
-            results.append(store.get_token(INSTANCE_URL))
+            results.append(store.read_token(INSTANCE_URL))
 
         with patch("keyring.get_password", side_effect=fake_get):
             threads = [threading.Thread(target=worker) for _ in range(20)]

@@ -137,7 +137,7 @@ class TestConfigList:
         monkeypatch.delenv("GITGUARDIAN_API_KEY", raising=False)
 
         mock_store = OSKeystore()
-        mock_store.get_token = MagicMock()
+        mock_store.read_token = MagicMock()
         mock_store.store_token = MagicMock()
         mock_store.is_available = MagicMock(return_value=True)
 
@@ -151,7 +151,7 @@ class TestConfigList:
 
         assert exit_code == ExitCode.SUCCESS, output
         assert "token: stored in keyring" in output
-        mock_store.get_token.assert_not_called()
+        mock_store.read_token.assert_not_called()
 
     @staticmethod
     def run_cmd(cli_fs_runner, json: bool = False) -> Tuple[bool, str]:

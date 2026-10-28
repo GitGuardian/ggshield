@@ -33,7 +33,10 @@ def keystore_display_name() -> str:
 
 
 class KeystoreFailure(Enum):
+    DISABLED = "disabled"
+    UNAVAILABLE = "unavailable"
     DENIED = "denied"
+    NOT_FOUND = "not_found"
 
 
 class KeystoreError(Exception):
@@ -41,6 +44,37 @@ class KeystoreError(Exception):
         super().__init__(detail or failure.value)
         self.failure = failure
         self.detail = detail
+
+    def read_failure_message(self, instance_url: str) -> str:
+        store = keystore_display_name()
+        prefix = f"The token for '{instance_url}' is in the {store}"
+        if self.failure == KeystoreFailure.DISABLED:
+            return (
+                f"{prefix}, but GGSHIELD_NO_KEYRING is set. Unset it, or run "
+                "`ggshield auth login` to save a new token in the config file."
+            )
+        if self.failure == KeystoreFailure.UNAVAILABLE:
+            return (
+                f"{prefix}, but the {store} cannot be reached in this session "
+                f"({self.detail}). Run ggshield from a desktop session, or set "
+                "GITGUARDIAN_API_KEY."
+            )
+        if self.failure == KeystoreFailure.NOT_FOUND:
+            return (
+                f"The token for '{instance_url}' should be in the {store}, but it "
+                "is not there. Run `ggshield auth login` to store a new one."
+            )
+        cause = (
+            "The Keychain may be locked, or its item may not trust this ggshield "
+            "binary."
+            if sys.platform == "darwin"
+            else f"The {store} may be locked."
+        )
+        return (
+            f"{prefix}, but ggshield cannot read it in this session "
+            f"({self.detail}). {cause} Run `ggshield auth login` in a terminal "
+            "to store the token again."
+        )
 
     def write_failure_message(self, instance_url: str, config_path: str) -> str:
         store = keystore_display_name()
@@ -234,7 +268,7 @@ class Keystore(ABC):
     def store_token(self, instance_url: str, token: str) -> None: ...
 
     @abstractmethod
-    def get_token(self, instance_url: str) -> Optional[str]: ...
+    def read_token(self, instance_url: str) -> str: ...
 
     @abstractmethod
     def delete_token(self, instance_url: str) -> None: ...
@@ -245,6 +279,9 @@ class Keystore(ABC):
 
 class OSKeystore(Keystore):
     """Stores tokens in the OS credential store via the keyring library."""
+
+    def __init__(self) -> None:
+        self.unavailable_reason = ""
 
     @property
     def uses_external_storage(self) -> bool:
@@ -271,9 +308,15 @@ class OSKeystore(Keystore):
                     "answer that dialog."
                 )
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        with _keyring_lock():
-            return keyring.get_password(KEYRING_SERVICE, instance_url)
+    def read_token(self, instance_url: str) -> str:
+        try:
+            with _keyring_lock():
+                token = keyring.get_password(KEYRING_SERVICE, instance_url)
+        except Exception as exc:
+            raise KeystoreError(KeystoreFailure.DENIED, str(exc)) from exc
+        if token is None:
+            raise KeystoreError(KeystoreFailure.NOT_FOUND)
+        return token
 
     def delete_token(self, instance_url: str) -> None:
         with _keyring_lock():
@@ -299,18 +342,28 @@ class OSKeystore(Keystore):
         try:
             kr = keyring.get_keyring()
             if isinstance(kr, keyring.backends.fail.Keyring):
+                self.unavailable_reason = "no credential store backend is available"
                 return False
             # Hold the lock across the probe so it doesn't race the token
             # reads of concurrent processes.
             with _keyring_lock():
                 keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
             return True
-        except Exception:
+        except Exception as exc:
+            self.unavailable_reason = str(exc) or type(exc).__name__
             return False
 
 
 class FileKeystore(Keystore):
     """Fallback: tokens remain in the YAML config file."""
+
+    def __init__(
+        self,
+        failure: KeystoreFailure = KeystoreFailure.DISABLED,
+        detail: str = "",
+    ):
+        self.failure = failure
+        self.detail = detail
 
     @property
     def uses_external_storage(self) -> bool:
@@ -319,8 +372,8 @@ class FileKeystore(Keystore):
     def store_token(self, instance_url: str, token: str) -> None:
         pass
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        return None
+    def read_token(self, instance_url: str) -> str:
+        raise KeystoreError(self.failure, self.detail)
 
     def delete_token(self, instance_url: str) -> None:
         pass
@@ -340,7 +393,7 @@ def get_keystore() -> Keystore:
 
     if getenv_bool("GGSHIELD_NO_KEYRING", default=False):
         logger.debug("Keyring disabled via GGSHIELD_NO_KEYRING env var")
-        _keystore = FileKeystore()
+        _keystore = FileKeystore(KeystoreFailure.DISABLED)
         return _keystore
 
     store = OSKeystore()
@@ -348,9 +401,10 @@ def get_keystore() -> Keystore:
         _keystore = store
     else:
         logger.debug(
-            "Keyring is not available, falling back to file-based token storage"
+            "Keyring is not available (%s), falling back to file-based token storage",
+            store.unavailable_reason,
         )
-        _keystore = FileKeystore()
+        _keystore = FileKeystore(KeystoreFailure.UNAVAILABLE, store.unavailable_reason)
     return _keystore
 
 

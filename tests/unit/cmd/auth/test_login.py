@@ -563,7 +563,7 @@ class TestAuthLoginWeb:
         _add_keyring_instance_config(DEFAULT_INSTANCE_URL)
 
         keyring_store = OSKeystore()
-        keyring_store.get_token = MagicMock(return_value="some token")
+        keyring_store.read_token = MagicMock(return_value="some token")
         keyring_store.store_token = MagicMock()
         with patch(
             "ggshield.core.config.auth_config.get_keystore",
@@ -576,6 +576,26 @@ class TestAuthLoginWeb:
         self._assert_last_print(
             output, "ggshield is already authenticated without an expiry date\n"
         )
+
+    @pytest.mark.usefixtures("cli_fs_runner")
+    def test_unreadable_keyring_token_does_not_count_as_logged_in(self):
+        """
+        GIVEN a token in a keystore that refuses the read
+        WHEN web login checks for an existing token
+        THEN no token is found, and login continues to store a new token
+        """
+        _add_keyring_instance_config(DEFAULT_INSTANCE_URL)
+
+        denied_store = OSKeystore()
+        denied_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.DENIED, "denied")
+        )
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=denied_store,
+        ):
+            client = OAuthClient(Config(), DEFAULT_INSTANCE_URL)
+            assert client.check_existing_token() is False
 
     def test_auth_login_recreates_token_if_deleted_server_side(
         self, cli_fs_runner, monkeypatch

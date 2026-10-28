@@ -12,11 +12,7 @@ from voluptuous.validators import All, Contains, In, Match
 from ggshield.__main__ import cli
 from ggshield.core.config.auth_config import AccountConfig, AuthConfig, InstanceConfig
 from ggshield.core.config.config import ConfigSource
-from ggshield.core.config.token_store import (
-    KEYRING_SENTINEL,
-    FileKeystore,
-    OSKeystore,
-)
+from ggshield.core.config.token_store import KEYRING_SENTINEL, FileKeystore, OSKeystore
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode
 from ggshield.utils.os import cd
@@ -193,7 +189,7 @@ def test_api_status_key_source_follows_where_the_token_is(
         auth_config.save()
 
     keyring_store = OSKeystore()
-    keyring_store.get_token = mock.MagicMock(return_value="some token")
+    keyring_store.read_token = mock.MagicMock(return_value="some token")
     with mock.patch(
         "ggshield.core.config.auth_config.get_keystore",
         return_value=keyring_store,

@@ -21,6 +21,7 @@ from ggshield.core.config.utils import (
     save_yaml_dict,
 )
 from ggshield.core.errors import (
+    AuthError,
     AuthExpiredError,
     MissingTokenError,
     UnknownInstanceError,
@@ -41,35 +42,10 @@ class AccountConfig:
 
 
 def _read_token_from_keystore(instance_url: str) -> str:
-    """Read a sentinel-marked token from the credential store, "" if unavailable."""
-    store = get_keystore()
-    if not store.uses_external_storage:
-        logger.warning(
-            "Token for %s is stored in keyring but keyring is disabled. "
-            "Unset GGSHIELD_NO_KEYRING or re-authenticate with "
-            "'ggshield auth login'.",
-            instance_url,
-        )
-        return ""
-
     try:
-        token = store.get_token(instance_url)
-    except Exception:
-        logger.warning(
-            "Failed to retrieve token from keyring for %s",
-            instance_url,
-            exc_info=True,
-        )
-        return ""
-
-    if token is None:
-        logger.warning(
-            "Token for %s was expected in keyring but not found. "
-            "Re-authenticate with 'ggshield auth login'.",
-            instance_url,
-        )
-        return ""
-    return token
+        return get_keystore().read_token(instance_url)
+    except KeystoreError as exc:
+        raise AuthError(instance_url, exc.read_failure_message(instance_url)) from exc
 
 
 @dataclass
@@ -99,6 +75,9 @@ class InstanceConfig:
         Reading the keystore can show a macOS Keychain dialog, so the read waits
         until a caller needs the token. The account keeps the `__KEYRING__`
         marker, so save() does not write a token that was only read.
+
+        Raise AuthError when the keystore holds the token but cannot
+        return it.
         """
         if self.account is None:
             return ""
