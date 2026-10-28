@@ -640,6 +640,32 @@ class TestAuthConfigKeyring:
         assert config.auth_config.instances[0].token_in_keystore
         assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
 
+    def test_forget_account_deletes_the_stored_token(self, monkeypatch):
+        """
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN an account is forgotten
+        THEN its token is deleted from the keystore and the account is cleared
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        mock_store = OSKeystore()
+        mock_store.delete_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
+        ):
+            config = Config()
+            config.auth_config.forget_account("https://dashboard.gitguardian.com")
+
+        mock_store.delete_token.assert_called_once_with(
+            "https://dashboard.gitguardian.com"
+        )
+        assert config.auth_config.instances[0].account is None
+
     def test_file_store_preserves_cleartext(self, monkeypatch):
         """
         GIVEN GGSHIELD_NO_KEYRING=1
