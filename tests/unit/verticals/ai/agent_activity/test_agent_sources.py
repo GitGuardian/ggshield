@@ -95,6 +95,55 @@ def test_codex_agent_ships_raw_rollout_lines(fake_home: Path) -> None:
     assert event.content == line
 
 
+def test_codex_agent_ships_thread_titles(fake_home: Path) -> None:
+    """The rollout carries no title: it comes from the threads table of the
+    state database, keyed by the rollout's session id."""
+    from ggshield.verticals.ai.agents.codex import Codex
+
+    codex_dir = fake_home / ".codex"
+    codex_dir.mkdir()
+    conn = sqlite3.connect(codex_dir / "state_5.sqlite")
+    conn.execute(
+        "CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT, name TEXT, "
+        "updated_at INTEGER, first_user_message TEXT, preview TEXT)"
+    )
+    conn.execute(
+        "INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?)",
+        ("t1", "Fix the login page", "login", 1700000000, "please fix", "preview"),
+    )
+    conn.commit()
+    conn.close()
+
+    [event] = list(Codex().iter_agent_activity_events())
+
+    assert event.agent_name == "codex"
+    assert event.source_kind == "4_thread_metadata"
+    assert event.source_path == "state_5.sqlite"
+    assert event.record_offset == "t1"
+    assert json.loads(event.content) == {
+        "id": "t1",
+        "title": "Fix the login page",
+        "name": "login",
+        "updated_at": 1700000000,
+    }
+
+
+def test_codex_agent_skips_state_database_without_threads_table(
+    fake_home: Path,
+) -> None:
+    """An older state database has no threads table yet: it is skipped, not fatal."""
+    from ggshield.verticals.ai.agents.codex import Codex
+
+    codex_dir = fake_home / ".codex"
+    codex_dir.mkdir()
+    conn = sqlite3.connect(codex_dir / "state_1.sqlite")
+    conn.execute("CREATE TABLE other (id TEXT)")
+    conn.commit()
+    conn.close()
+
+    assert list(Codex().iter_agent_activity_events()) == []
+
+
 def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     from ggshield.verticals.ai.agents.cursor import Cursor
 
@@ -123,6 +172,48 @@ def test_cursor_agent_ships_raw_bubble_rows(fake_home: Path) -> None:
     row = json.loads(event.content)
     assert row["key"] == "bubbleId:c1:b1"
     assert json.loads(row["value"])["bubbleId"] == "b1"
+
+
+def test_cursor_agent_ships_composer_rows_without_per_bubble_fields(
+    fake_home: Path,
+) -> None:
+    from ggshield.verticals.ai.agents.cursor import Cursor
+
+    db_path = get_editor_user_data_dir("Cursor") / "globalStorage" / "state.vscdb"
+    db_path.parent.mkdir(parents=True)
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE cursorDiskKV (key TEXT, value TEXT)")
+    composer_value = json.dumps(
+        {
+            "composerId": "c1",
+            "name": "Fix the login page",
+            "createdAt": 1700000000000,
+            "modelConfig": {"modelName": "some-model"},
+            "fullConversationHeadersOnly": [{"bubbleId": f"b{i}"} for i in range(3)],
+            "conversationState": {"big": "blob"},
+            "originalFileStates": {"/tmp/login.py": "file content"},
+        }
+    )
+    conn.execute(
+        "INSERT INTO cursorDiskKV VALUES (?, ?)", ("composerData:c1", composer_value)
+    )
+    # A value that is not JSON is shipped as is rather than failing the query.
+    conn.execute("INSERT INTO cursorDiskKV VALUES (?, ?)", ("composerData:c2", "oops"))
+    conn.commit()
+    conn.close()
+
+    [composer_data, broken] = list(Cursor().iter_agent_activity_events())
+
+    value = json.loads(json.loads(composer_data.content)["value"])
+    assert value["composerId"] == "c1"
+    assert value["name"] == "Fix the login page"
+    assert value["createdAt"] == 1700000000000
+    assert value["modelConfig"] == {"modelName": "some-model"}
+    assert "fullConversationHeadersOnly" not in value
+    assert "conversationState" not in value
+    assert "originalFileStates" not in value
+
+    assert json.loads(broken.content)["value"] == "oops"
 
 
 def test_copilot_agent_ships_raw_event_lines(fake_home: Path) -> None:
