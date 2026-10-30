@@ -12,7 +12,7 @@
 # Dependabot's docker ecosystem only parses `FROM` lines, so this is what lets
 # it keep the version below updated.
 # Pinned by digest as well as by tag, since a tag can be moved to a different commit.
-FROM ghcr.io/astral-sh/uv:0.13.3@sha256:bee0a2a458fd956c5df7b8b4c5fed2257b0af34866e3da7b51db0be3acb375d1 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 # Pinned by digest, not just by tag: a tag is a mutable pointer that can be
 # repushed to different content, so the digest is what makes a rebuild resolve
