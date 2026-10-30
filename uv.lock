@@ -1161,7 +1161,7 @@ requires-dist = [
     { name = "oauthlib", specifier = ">=3.2.1,<5" },
     { name = "packaging", specifier = ">=22.0" },
     { name = "platformdirs", specifier = "~=4.2" },
-    { name = "pygitguardian", specifier = "~=1.35.0" },
+    { name = "pygitguardian", specifier = "~=1.36.0" },
     { name = "pyjwt", specifier = ">=2.13.0,<3" },
     { name = "python-dotenv", specifier = ">=0.21.0,<2" },
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
@@ -2937,7 +2937,7 @@ wheels = [
 
 [[package]]
 name = "pygitguardian"
-version = "1.35.0"
+version = "1.36.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -2949,9 +2949,9 @@ dependencies = [
     { name = "typing-extensions", version = "4.15.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "typing-extensions", version = "4.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/6a/2ff0e9a42bf6ef3a11bf0d9b2d53bc0bb3ca84531ef4435d856c187d10fe/pygitguardian-1.35.0.tar.gz", hash = "sha256:e9af79fe66cfd5e8063fc140cdaac95b987949ba1dc96941bb27b53ae2b8bc38", size = 64287, upload-time = "2026-09-22T14:36:34.255Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/44/34009805f24d266618eec3a02ef8e21127f2918ccf7ac56e93c6698f9ffc/pygitguardian-1.36.0.tar.gz", hash = "sha256:081aa7ed2c2c33be24be052e0fea5b55a7098d34aefe45c1fdbfa6ad6c0d5a49", size = 67651, upload-time = "2026-10-29T13:12:31.056Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/ef/ddf02561c69263558377ddf8cd607a014905588fb28d744cb1684b38b396/pygitguardian-1.35.0-py3-none-any.whl", hash = "sha256:8c9969fc9aaf0e8b5d9c9ef8289e779393ad3b9fc64ff686643eedbda3eb70b6", size = 24809, upload-time = "2026-09-22T14:36:33.175Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/8c/11dad0f4a124240f7867762637787e7a988efdb6c431010a137062f32a93/pygitguardian-1.36.0-py3-none-any.whl", hash = "sha256:f69f60e8acbed0886fe841e8a7dd1411367640321e8dd3dc9433533aa9472c74", size = 25030, upload-time = "2026-10-29T13:12:29.87Z" },
 ]
 
 [[package]]
