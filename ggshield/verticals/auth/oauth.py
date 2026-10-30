@@ -249,7 +249,7 @@ class OAuthClient:
         return self._oauth_client.prepare_request_uri(
             uri=urljoin(self.dashboard_url, self._login_path),
             redirect_uri=self.redirect_uri,
-            scope=unique_scopes,
+            scope=" ".join(unique_scopes),
             code_challenge=self.code_challenge,
             code_challenge_method="S256",
             state=self.state,
