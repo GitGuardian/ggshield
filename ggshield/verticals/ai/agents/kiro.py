@@ -9,7 +9,6 @@ from ggshield.core.dirs import get_editor_user_data_dir, get_user_home_dir
 from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, HookPayload, HookResult, MCPConfiguration, Scope
 
-
 #: Kiro compiles a hook's `matcher` as a regular expression and drops the hook
 #: when it does not compile. A bare "*" is not a valid regex ("nothing to
 #: repeat"), so it leaves a hook that exists, installs cleanly, and never runs.

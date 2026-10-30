@@ -9,7 +9,6 @@ from ggshield.core.scan.scan_context import ScanContext
 from ggshield.core.scan.scan_mode import ScanMode
 from tests.repository import Repository
 
-
 DOMAIN = "https://github.com"
 SLUG = "from-env/repository"
 ENV_REPO_URL = f"{DOMAIN}/{SLUG}"

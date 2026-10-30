@@ -22,7 +22,6 @@ import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-
 MODE = os.environ.get("MODE", "clean")
 REQUEST_LOG = os.environ.get("REQUEST_LOG")
 

@@ -8,7 +8,6 @@ from typing import Any, Dict, ItemsView, List, Literal, Tuple, Union, cast
 
 from typing_extensions import NotRequired, TypedDict
 
-
 AlertingLevel = Literal["error", "warn", "none"]
 ValueType = Union[AlertingLevel, str, List[str]]
 

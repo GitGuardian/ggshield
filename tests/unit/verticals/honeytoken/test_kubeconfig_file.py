@@ -20,7 +20,6 @@ from ggshield.verticals.honeytoken.placement import (
 )
 from ggshield.verticals.honeytoken.secure_file import FD_HARDENED
 
-
 _USER = "kubernetes-admin"
 
 

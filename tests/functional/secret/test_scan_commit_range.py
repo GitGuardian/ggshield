@@ -6,7 +6,6 @@ from tests.conftest import GG_VALID_TOKEN
 from tests.functional.utils import recreate_censored_content, run_ggshield_scan
 from tests.repository import Repository
 
-
 pytestmark = pytest.mark.uses_gitguardian_api
 
 

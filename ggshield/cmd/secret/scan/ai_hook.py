@@ -18,7 +18,6 @@ from ggshield.verticals.ai.hooks import (
 )
 from ggshield.verticals.secret import SecretScanner
 
-
 MAX_READ_SIZE = 1024 * 1024 * 10  # We restrict stdin read to 10MB
 
 

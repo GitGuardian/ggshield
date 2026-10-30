@@ -7,7 +7,6 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
-
 # Publicly available pepper used in our protocol with HasMySecretLeaked
 _PEPPER = sha256(b"GitGuardian").digest()
 

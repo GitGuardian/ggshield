@@ -35,7 +35,6 @@ from .models import (
     markdown_hard_breaks,
 )
 
-
 HOOK_NAME_TO_EVENT_TYPE = {
     "userpromptsubmit": EventType.USER_PROMPT,
     "userpromptsubmitted": EventType.USER_PROMPT,  # Copilot CLI's native event name

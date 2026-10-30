@@ -21,7 +21,6 @@ from ggshield.core.plugin.http_security import (
 from ggshield.core.plugin.platform import PlatformInfo, get_platform_info
 from ggshield.core.plugin.wheel_utils import InvalidWheelError, sanitize_wheel_filename
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -2,7 +2,6 @@ import pytest
 
 from tests.factories import get_line_index
 
-
 TEST_CONTENT = """aaa
 bb
 cccc"""

@@ -15,7 +15,6 @@ from ggshield.verticals.honeytoken.targets import (
     resolve_targets,
 )
 
-
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="POSIX target resolution"
 )

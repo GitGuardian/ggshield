@@ -8,7 +8,6 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.utils.git_shell import EMPTY_SHA, git
 from ggshield.utils.os import getenv_float, getenv_int
 
-
 logger = logging.getLogger(__name__)
 
 

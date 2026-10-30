@@ -31,7 +31,6 @@ from .errors import (
 )
 from .ui.client_callbacks import ClientCallbacks
 
-
 logger = logging.getLogger(__name__)
 
 

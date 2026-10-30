@@ -433,8 +433,7 @@ class TestPrepush:
         scan_commit_range_mock.assert_called_once()
         assert "Commits to scan: 20" in result.output
 
-        assert (
-            """
+        assert """
 > How to remediate
 
   Since the secret was detected before the push BUT after the commit, you need to:
@@ -447,9 +446,7 @@ class TestPrepush:
 > [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
   - if you use the pre-commit framework:
 
-    SKIP=ggshield-push git push"""
-            in result.output
-        )
+    SKIP=ggshield-push git push""" in result.output
 
     @patch("ggshield.cmd.secret.scan.prepush.check_git_dir")
     @patch("ggshield.cmd.secret.scan.prepush.get_list_commit_SHA")

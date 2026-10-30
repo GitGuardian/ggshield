@@ -50,7 +50,6 @@ from tests.unit.conftest import (
     my_vcr,
 )
 
-
 ExpectedScan = namedtuple("expectedScan", "exit_code matches first_match want")
 
 _EXPECT_NO_SECRET = {

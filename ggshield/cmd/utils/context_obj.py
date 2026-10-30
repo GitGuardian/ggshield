@@ -8,7 +8,6 @@ from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
 
-
 if TYPE_CHECKING:
     from ggshield.core.plugin.registry import PluginRegistry
 

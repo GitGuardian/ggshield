@@ -10,7 +10,6 @@ from ggshield.utils.git_shell import Filemode
 from tests.conftest import is_windows
 from tests.repository import Repository
 
-
 PATCH_SEPARATION = (
     """commit 3e0d3805080b044ab221fa8b8998e3039be0a5ca6
 Author: Testificate Jose <test@test.test>
@@ -406,15 +405,12 @@ def test_from_sha_gets_right_content_for_conflicts(tmp_path):
     content = files[0].content
 
     # Content has been turned into a single-parent diff
-    assert (
-        content
-        == """
+    assert content == """
 @@ -1,2 +1,1 @@
 -Hello
 -Hello from main
 +Solve conflict
 """.strip()
-    )
 
 
 def test_from_sha_files_matches_content(tmp_path):

@@ -18,12 +18,10 @@ def set_user_config_field(field: ConfigField, value: Any) -> None:
     user_config.save(config_path)
 
 
-@click.command(
-    help=f"""Update the value of the given configuration key.
+@click.command(help=f"""Update the value of the given configuration key.
 
 {FIELD_NAMES_DOC}
-"""
-)
+""")
 @click.argument(
     "field_name",
     nargs=1,

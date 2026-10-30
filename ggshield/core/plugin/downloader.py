@@ -44,7 +44,6 @@ from ggshield.core.plugin.wheel_utils import (
     sanitize_wheel_filename,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

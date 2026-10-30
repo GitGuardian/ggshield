@@ -10,7 +10,6 @@ from ggshield.core.text_utils import pluralize
 from ggshield.verticals.hmsl import Secret
 from ggshield.verticals.hmsl.collection import PreparedSecrets
 
-
 TEMPLATE = """
 > Secret {number}
 Secret name: "{name}"

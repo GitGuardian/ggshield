@@ -2,12 +2,12 @@
 """
 A multi-command tool to automate steps of the release process
 """
+
 import os
 import re
 import shutil
 import subprocess
 import sys
-
 
 try:
     import tomllib
@@ -21,7 +21,6 @@ from hmsl.hashicorp_vault import (
     start_hashicorp_vault_server,
     stop_hashicorp_vault_server,
 )
-
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 

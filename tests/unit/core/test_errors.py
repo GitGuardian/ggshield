@@ -13,7 +13,6 @@ from ggshield.core.errors import (
 )
 from ggshield.utils.git_shell import GitExecutableNotFound
 
-
 HTML_500_PAGE = """
 <html>
   <body><h1>Error</h1></body>

@@ -2,7 +2,6 @@ from typing import Any, List, Optional
 
 import click
 
-
 # We decided not to use https://github.com/click-contrib/click-default-group
 # to limit number of dependencies
 

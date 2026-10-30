@@ -12,7 +12,6 @@ from ..extended_match import ExtendedMatch
 from ..secret_scan_collection import Result, Secret, SecretScanCollection
 from .secret_output_handler import SecretOutputHandler
 
-
 SCHEMA_URL = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json"
 
 

@@ -14,7 +14,6 @@ from ggshield.core.dirs import get_cache_dir
 
 from .models import Scope
 
-
 AI_DISCOVERY_CACHE_FILENAME = "ai_discovery.json"
 
 VERDICT_CACHE_FILENAME = "ai_hook_verdicts.json"

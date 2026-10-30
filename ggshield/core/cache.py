@@ -9,7 +9,6 @@ from ggshield.core.errors import UnexpectedError
 from ggshield.core.types import IgnoredMatch
 from ggshield.utils.git_shell import gitignore, is_gitignored
 
-
 SECRETS_CACHE_KEY = "last_found_secrets"
 
 

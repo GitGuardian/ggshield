@@ -7,7 +7,6 @@ from tests.conftest import GG_VALID_TOKEN
 from tests.functional.utils import recreate_censored_content, run_ggshield_scan
 from tests.repository import Repository
 
-
 LEAK_CONTENT = f"password = {GG_VALID_TOKEN}"
 
 

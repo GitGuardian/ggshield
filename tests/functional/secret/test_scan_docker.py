@@ -13,7 +13,6 @@ from tests.conftest import GG_VALID_TOKEN, skipwindows
 from tests.functional.conftest import FUNCTESTS_DATA_PATH, requires_docker
 from tests.functional.utils import recreate_censored_content, run_ggshield_scan
 
-
 TEST_DOCKER_IMAGE = os.getenv("GGTEST_DOCKER_IMAGE", "ubuntu:20.04")
 
 

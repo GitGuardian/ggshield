@@ -9,7 +9,6 @@ from ggshield.verticals.hmsl.client import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
-
 ENV_FILE = r"""
 FOO=barbaz
 PASSWORD=123456

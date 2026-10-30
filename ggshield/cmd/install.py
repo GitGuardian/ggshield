@@ -20,7 +20,6 @@ from ggshield.verticals.ai.installation import (
     install_hooks,
 )
 
-
 # This snippet is used by the global hook to call the hook defined in the
 # repository, if it exists.
 # Because of #467, we must use /bin/sh as a shell, so the shell code must

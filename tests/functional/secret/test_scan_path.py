@@ -18,7 +18,6 @@ from tests.functional.utils import (
     run_ggshield_scan,
 )
 
-
 pytestmark = pytest.mark.uses_gitguardian_api
 
 
@@ -104,16 +103,14 @@ def test_scan_path_ignore_known_secrets(tmp_path: Path) -> None:
 
     # GIVEN a document containing 2 secrets, one known and one unknown
     test_file = tmp_path / "config.py"
-    test_file.write_text(
-        f"""
+    test_file.write_text(f"""
 KNOWN_SECRET='{KNOWN_SECRET}'
 
 # Extra lines to ensure the line containing the known secret is not included when
 # ggshield shows the lines around the unknown secret.
 
 UNKNOWN_SECRET='{UNKNOWN_SECRET}'
-"""
-    )
+""")
 
     # WHEN ggshield scans it with --ignore-known-secrets
     result = run_ggshield_scan(

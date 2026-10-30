@@ -12,7 +12,6 @@ from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret import Result, Results, SecretScanCollection
 from ggshield.verticals.secret.output import SecretTextOutputHandler
 
-
 # ---------------------------------------------------------------------------
 # Patch content
 # Context line holds an existing secret; the addition line holds a new one.

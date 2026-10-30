@@ -19,7 +19,6 @@ from ggshield.core.config.token_store import (
     reset_token_store,
 )
 
-
 INSTANCE_URL = "https://dashboard.gitguardian.com"
 TOKEN = "test-token-abc123"
 

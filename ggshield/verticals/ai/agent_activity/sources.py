@@ -31,7 +31,6 @@ from typing import ClassVar, Dict, Iterable, Iterator, Optional, Sequence, Tuple
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 from ggshield.verticals.ai.agent_activity.readers import iter_jsonl, iter_sqlite_rows
 
-
 RawRecord = Union[str, Dict[str, object]]
 
 # Cap a single record's content as a cheap defensive bound on payload size.

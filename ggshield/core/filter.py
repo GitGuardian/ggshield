@@ -9,7 +9,6 @@ from pygitguardian.models import Match, PolicyBreak
 
 from ggshield.core.types import IgnoredMatch
 
-
 REGEX_MATCH_HIDE = re.compile(r"[^+\-\s]")
 REGEX_SPECIAL_CHARS = set(".^$+*?{}()[]\\|")
 INVALID_PATTERNS_REGEX = re.compile(

@@ -17,7 +17,6 @@ from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import git
 from ggshield.verticals.secret.repo import scan_repo_path
 
-
 # Source: https://github.com/jonschlinkert/is-git-url MIT LICENSE
 # TODO: it should be possible to scan a repo URL which does not end with ".git"
 REGEX_GIT_URL = re.compile(

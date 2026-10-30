@@ -8,6 +8,7 @@ Only stdlib imports on purpose: this runs in CI straight off a checkout,
 without installing ggshield's own dependencies. Grype itself must already be
 installed and on PATH.
 """
+
 import argparse
 import json
 import subprocess
@@ -17,7 +18,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
-
 
 SEVERITY_ORDER = ["Unknown", "Negligible", "Low", "Medium", "High", "Critical"]
 

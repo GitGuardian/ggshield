@@ -9,7 +9,6 @@ from typing_extensions import Self
 
 from ..ggshield_ui import NAME_BY_LEVEL, DebugInfo, GGShieldProgress, GGShieldUI, Level
 
-
 COLOR_BY_LEVEL = {
     Level.DEBUG: "green",
     Level.VERBOSE: "white",

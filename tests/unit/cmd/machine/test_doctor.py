@@ -21,7 +21,6 @@ from ggshield.verticals.ai.installation import AgentHookStatus
 from tests.unit.cmd.machine.test_setup import _current_hook, _legacy_hook
 from tests.unit.conftest import assert_invoke_ok
 
-
 BASE = "ggshield.cmd.machine.doctor"
 
 

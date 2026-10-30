@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 if sys.version_info >= (3, 11):
     import tomllib
 else:

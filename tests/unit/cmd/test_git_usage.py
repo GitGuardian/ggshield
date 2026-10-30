@@ -9,7 +9,6 @@ from ggshield.__main__ import cli
 from ggshield.core.errors import ExitCode
 from ggshield.utils.git_shell import EMPTY_SHA
 
-
 GIT_MODULES = ("ggshield.utils.git_shell", "ggshield.core.git_hooks")
 
 SHA = "a" * 40

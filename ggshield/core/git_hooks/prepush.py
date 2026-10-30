@@ -6,7 +6,6 @@ from typing import List, Optional, Tuple
 from ggshield.core import ui
 from ggshield.utils.git_shell import EMPTY_SHA, git, is_valid_git_commit_ref
 
-
 logger = logging.getLogger(__name__)
 
 

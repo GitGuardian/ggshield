@@ -38,7 +38,6 @@ from ggshield.core.plugin.signature import (
 )
 from ggshield.core.plugin.trust import compute_file_sha256
 
-
 MOCK_SIG_INFO = SignatureInfo(status=SignatureStatus.SKIPPED)
 
 
