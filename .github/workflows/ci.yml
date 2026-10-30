@@ -209,6 +209,8 @@ jobs:
     # failure mode is a silent false negative, so the job just always runs.
     # A few minutes of CI is the cheaper side of that trade.
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -287,6 +289,8 @@ jobs:
     # is never clippy'd or tested. This job builds and tests the workspace on
     # each OS so that code cannot rot silently.
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:

@@ -29,6 +29,8 @@ jobs:
   build_signed_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     environment: release
     strategy:
       fail-fast: false
@@ -60,12 +62,16 @@ jobs:
 
   scan_vulnerabilities:
     needs: [build_release_assets, build_signed_os_packages]
+    permissions:
+      contents: read
     uses: ./.github/workflows/scan_packages.yml
 
   # The platform wheels carrying the Rust `ggshield`. Called from here rather
   # than triggered on the tag itself, so its artifacts land in this run and
   # `push_to_pypi` below can download them.
   build_platform_wheels:
+    permissions:
+      contents: read
     uses: ./.github/workflows/wheels.yml
     with:
       skip_macos_windows: true
@@ -73,6 +79,8 @@ jobs:
   build_signed_wheels:
     name: wheel ${{ matrix.wheel }}
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
     environment: release
     strategy:
       fail-fast: false

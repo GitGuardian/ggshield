@@ -113,6 +113,8 @@ jobs:
     name: Build packages
     if: ${{ !inputs.skip_macos_windows }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -217,4 +219,6 @@ jobs:
   scan_vulnerabilities:
     needs: [build_os_packages, build_macos_windows_packages]
     if: ${{ !inputs.skip_macos_windows }}
+    permissions:
+      contents: read
     uses: ./.github/workflows/scan_packages.yml
