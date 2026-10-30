@@ -20,13 +20,14 @@ flowchart TD
     (build/ggshield-$version-$target)"/]
     archive_dir --> test["test (run functional tests on archive dir)"]
     test --> signing{Called with --sign?} -->|yes| sign
-    signing -->|no| create_archive
-    sign --> create_archive --> pkg[/"pkg 🍏"/]
+    signing -->|no| sbom
+    sign --> sbom --> create_archive --> pkg[/"pkg 🍏"/]
     create_archive --> zip[/"zip 🪟"/]
     create_archive --> msi[/"msi 🪟"/]
     create_archive --> tar.gz[/"tar.gz 🐧"/]
     create_archive --> deb[/"deb 🐧"/]
     create_archive --> rpm[/"rpm 🐧"/]
+    sbom --> cdx[/"cdx.json 📋"/]
 ```
 
 ## Version numbers
@@ -49,6 +50,20 @@ command to the bundled PyInstaller launcher (`ggshield-py`).
 ## Signing
 
 MacOS and Windows archives are signed, but `build-os-packages` must be called with the `--sign` option to sign binaries because: signing requires access to secrets not available for PR from forks.
+
+## SBOM
+
+The `sbom` step writes a CycloneDX SBOM of the bundle to `dist/ggshield-$version-$target.cdx.json`, which the release uploads next to the packages. It runs `scripts/sbom/generate_sbom.py` after `sign`, so the file hashes it records are those of the signed files.
+
+The script does not read `uv.lock`. PyInstaller bundles only the modules it finds imported, from every dependency group installed in the build environment, so the lockfile would list packages that are not shipped and miss some that are. Instead, the script lists what the bundle contains (the modules in the PYZ archive and the files under `_internal/`) and attributes each of them to a distribution through the RECORD files of the build environment. It also adds:
+
+- the Python runtime, whose version it reads from the bundled `libpython`, and the SQLite, zlib and expat it embeds (`--describe-interpreter`, only valid on the interpreter PyInstaller bundled);
+- every OpenSSL build found in the bundle's native files, under the component that contains it;
+- the PyInstaller bootloader;
+- the Rust crates linked into the dispatcher, from `cargo metadata --filter-platform`;
+- native libraries no package claims, as `file` components with their SHA-256.
+
+To check an SBOM, run `grype sbom:dist/ggshield-$version-$target.cdx.json`.
 
 ## macOS-specific information
 

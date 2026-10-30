@@ -190,6 +190,7 @@ jobs:
             dist/ggshield.*.nupkg
             dist/ggshield-*.gz
             dist/ggshield-*.msi
+            dist/ggshield-*.cdx.json
 
       - name: Create release
         env:
@@ -210,7 +211,8 @@ jobs:
             dist/ggshield-*.zip \
             dist/ggshield.*.nupkg \
             dist/ggshield-*.gz \
-            dist/ggshield-*.msi
+            dist/ggshield-*.msi \
+            dist/ggshield-*.cdx.json
 
   update_downstream:
     needs: release

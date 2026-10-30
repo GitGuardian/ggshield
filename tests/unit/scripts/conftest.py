@@ -6,3 +6,7 @@ from pathlib import Path
 # their own directory on sys.path
 PERFBENCH_DIR = Path(__file__).parents[3] / "scripts" / "perfbench"
 sys.path.insert(0, str(PERFBENCH_DIR))
+
+# Same for the SBOM generator, which is a standalone script
+SBOM_DIR = Path(__file__).parents[3] / "scripts" / "sbom"
+sys.path.insert(0, str(SBOM_DIR))
