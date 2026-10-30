@@ -21,7 +21,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # auth_config.yaml (the token file). Maintained fork of the archived serde_yaml.
 serde_yaml_ng = "0.10"
 
-ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "json"] }
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls", "json"] }
 rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
 rustls-platform-verifier = "0.7"
 webpki-root-certs = "1"
