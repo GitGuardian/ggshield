@@ -28,6 +28,7 @@ permissions: {}
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.9'
+  PRE_COMMIT_PYTHON_VERSION: '3.12'
 
 jobs:
   lint:
@@ -53,10 +54,10 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit|${{ env.PRE_COMMIT_PYTHON_VERSION }}|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install pre-commit hooks
-        run: uv run pre-commit install --install-hooks
+        run: uv run --isolated --only-group dev --python "$PRE_COMMIT_PYTHON_VERSION" pre-commit install --install-hooks
 
       - name: Skip ggshield hooks when running from a fork
         # See note about steps requiring the GITGUARDIAN_API at the top of this file
@@ -66,7 +67,7 @@ jobs:
 
       - name: Run pre-commit checks
         run: |
-          uv run pre-commit run --show-diff-on-failure --all-files
+          uv run --isolated --only-group dev --python "$PRE_COMMIT_PYTHON_VERSION" pre-commit run --show-diff-on-failure --all-files
         env:
           GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
 
