@@ -7,7 +7,7 @@ from requests.exceptions import ConnectionError
 from ggshield.__main__ import cli
 from ggshield.core import auth_check_cache
 from ggshield.core.config import Config
-from ggshield.core.config.token_store import KeyringTokenStore, reset_token_store
+from ggshield.core.config.token_store import OSKeystore, reset_keystore
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode
 
@@ -166,24 +166,18 @@ class TestAuthLogout:
         WHEN running the logout command with --no-revoke
         THEN the token is deleted from keyring
         """
-        reset_token_store()
+        reset_keystore()
 
-        mock_store = KeyringTokenStore()
+        mock_store = OSKeystore()
         mock_store.delete_token = MagicMock()
         mock_store.store_token = MagicMock()
         mock_store.is_available = MagicMock(return_value=True)
 
         add_instance_config()
 
-        with (
-            patch(
-                "ggshield.cmd.auth.logout.get_token_store",
-                return_value=mock_store,
-            ),
-            patch(
-                "ggshield.core.config.auth_config.get_token_store",
-                return_value=mock_store,
-            ),
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
         ):
             exit_code, output = self.run_cmd(
                 cli_fs_runner, DEFAULT_INSTANCE_URL, revoke=False
@@ -191,7 +185,7 @@ class TestAuthLogout:
 
         assert exit_code == ExitCode.SUCCESS, output
         mock_store.delete_token.assert_called_once_with(DEFAULT_INSTANCE_URL)
-        reset_token_store()
+        reset_keystore()
 
     def test_logout_invalidates_auth_check_cache(self, monkeypatch, cli_fs_runner):
         """

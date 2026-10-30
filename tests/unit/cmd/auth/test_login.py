@@ -3,7 +3,7 @@ import urllib.parse as urlparse
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto
 from typing import Optional, Set
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests.exceptions
@@ -13,6 +13,15 @@ from pygitguardian.models import Detail
 from ggshield.__main__ import cli
 from ggshield.cmd.auth.login import _warn_missing_scopes
 from ggshield.core.config import Config
+from ggshield.core.config.auth_config import AccountConfig, InstanceConfig
+from ggshield.core.config.token_store import (
+    KEYRING_SENTINEL,
+    FileKeystore,
+    KeystoreError,
+    KeystoreFailure,
+    OSKeystore,
+)
+from ggshield.core.config.utils import get_auth_config_filepath
 from ggshield.core.constants import DEFAULT_INSTANCE_URL
 from ggshield.core.errors import ExitCode, UnexpectedError
 from ggshield.utils.datetime import get_pretty_date
@@ -147,6 +156,41 @@ class TestAuthLoginToken:
             assert instance not in config_instance_urls
 
         self._request_mock.assert_all_requests_happened()
+
+    def test_auth_login_token_warns_when_the_token_stays_in_clear_text(
+        self, monkeypatch, cli_fs_runner
+    ):
+        """
+        GIVEN a keystore that refuses writes, as a locked macOS Keychain over SSH does
+        WHEN the auth login command runs with --method=token
+        THEN login succeeds and warns that the token is in clear text, with the
+             file path
+        """
+        instance = "https://dashboard.gitguardian.com"
+        cmd = ["auth", "login", "--method=token", f"--instance={instance}"]
+        self._request_mock.add_GET(TOKEN_ENDPOINT, VALID_TOKEN_RESPONSE)
+        self._request_mock.add_GET("/v1/api_tokens/self", VALID_API_TOKENS_RESPONSE)
+
+        locked_store = OSKeystore()
+        locked_store.store_token = MagicMock(
+            side_effect=KeystoreError(
+                KeystoreFailure.DENIED, "User interaction is not allowed."
+            )
+        )
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=locked_store,
+        ):
+            result = cli_fs_runner.invoke(cli, cmd, color=False, input="mysupertoken\n")
+
+        assert_invoke_ok(result)
+        output = " ".join(result.output.split())
+        assert "User interaction is not allowed." in output
+        assert f"saved in clear text in {get_auth_config_filepath()}" in output
+        assert "Authentication was successful." in output
+        assert Config().auth_config.get_instance(instance).account.token == (
+            "mysupertoken"
+        )
 
     def test_auth_login_token_non_json_response(self, monkeypatch, cli_fs_runner):
         """
@@ -504,6 +548,54 @@ class TestAuthLoginWeb:
         self._assert_last_print(
             output, f"ggshield is already authenticated until {str_date}, 2100\n"
         )
+
+    def test_existing_keyring_token_is_not_written_again(
+        self, cli_fs_runner, monkeypatch
+    ):
+        """
+        GIVEN a valid token in the keystore
+        WHEN auth login runs
+        THEN the token is read but not written again, so the macOS Keychain item
+             keeps its access list
+        """
+        self._instance_url = DEFAULT_INSTANCE_URL
+        self._request_mock.add_GET(METADATA_ENDPOINT, VALID_METADATA_RESPONSE)
+        _add_keyring_instance_config(DEFAULT_INSTANCE_URL)
+
+        keyring_store = OSKeystore()
+        keyring_store.read_token = MagicMock(return_value="some token")
+        keyring_store.store_token = MagicMock()
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=keyring_store,
+        ):
+            exit_code, output = self.run_cmd(cli_fs_runner)
+
+        assert exit_code == ExitCode.SUCCESS, output
+        keyring_store.store_token.assert_not_called()
+        self._assert_last_print(
+            output, "ggshield is already authenticated without an expiry date\n"
+        )
+
+    @pytest.mark.usefixtures("cli_fs_runner")
+    def test_unreadable_keyring_token_does_not_count_as_logged_in(self):
+        """
+        GIVEN a token in a keystore that refuses the read
+        WHEN web login checks for an existing token
+        THEN no token is found, and login continues to store a new token
+        """
+        _add_keyring_instance_config(DEFAULT_INSTANCE_URL)
+
+        denied_store = OSKeystore()
+        denied_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.DENIED, "denied")
+        )
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=denied_store,
+        ):
+            client = OAuthClient(Config(), DEFAULT_INSTANCE_URL)
+            assert client.check_existing_token() is False
 
     def test_auth_login_recreates_token_if_deleted_server_side(
         self, cli_fs_runner, monkeypatch
@@ -1360,6 +1452,27 @@ class TestAuthLoginOob:
         result = cli_fs_runner.invoke(cli, cmd, color=False)
         assert result.exit_code != 0
         assert "'no-browser' is not one of 'token', 'web', 'oob'" in result.output
+
+
+def _add_keyring_instance_config(instance_url: str) -> None:
+    config = Config()
+    config.auth_config.set_instance(
+        InstanceConfig(
+            account=AccountConfig(
+                workspace_id=1,
+                token=KEYRING_SENTINEL,
+                expire_at=None,
+                token_name="some token name",
+                type="",
+            ),
+            url=instance_url,
+        )
+    )
+    with patch(
+        "ggshield.core.config.auth_config.get_keystore",
+        return_value=FileKeystore(),
+    ):
+        config.auth_config.save()
 
 
 def test_warn_missing_scopes_swallows_non_json_body(capsys):
