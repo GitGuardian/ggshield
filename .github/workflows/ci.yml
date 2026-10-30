@@ -23,6 +23,8 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions: {}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.9'
@@ -31,6 +33,8 @@ jobs:
   lint:
     name: Lint package
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,6 +85,8 @@ jobs:
   build:
     name: Build and Test
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -146,6 +152,8 @@ jobs:
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -201,6 +209,8 @@ jobs:
     # failure mode is a silent false negative, so the job just always runs.
     # A few minutes of CI is the cheaper side of that trade.
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -279,6 +289,8 @@ jobs:
     # is never clippy'd or tested. This job builds and tests the workspace on
     # each OS so that code cannot rot silently.
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -305,6 +317,8 @@ jobs:
         run: cargo test --workspace
 
   build_os_packages:
+    permissions:
+      contents: read
     uses: ./.github/workflows/build_release_assets.yml
     secrets:
       GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
@@ -319,6 +333,8 @@ jobs:
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -337,6 +353,9 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: unstable
+    permissions:
+      contents: read
+      packages: write
     needs:
       - lint
       - build

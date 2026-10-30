@@ -34,6 +34,8 @@ on:
         type: boolean
         default: false
 
+permissions: {}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.14'
@@ -41,6 +43,8 @@ env:
 jobs:
   build_wheel_sdist:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -74,6 +78,8 @@ jobs:
   build_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     container: ${{ matrix.container }}
     strategy:
       fail-fast: false
@@ -107,6 +113,8 @@ jobs:
     name: Build packages
     if: ${{ !inputs.skip_macos_windows }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -211,4 +219,6 @@ jobs:
   scan_vulnerabilities:
     needs: [build_os_packages, build_macos_windows_packages]
     if: ${{ !inputs.skip_macos_windows }}
+    permissions:
+      contents: read
     uses: ./.github/workflows/scan_packages.yml

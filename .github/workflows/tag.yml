@@ -8,8 +8,12 @@ on:
 env:
   UV_VERSION: 0.10.8
 
+permissions: {}
+
 jobs:
   build_release_assets:
+    permissions:
+      contents: read
     uses: ./.github/workflows/build_release_assets.yml
     secrets:
       GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
@@ -25,6 +29,8 @@ jobs:
   build_signed_os_packages:
     name: Build packages
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     environment: release
     strategy:
       fail-fast: false
@@ -56,12 +62,16 @@ jobs:
 
   scan_vulnerabilities:
     needs: [build_release_assets, build_signed_os_packages]
+    permissions:
+      contents: read
     uses: ./.github/workflows/scan_packages.yml
 
   # The platform wheels carrying the Rust `ggshield`. Called from here rather
   # than triggered on the tag itself, so its artifacts land in this run and
   # `push_to_pypi` below can download them.
   build_platform_wheels:
+    permissions:
+      contents: read
     uses: ./.github/workflows/wheels.yml
     with:
       skip_macos_windows: true
@@ -69,6 +79,8 @@ jobs:
   build_signed_wheels:
     name: wheel ${{ matrix.wheel }}
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
     environment: release
     strategy:
       fail-fast: false
@@ -216,6 +228,9 @@ jobs:
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Docker meta
         id: meta
@@ -260,6 +275,8 @@ jobs:
     runs-on: ubuntu-22.04
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && !contains(github.ref_name, 'rc')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -296,6 +313,8 @@ jobs:
     runs-on: windows-latest
     environment: release
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

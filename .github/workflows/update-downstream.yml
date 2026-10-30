@@ -18,6 +18,8 @@ on:
         description: 'Token that can push a branch and open a PR on the downstream repositories'
         required: true
 
+permissions: {}
+
 jobs:
   update-ggshield-version:
     runs-on: ubuntu-latest

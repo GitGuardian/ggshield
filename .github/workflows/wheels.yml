@@ -42,11 +42,15 @@ env:
   # https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$triple/rustup-init.sha256
   RUSTUP_VERSION: 1.29.0
 
+permissions: {}
+
 jobs:
   macos_windows:
     name: wheel ${{ matrix.wheel }}
     if: ${{ !inputs.skip_macos_windows }}
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +69,8 @@ jobs:
   linux:
     name: wheel ${{ matrix.tag }}
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:

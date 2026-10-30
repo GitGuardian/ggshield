@@ -18,6 +18,8 @@ concurrency:
   group: changelog-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   check-changelog:
     runs-on: ubuntu-22.04

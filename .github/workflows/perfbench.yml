@@ -14,6 +14,8 @@ concurrency:
   group: perfbench-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 env:
   UV_VERSION: 0.10.8
   DEFAULT_PYTHON_VERSION: '3.10'
@@ -23,6 +25,8 @@ jobs:
     name: Run performance benchmark
     if: ${{ !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     env:
       PYTHONUNBUFFERED: 1
       # How many times to repeat each run
