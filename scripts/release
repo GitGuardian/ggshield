@@ -307,6 +307,29 @@ def tag() -> None:
     check_run(["git", "push"])
 
 
+def unwrap_list_items(text: str) -> str:
+    """Joins the lines of each list item into a single line, so that GitHub does not
+    render the line breaks of hard-wrapped items."""
+    lines: List[str] = []
+    in_fence = False
+    in_item = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            in_item = False
+        elif in_fence:
+            pass
+        elif re.match(r"\s*([-*+]|\d+\.)\s", line):
+            in_item = True
+        elif in_item and line.strip() and not line.startswith("#"):
+            lines[-1] = lines[-1].rstrip() + " " + line.strip()
+            continue
+        else:
+            in_item = False
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def get_release_notes(version: str) -> str:
     """Reads CHANGELOG.md, returns the changes for version `version`, formatted for
     `gh release`."""
@@ -330,7 +353,7 @@ def get_release_notes(version: str) -> str:
 
     # Remove one level of indent
     notes = re.sub("^#", "", notes, flags=re.MULTILINE)
-    return notes.strip()
+    return unwrap_list_items(notes).strip()
 
 
 @main.command()
