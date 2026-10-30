@@ -43,9 +43,6 @@ updates:
       default-days: 3
     labels: ['dependencies', 'docker', 'skip-changelog']
     ignore:
-      # charset-normalizer 3.2+ changed its encoding detection and mis-decodes
-      # some valid UTF-8 content, which would degrade secret scanning
-      - dependency-name: 'charset-normalizer'
       - dependency-name: 'python'
         update-types:
           ['version-update:semver-major', 'version-update:semver-minor']
@@ -64,6 +61,10 @@ updates:
         applies-to: version-updates
         patterns: ['*']
         update-types: ['minor', 'patch']
+    ignore:
+      # charset-normalizer 3.2+ changed its encoding detection and mis-decodes
+      # some valid UTF-8 content, which would degrade secret scanning
+      - dependency-name: 'charset-normalizer'
 
   # The Rust workspace backing the native pre-commit hook.
   - package-ecosystem: 'cargo'
