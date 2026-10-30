@@ -140,7 +140,6 @@ markers = [
 
 [tool.isort]
 profile = "black"
-lines_after_imports = 2
 
 [tool.coverage.report]
 exclude_lines = [
