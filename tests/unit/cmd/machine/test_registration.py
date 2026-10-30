@@ -12,7 +12,6 @@ from ggshield.cmd.machine import registration
 from ggshield.core.config import Config
 from ggshield.verticals.honeytoken.targets import Target
 
-
 BASE = "ggshield.cmd.machine.registration"
 SETUP = "ggshield.cmd.machine.setup"
 CI_VARS = (

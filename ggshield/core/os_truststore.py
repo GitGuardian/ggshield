@@ -1,7 +1,6 @@
 import sys
 from typing import Optional
 
-
 _setup_error: Optional[Exception] = None
 
 

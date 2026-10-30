@@ -12,7 +12,6 @@ from platformdirs import (
 
 from ggshield.utils.git_shell import NotAGitDirectory, get_git_root
 
-
 APPNAME = "ggshield"
 APPAUTHOR = "GitGuardian"
 

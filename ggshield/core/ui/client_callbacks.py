@@ -4,7 +4,6 @@ from pygitguardian import GGClientCallbacks
 
 from ggshield.core import ui
 
-
 RATE_LIMIT_MESSAGE_MINIMUM_INTERVAL = 2
 
 

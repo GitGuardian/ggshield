@@ -23,7 +23,6 @@ from ggshield.utils.files import is_path_binary
 from .secret_scan_collection import SecretScanCollection
 from .secret_scanner import SecretScanner
 
-
 if TYPE_CHECKING:
     from typing import Any, Dict, Generator, Iterable, List, Set
 

@@ -19,7 +19,6 @@ import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 
-
 # No-follow, fd-anchored file ops available (POSIX). os.rename (not os.replace) carries
 # dir_fd on Linux+macOS and replaces atomically on POSIX.
 FD_HARDENED = (

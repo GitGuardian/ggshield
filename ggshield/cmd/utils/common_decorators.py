@@ -10,7 +10,6 @@ from ggshield.cmd.utils.common_options import create_config_callback
 from ggshield.core.errors import ServiceUnavailableError, handle_exception
 from ggshield.utils.git_shell import GitExecutableNotFound
 
-
 T = TypeVar("T")
 P = ParamSpec("P")
 

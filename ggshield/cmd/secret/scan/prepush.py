@@ -28,7 +28,6 @@ from ggshield.utils.git_shell import (
 )
 from ggshield.verticals.secret.repo import scan_commit_range
 
-
 logger = logging.getLogger(__name__)
 
 

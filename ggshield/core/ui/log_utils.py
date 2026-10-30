@@ -3,7 +3,6 @@ from typing import Optional
 
 from . import log
 
-
 FILE_LOG_FORMAT = "%(asctime)s %(levelname)s %(process)x:%(thread)x %(name)s:%(funcName)s:%(lineno)d %(message)s"
 
 

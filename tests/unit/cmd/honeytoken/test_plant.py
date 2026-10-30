@@ -12,7 +12,6 @@ from ggshield.core.errors import ExitCode
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 from tests.unit.request_mock import ExpectedRequest, RequestMock, create_json_response
 
-
 ENDPOINT = "/v1/honeytokens/endpoint-deployments"
 
 

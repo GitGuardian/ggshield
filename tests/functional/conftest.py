@@ -13,7 +13,6 @@ import pytest
 
 from tests.repository import Repository
 
-
 GGSHIELD_PATH = shutil.which("ggshield")
 
 FUNCTESTS_DATA_PATH = Path(__file__).parent / "data"

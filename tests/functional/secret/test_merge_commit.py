@@ -8,7 +8,6 @@ from tests.functional.utils_create_merge_repo import (
     generate_repo_with_merge_commit,
 )
 
-
 pytestmark = pytest.mark.uses_gitguardian_api
 
 

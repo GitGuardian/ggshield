@@ -26,7 +26,6 @@ from ggshield.core.errors import APIKeyCheckError, UnexpectedError
 from ggshield.core.url_utils import urljoin
 from ggshield.utils.datetime import get_pretty_date
 
-
 CLIENT_ID = "ggshield_oauth"
 SCAN_SCOPE = "scan"
 DEFAULT_SCOPES = [

@@ -2,6 +2,7 @@
 """
 Start an Hashicorp Vault server and get the root token associated with it
 """
+
 import argparse
 import json
 import logging
@@ -9,7 +10,6 @@ import os
 import subprocess
 import sys
 import time
-
 
 CONTAINER_NAME = "hashicorp-vault-ggshield"
 ROOT_TOKEN = "my_vault_token"

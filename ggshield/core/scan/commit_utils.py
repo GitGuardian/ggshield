@@ -10,7 +10,6 @@ from ggshield.utils.itertools import batched
 
 from .scannable import Scannable
 
-
 # Used instead of the SHA in commit URLs for staged changes
 STAGED_PREFIX = "staged"
 

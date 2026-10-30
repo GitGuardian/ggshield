@@ -6,7 +6,6 @@ from ggshield.core.errors import ParseError
 from ggshield.core.text_utils import STYLE, format_line_count, format_text
 from ggshield.utils.git_shell import Filemode
 
-
 REGEX_HUNK_HEADER = re.compile(
     r"^@@ -(?P<pre_index>\d+),?\d* \+(?P<post_index>\d+),?\d* @@(?P<trailing_content> .+)?"  # noqa
 )

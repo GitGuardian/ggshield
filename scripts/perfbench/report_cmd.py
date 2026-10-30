@@ -9,7 +9,6 @@ from typing import Dict, Iterable, List, Optional, TextIO, Tuple
 import click
 from perfbench_utils import RawReport, get_raw_report_path, work_dir_option
 
-
 # Do not report changes if the delta is less than this duration
 DEFAULT_MIN_DELTA_SECS = 1
 

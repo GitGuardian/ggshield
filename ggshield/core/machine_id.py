@@ -24,7 +24,6 @@ from ggshield.core.dirs import get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 
-
 _MAC_IOREG_UUID_RE = re.compile(r'"IOPlatformUUID"\s*=\s*"([^"]+)"')
 
 # Bound the system-id subprocesses: a hung WMI service must not freeze scan

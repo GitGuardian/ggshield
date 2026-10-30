@@ -26,7 +26,6 @@ from ggshield.utils.os import is_root  # re-exported for cmd.honeytoken.plant
 from ggshield.verticals.honeytoken import secure_file
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
-
 # Home roots that look like real human-user spaces (kept even if the shell is nologin,
 # e.g. gitlab-runner).
 _USER_HOME_ROOTS = (

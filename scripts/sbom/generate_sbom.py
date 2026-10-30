@@ -40,7 +40,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote
 
-
 SPEC_VERSION = "1.5"
 
 # ggshield's own code is the root component, not one of its components

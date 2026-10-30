@@ -21,7 +21,6 @@ from ggshield.core.plugin.hooks import load_plugin_registry
 from ggshield.utils.git_shell import git_unavailable_reason
 from ggshield.verticals.ai.installation import ai_hook_posture
 
-
 PLUGIN_NAME = "machine_scan"
 # The native scanner module shipped in the machine_scan plugin wheel. Importing it
 # loads the compiled (Rust) extension, which is what we want to prove.

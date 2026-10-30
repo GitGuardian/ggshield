@@ -12,7 +12,6 @@ from ggshield.utils.archive import (
 )
 from tests.unit.conftest import DATA_PATH
 
-
 ARCHIVES_PATH = DATA_PATH / "archives"
 BAD_ZIP_PATH = ARCHIVES_PATH / "bad.zip"
 BAD_TAR_PATH = ARCHIVES_PATH / "bad.tar"

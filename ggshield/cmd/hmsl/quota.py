@@ -8,7 +8,6 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.cmd.utils.quota import format_quota_color
 from ggshield.verticals.hmsl import get_client
 
-
 logger = logging.getLogger(__name__)
 
 

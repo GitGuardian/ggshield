@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from ggshield.core.plugin.registry import PluginRegistry
 

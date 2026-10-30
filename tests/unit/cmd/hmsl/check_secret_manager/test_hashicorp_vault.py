@@ -188,10 +188,7 @@ def test_check_hashicorp_vault_cmd(
     )
     assert "Got 2 secrets.\n" in cmd_ret.output
     if verbose:
-        assert (
-            """Error: > The following paths could not be fetched:
+        assert """Error: > The following paths could not be fetched:
 Error: - super_secret_path
 Error: - prod_credentials
-"""
-            in cmd_ret.output
-        )
+""" in cmd_ret.output

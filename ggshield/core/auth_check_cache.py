@@ -12,7 +12,6 @@ from pygitguardian.models import RemediationMessages, SecretScanPreferences, Tok
 
 from ggshield.core.dirs import get_cache_dir
 
-
 logger = logging.getLogger(__name__)
 
 # How long a successful auth check (metadata + token scopes) stays valid.

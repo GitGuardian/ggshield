@@ -16,7 +16,6 @@ from ggshield.verticals.hmsl.secret_manager.hashicorp_vault.models import (
     VaultSecrets,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

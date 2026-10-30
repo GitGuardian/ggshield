@@ -13,7 +13,6 @@ from tests.unit.conftest import (
     _SIMPLE_SECRET_PATCH_SCAN_RESULT,
 )
 
-
 _FILTERED_MULTILINE_SECRET = """-----BEGIN RSA PRIVATE KEY-----
 +MIIBOgIBAAJBAIIRkYjxjE3KIZi******************************+******
 +****************************************************************

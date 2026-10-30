@@ -4,7 +4,6 @@ from pathlib import Path
 import click
 from perfbench_utils import check_run, work_dir_option
 
-
 BENCHMARK_REPOSITORIES = [
     ("https://github.com/vuejs/vue", "v2.7.14"),
     ("https://github.com/python-pillow/Pillow", "9.3.0"),

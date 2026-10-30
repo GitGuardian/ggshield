@@ -25,7 +25,6 @@ from ggshield.core.errors import (
 )
 from ggshield.utils.datetime import datetime_from_isoformat
 
-
 logger = logging.getLogger(__name__)
 
 

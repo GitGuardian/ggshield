@@ -7,7 +7,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterator, Optional, Tuple, Union, overload
 
-
 logger = logging.getLogger(__name__)
 
 

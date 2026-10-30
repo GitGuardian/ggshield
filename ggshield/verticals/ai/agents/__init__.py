@@ -10,7 +10,6 @@ from .kiro import Kiro
 from .vibe import Vibe
 from .vscode import VSCode
 
-
 # Order matters: _detect_agent takes the first agent whose is_caller matches, so
 # exact matchers come before Claude's "claude" in transcript_path substring check.
 # Kiro comes last of all: it keys on event names the others share, so it is the

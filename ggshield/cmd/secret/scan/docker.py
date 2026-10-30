@@ -14,7 +14,6 @@ from ggshield.core.client import create_client_from_config
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.verticals.secret.docker import docker_save_to_tmp, docker_scan_archive
 
-
 # bailout if docker command takes longer than 6 minutes
 DOCKER_COMMAND_TIMEOUT = 360
 

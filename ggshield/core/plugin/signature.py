@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, List, Optional
 
 from ggshield.core.plugin._sigstore_trusted_root import TRUSTED_ROOT_JSON
 
-
 if TYPE_CHECKING:
     # Imported lazily at call time (see _bundled_verifier / verify_wheel_signature)
     # so that merely importing this module -- e.g. for SignatureVerificationMode,

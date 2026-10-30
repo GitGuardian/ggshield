@@ -7,7 +7,6 @@ import pytest
 from tests.conftest import ROOT_DIR, skipwindows
 from tests.functional.conftest import REPO_PATH, requires_docker
 
-
 pytestmark = [
     requires_docker,
     skipwindows,

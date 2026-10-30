@@ -13,7 +13,6 @@ from ggshield.cmd.utils.lazy_group import LazyGroup
 from ggshield.core import ui
 from ggshield.core.errors import ExitCode
 
-
 logger = logging.getLogger(__name__)
 
 

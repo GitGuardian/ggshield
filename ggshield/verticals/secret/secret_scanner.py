@@ -31,7 +31,6 @@ from ggshield.core.text_utils import pluralize
 
 from .secret_scan_collection import Error, Result, Results
 
-
 # GitGuardian API does not accept paths longer than this
 _API_PATH_MAX_LENGTH = 256
 # Room for the request envelope around the documents (brackets, source_uuid)

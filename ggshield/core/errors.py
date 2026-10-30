@@ -17,7 +17,6 @@ from ggshield.core import auth_check_cache
 from ggshield.core.text_utils import pluralize
 from ggshield.utils.git_shell import GitExecutableNotFound, InvalidGitRefError
 
-
 logger = logging.getLogger(__name__)
 
 

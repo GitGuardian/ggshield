@@ -23,7 +23,6 @@ from ggshield.core.ui import ensure_level, log_utils
 from ggshield.utils.click import RealPath
 from ggshield.utils.os import getenv_bool
 
-
 logger = logging.getLogger(__name__)
 
 

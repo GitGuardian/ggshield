@@ -10,7 +10,6 @@ from pygitguardian.client import MAX_TAR_CONTENT_SIZE
 from ggshield.utils.archive import _is_bad_path
 from ggshield.utils.git_shell import check_git_ref, read_git_file
 
-
 INDEX_REF = ""
 
 

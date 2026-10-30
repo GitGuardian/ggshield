@@ -28,7 +28,6 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 from requests import Session
 
-
 # Per-request timeout (reconcile + each confirm) — generous to absorb a backend that's
 # busy minting a fresh honeytoken on the first sync of an unknown machine/user.
 SYNC_TIMEOUT_SECS = 30

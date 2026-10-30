@@ -14,7 +14,6 @@ from ggshield.core.config.token_store import get_token_store
 from ggshield.core.errors import AuthError, UnexpectedError
 from ggshield.core.url_utils import dashboard_to_api_url
 
-
 logger = logging.getLogger(__name__)
 
 

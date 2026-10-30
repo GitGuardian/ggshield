@@ -10,7 +10,6 @@ from ggshield.core.dirs import get_cache_dir
 
 from .config.utils import load_yaml_dict, save_yaml_dict
 
-
 logger = logging.getLogger(__name__)
 CACHE_FILE = get_cache_dir() / "update_check.yaml"
 

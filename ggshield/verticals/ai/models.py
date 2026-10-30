@@ -10,7 +10,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional, Tuple
 
-
 if TYPE_CHECKING:
     from ggshield.verticals.ai.agent_activity import ActivitySource, AgentActivityEvent
 
