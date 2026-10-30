@@ -42,6 +42,13 @@ updates:
     cooldown:
       default-days: 3
     labels: ['dependencies', 'docker', 'skip-changelog']
+    ignore:
+      # charset-normalizer 3.2+ changed its encoding detection and mis-decodes
+      # some valid UTF-8 content, which would degrade secret scanning
+      - dependency-name: 'charset-normalizer'
+      - dependency-name: 'python'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
 
   # Python runtime + dev dependencies (pyproject.toml / uv.lock).
   - package-ecosystem: 'uv'
