@@ -5,7 +5,7 @@ import sys
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator, Optional, Tuple, Union, overload
+from typing import Generator, Optional, Tuple, Union, overload
 
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def is_root() -> bool:
 
 
 @contextmanager
-def cd(newdir: Union[str, Path]) -> Iterator[None]:
+def cd(newdir: Union[str, Path]) -> Generator[None, None, None]:
     """
     A context manager to temporarily change the current directory
     """

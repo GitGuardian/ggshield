@@ -5,7 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Generator, Optional, Union
 
 import click
 import requests
@@ -283,7 +283,7 @@ def safe_response_json(response: requests.Response) -> Any:
 
 
 @contextmanager
-def _raise_unavailable_on_network_error() -> Iterator[None]:
+def _raise_unavailable_on_network_error() -> Generator[None, None, None]:
     try:
         yield
     except requests.exceptions.ConnectionError as e:
