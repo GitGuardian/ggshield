@@ -21,7 +21,7 @@ READY_TRIES = 20
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     stream=sys.stderr,
-    level=logging.getLevelName(os.environ.get("LOG_LEVEL", "WARN").upper()),
+    level=os.environ.get("LOG_LEVEL", "WARN").upper(),
 )
 
 

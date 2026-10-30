@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from abc import ABC, abstractmethod
-from typing import Iterator, List, Optional
+from typing import Generator, List, Optional
 
 import filelock
 import keyring
@@ -27,7 +27,7 @@ _KEYRING_LOCK_TIMEOUT = 10.0
 
 
 @contextlib.contextmanager
-def _keyring_lock() -> Iterator[None]:
+def _keyring_lock() -> Generator[None, None, None]:
     """Serialize keyring access across ggshield processes.
 
     Proceeds unlocked if the lock can't be acquired within the timeout, so a
