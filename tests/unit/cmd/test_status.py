@@ -224,6 +224,49 @@ def test_api_status_shows_workspace_id(cli_fs_runner):
     assert lines[api_url_index + 1].startswith("Workspace ID:")
 
 
+MANAGER_ONLY_DETAIL = "You must have Manager access level to perform this action."
+
+
+@mock.patch(
+    "pygitguardian.GGClient.quota_overview",
+    return_value=Detail(MANAGER_ONLY_DETAIL, 403),
+)
+def test_quota_json_error_includes_status_code(quota_mock, cli_fs_runner):
+    """
+    GIVEN a quota call that the API rejects with a 403
+    WHEN running quota --json
+    THEN stdout holds the error detail and HTTP status as JSON
+    AND the error message on stderr and the exit code are unchanged
+    """
+    cli_fs_runner.mix_stderr = False
+    result = cli_fs_runner.invoke(cli, ["quota", "--json"], color=False)
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert json.loads(result.stdout) == {
+        "detail": MANAGER_ONLY_DETAIL,
+        "status_code": 403,
+    }
+    assert MANAGER_ONLY_DETAIL in result.stderr
+
+
+@mock.patch(
+    "pygitguardian.GGClient.quota_overview",
+    return_value=Detail(MANAGER_ONLY_DETAIL, 403),
+)
+def test_quota_text_error_has_no_json(quota_mock, cli_fs_runner):
+    """
+    GIVEN a quota call that the API rejects with a 403
+    WHEN running quota without --json
+    THEN nothing is written to stdout and the error goes to stderr
+    """
+    cli_fs_runner.mix_stderr = False
+    result = cli_fs_runner.invoke(cli, ["quota"], color=False)
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert result.stdout.strip() == ""
+    assert MANAGER_ONLY_DETAIL in result.stderr
+
+
 @mock.patch(
     "pygitguardian.GGClient.api_tokens",
     return_value=Detail("Unauthorized", 401),
