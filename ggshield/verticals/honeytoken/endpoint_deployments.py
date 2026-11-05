@@ -52,6 +52,13 @@ class DeploymentAction(enum.Enum):
         return cls.UNKNOWN
 
 
+class HoneytokenType(enum.Enum):
+    """Honeytoken types this client can place, as named by the reconcile ``type``."""
+
+    AWS = "aws"
+    KUBECONFIG = "kubeconfig"
+
+
 class DeploymentMethod(enum.Enum):
     """Placement method — the sibling discriminator selecting how the client
     materializes ``config`` on disk. Unknown values land as ``UNKNOWN`` (forward-compat).
