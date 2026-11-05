@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import json
 from typing import Any, Union
 
 import click
@@ -35,6 +36,14 @@ def quota_cmd(ctx: click.Context, **kwargs: Any) -> int:
         raise UnexpectedError("Unexpected quota response")
 
     if isinstance(response, Detail):
+        if ctx_obj.use_json:
+            # Let JSON callers tell errors apart (e.g. a 403 for a member token)
+            # without matching on the wording of the message.
+            click.echo(
+                json.dumps(
+                    {"detail": response.detail, "status_code": response.status_code}
+                )
+            )
         raise UnexpectedError(response.detail)
 
     quota: Quota = response.content
