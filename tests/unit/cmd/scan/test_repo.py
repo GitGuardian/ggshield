@@ -56,3 +56,19 @@ class TestScanRepo:
         )
         assert_invoke_exited_with(result, ExitCode.GITGUARDIAN_SERVER_UNAVAILABLE)
         assert "GitGuardian server is not responding" in result.output
+
+    @patch("ggshield.cmd.secret.scan.repo.scan_repo_path", return_value=0)
+    @patch("ggshield.cmd.secret.scan.repo.git")
+    def test_clone_passes_url_after_end_of_options(
+        self, git_mock: Mock, _: Mock, cli_fs_runner
+    ):
+        """
+        GIVEN a git URL
+        WHEN scan repo is called
+        THEN `git clone` receives the URL after --end-of-options
+        """
+        url = "https://github.com/gitguardian/ggshield.git"
+        cli_fs_runner.invoke(cli, ["secret", "scan", "repo", url])
+
+        cmd = git_mock.call_args.args[0]
+        assert cmd[:4] == ["clone", "--mirror", "--end-of-options", url]
