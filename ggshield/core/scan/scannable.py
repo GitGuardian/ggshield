@@ -11,7 +11,6 @@ from charset_normalizer import CharsetMatch
 
 from ggshield.utils.git_shell import Filemode
 
-
 logger = logging.getLogger(__name__)
 
 

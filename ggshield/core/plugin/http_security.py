@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 
 import requests
 
-
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]", "::1"})
 INSECURE_LOOPBACK_ENV_VAR = "GITGUARDIAN_ALLOW_INSECURE_LOOPBACK"
 

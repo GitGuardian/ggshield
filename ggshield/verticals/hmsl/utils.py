@@ -16,7 +16,6 @@ from ggshield.core.errors import (
 )
 from ggshield.verticals.hmsl.client import HMSLClient
 
-
 logger = logging.getLogger(__name__)
 
 

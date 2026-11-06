@@ -10,7 +10,6 @@ from pygitguardian.models import Detail, UserInfo
 
 from ggshield.verticals.ai.agent_activity.models import AgentActivityEvent
 
-
 if TYPE_CHECKING:
     from ggshield.verticals.ai.models import Agent
 

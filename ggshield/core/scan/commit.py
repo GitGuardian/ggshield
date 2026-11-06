@@ -20,7 +20,6 @@ from .commit_utils import (
 )
 from .scannable import Scannable
 
-
 # get files in commit by batch of _MAX_DOCS_PER_COMMIT
 _MAX_DOCS_PER_COMMIT = getenv_int("GG_MAX_DOCS_PER_COMMIT", 20)
 

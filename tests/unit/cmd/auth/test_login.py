@@ -27,7 +27,6 @@ from tests.unit.request_mock import (
 
 from ..utils import add_instance_config
 
-
 _EXPECTED_URL_PARAMS = {
     "auth_mode": ["ggshield_login"],
     "client_id": ["ggshield_oauth"],

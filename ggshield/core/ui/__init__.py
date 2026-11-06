@@ -10,7 +10,6 @@ from logging import LogRecord
 from .ggshield_ui import GGShieldProgress, GGShieldUI, Level
 from .plain_text import PlainTextGGShieldUI
 
-
 # GGShieldUI instance to which top-level functions forward their output.
 # Can be changed using set_ui().
 _ui: GGShieldUI = PlainTextGGShieldUI()

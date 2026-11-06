@@ -25,7 +25,6 @@ from ..secret_scan_collection import (
 )
 from .secret_output_handler import SecretOutputHandler
 
-
 # MAX_SECRET_SIZE controls the max length of |-----| under a secret
 # avoids occupying a lot of space in a CI terminal.
 MAX_SECRET_SIZE = 80

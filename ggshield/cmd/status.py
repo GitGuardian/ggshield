@@ -78,7 +78,7 @@ def status_cmd(ctx: click.Context, **kwargs: Any) -> int:
 
 
 def format_healthcheck_status(health_check: HealthCheckResponse) -> str:
-    (color, status) = (
+    color, status = (
         ("red", f"unhealthy ({health_check.detail})")
         if health_check.status_code != 200
         else ("green", "healthy")

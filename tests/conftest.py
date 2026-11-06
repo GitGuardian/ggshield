@@ -6,7 +6,6 @@ from typing import Any, Dict
 
 import pytest
 
-
 # The directory holding ggshield repository checkout
 ROOT_DIR = Path(__file__).parent.parent
 

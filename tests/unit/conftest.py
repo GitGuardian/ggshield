@@ -44,8 +44,7 @@ _MULTIPLE_SECRETS_PATCH_CONTENT = """@@ -0,0 +1,2 @@
             -e MYSQL_PASSWORD=m42ploz2wd geonetwork
 """
 
-_MULTIPLE_SECRETS_PATCH = (
-    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+_MULTIPLE_SECRETS_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
 Date:   Thu Aug 18 18:20:21 2022 +0200
 
@@ -56,9 +55,7 @@ new file mode 100644
 index 0000000..b80e3df
 --- /dev/null
 +++ b/test.txt
-"""
-    + _MULTIPLE_SECRETS_PATCH_CONTENT
-)
+""" + _MULTIPLE_SECRETS_PATCH_CONTENT
 
 _MULTIPLE_SECRETS_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
@@ -237,8 +234,7 @@ _MULTI_SECRET_ONE_LINE_PATCH = """@@ -0,0 +1 @@
 
 """
 
-_MULTI_SECRET_ONE_LINE_FULL_PATCH = (
-    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+_MULTI_SECRET_ONE_LINE_FULL_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
 Date:   Thu Aug 18 18:20:21 2022 +0200
 
@@ -249,9 +245,7 @@ new file mode 100644
 index 0000000..3c9af3f
 --- /dev/null
 +++ b/test
-"""
-    + _MULTI_SECRET_ONE_LINE_PATCH
-)
+""" + _MULTI_SECRET_ONE_LINE_PATCH
 
 _MULTI_SECRET_ONE_LINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     {
@@ -389,12 +383,9 @@ _SIMPLE_SECRET_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
     }
 )
 
-_SIMPLE_SECRET_MULTILINE_PATCH = (
-    """@@ -0,0 +1,29 @@
+_SIMPLE_SECRET_MULTILINE_PATCH = """@@ -0,0 +1,29 @@
 +PrivateKeyRsa:
-+- text: """
-    + _MULTILINE_SECRET
-)
++- text: """ + _MULTILINE_SECRET
 
 
 _ONE_LINE_AND_MULTILINE_PATCH_SCAN_RESULT = ScanResult.SCHEMA.load(
@@ -477,8 +468,7 @@ _ONE_LINE_AND_MULTILINE_PATCH_CONTENT = """@@ -0,0 +1,29 @@
 +-----END RSA PRIVATE KEY----- token: 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
 """  # noqa
 
-_ONE_LINE_AND_MULTILINE_PATCH = (
-    """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
+_ONE_LINE_AND_MULTILINE_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
 Date:   Thu Aug 18 18:20:21 2022 +0200
 
@@ -489,9 +479,7 @@ new file mode 100644
 index 0000000..b80e3df
 --- /dev/null
 +++ b/test
-"""
-    + _ONE_LINE_AND_MULTILINE_PATCH_CONTENT
-)
+""" + _ONE_LINE_AND_MULTILINE_PATCH_CONTENT
 
 _NO_SECRET_PATCH = """commit 9537b6343a81f88d471e93f20ffb2e2665bbab00
 Author: GitGuardian Owl <owl@example.com>
@@ -620,9 +608,7 @@ TQIhANrCE7O+wlCKe0WJqQ3lYlHG91XWyGVgfExJwBDsAD9LAiEAmDY5OSsH0n2A
 22tthkAvcN1s66lG+0DztOVJ4QLI2z8CIBPeDGwGpx8pdIicN/5LFuLWbyAcoZaT
 bLaA/DCNPniBAiA0l//bzg+M3srIhm04xzLdR9Vb9IjPRlkvN074zdKDVwIhAKJb
 RF3C+CMFb0wXme/ovcDeM1+3W/UmSHYUW4b3WYq4
------END RSA PRIVATE KEY-----""".replace(
-    "\r\n", "\n"
-)
+-----END RSA PRIVATE KEY-----""".replace("\r\n", "\n")
 
 _ONE_LINE_AND_MULTILINE_FILE = """
 FacebookAppKeys: 294790898041573 / ce3f9f0362bbe5ab01dfc8ee565e4371 -----BEGIN RSA PRIVATE KEY-----

@@ -31,7 +31,6 @@ from ggshield.verticals.ai.installation import (
     install_all_agent_hooks,
 )
 
-
 _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 
 

@@ -654,7 +654,7 @@ def test_check_client_api_key_html_5xx():
 
 @contextmanager
 def _raw_server(
-    handle: Callable[[socket.socket], None]
+    handle: Callable[[socket.socket], None],
 ) -> Iterator[Tuple[int, List[str]]]:
     """Serve raw connections with `handle`, yielding (port, attempts).
 

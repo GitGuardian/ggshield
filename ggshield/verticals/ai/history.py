@@ -9,7 +9,6 @@ from pygitguardian.models import AIDiscovery, Detail, MCPActivityRequest
 
 from .agents import AGENTS
 
-
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 500

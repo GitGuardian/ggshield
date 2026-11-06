@@ -27,7 +27,6 @@ from tests.unit.conftest import (
     SECRET_INCIDENT_MOCK,
 )
 
-
 VERSION_VALIDATOR = validators.Match(r"\d+\.\d+\.\d+")
 
 

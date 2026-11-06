@@ -28,7 +28,6 @@ from ggshield.core.plugin.platform import get_platform_info
 from ggshield.core.plugin.signature import SignatureVerificationMode
 from ggshield.core.text_utils import pluralize
 
-
 logger = logging.getLogger(__name__)
 
 

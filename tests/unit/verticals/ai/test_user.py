@@ -4,7 +4,6 @@ import pytest
 
 from ggshield.verticals.ai.user import _get_user_email, get_user_info
 
-
 # ---------------------------------------------------------------------------
 # get_user_info
 # ---------------------------------------------------------------------------

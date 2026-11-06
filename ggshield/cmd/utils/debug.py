@@ -18,7 +18,6 @@ from ggshield.core import ui
 from ggshield.core.os_truststore import get_setup_error
 from ggshield.core.ui import log_utils
 
-
 logger = logging.getLogger(__name__)
 
 

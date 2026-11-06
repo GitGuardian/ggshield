@@ -6,7 +6,6 @@ import pytest
 
 from ggshield.__main__ import main
 
-
 CRASH_LOG_ENV = {"GITGUARDIAN_CRASH_LOG": "true"}
 
 

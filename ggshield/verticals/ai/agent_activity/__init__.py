@@ -18,7 +18,6 @@ from ggshield.verticals.ai.agent_activity.sources import (
     SQLiteActivitySource,
 )
 
-
 __all__ = [
     "BATCH_SIZE",
     "ActivitySource",

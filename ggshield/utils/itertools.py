@@ -1,7 +1,6 @@
 from itertools import islice
 from typing import Iterable, List, TypeVar
 
-
 T = TypeVar("T")
 
 

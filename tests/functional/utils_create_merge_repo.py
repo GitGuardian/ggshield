@@ -35,7 +35,6 @@ from typing import List, Optional
 from tests.functional.utils import run_ggshield
 from tests.repository import Repository
 
-
 DEFAULT_FILE_COUNT = 10
 DEFAULT_SECRET_COUNT = 5
 DEFAULT_FILE_SIZE = 200 * 1024

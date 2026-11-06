@@ -9,14 +9,12 @@ from .config_set import set_user_config_field
 from .constants import FIELD_NAMES, FIELD_NAMES_DOC, FIELDS
 
 
-@click.command(
-    help=f"""Remove the value of the given configuration key.
+@click.command(help=f"""Remove the value of the given configuration key.
 
 If `--all` is passed, iterates over all instances.
 
 {FIELD_NAMES_DOC}
-"""
-)
+""")
 @click.argument(
     "field_name",
     nargs=1,

@@ -23,7 +23,6 @@ from ggshield.verticals.hmsl.collection import (
     prepare,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

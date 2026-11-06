@@ -140,7 +140,6 @@ markers = [
 
 [tool.isort]
 profile = "black"
-lines_after_imports = 2
 
 [tool.coverage.report]
 exclude_lines = [
@@ -190,7 +189,7 @@ tests = [
 ]
 dev = [
     "scriv[toml]",
-    "black==24.3.0",
+    "black==26.5.1; python_version >= \"3.10\"",
     "coverage",
     "flake8",
     "flake8-isort",

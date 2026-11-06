@@ -10,7 +10,6 @@ from pygitguardian.models import Match
 from ggshield.core.filter import censor_match
 from tests.functional.conftest import GGSHIELD_PATH
 
-
 PathLike = Union[Path, str]
 
 

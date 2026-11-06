@@ -8,7 +8,6 @@ import yaml
 from ggshield.__main__ import cli
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
-
 V1_CONFIG_CONTENT = """
 paths-ignore:
   - '**/migrations/**/*'

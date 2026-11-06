@@ -16,7 +16,6 @@ from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-
 # macOS wheels are universal2: the arm64 runner builds an Intel slice too and
 # lipo-fuses them, so no Intel runner is needed.
 MACOS_TARGETS = ["aarch64-apple-darwin", "x86_64-apple-darwin"]

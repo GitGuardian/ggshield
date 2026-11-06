@@ -13,7 +13,6 @@ import keyring.errors
 from ggshield.core.dirs import get_cache_dir
 from ggshield.utils.os import getenv_bool
 
-
 logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "ggshield"

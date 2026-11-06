@@ -6,7 +6,6 @@ from ggshield.cmd.utils.common_decorators import GitUsage, uses_git
 from ggshield.core.errors import ExitCode
 from ggshield.utils.git_shell import git
 
-
 NOTE = "It is only needed for the thing."
 
 

@@ -23,7 +23,6 @@ from ggshield.verticals.ai.models import (
 
 from .vscode import VSCode
 
-
 logger = logging.getLogger(__name__)
 
 

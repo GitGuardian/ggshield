@@ -157,15 +157,13 @@ class TestEnterpriseConfig:
     def test_load_ignores_legacy_signature_mode(self, tmp_path: Path) -> None:
         """Legacy plugin_signature_mode entries are ignored when loading config."""
         config_path = tmp_path / "enterprise_config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 plugin_signature_mode: warn
 plugins:
   test-plugin:
     enabled: true
     version: 1.0.0
-"""
-        )
+""")
 
         with patch(
             "ggshield.core.config.enterprise_config.get_enterprise_config_filepath"
@@ -180,15 +178,13 @@ plugins:
     def test_save_drops_legacy_signature_mode(self, tmp_path: Path) -> None:
         """Saving config rewrites legacy plugin_signature_mode entries away."""
         config_path = tmp_path / "enterprise_config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 plugin_signature_mode: warn
 plugins:
   test-plugin:
     enabled: true
     version: 1.0.0
-"""
-        )
+""")
 
         with patch(
             "ggshield.core.config.enterprise_config.get_enterprise_config_filepath"
@@ -203,13 +199,11 @@ plugins:
     def test_load_simple_format(self, tmp_path: Path) -> None:
         """Test loading config with simple boolean format."""
         config_path = tmp_path / "enterprise_config.yaml"
-        config_path.write_text(
-            """
+        config_path.write_text("""
 plugins:
   enabled-plugin: true
   disabled-plugin: false
-"""
-        )
+""")
 
         with patch(
             "ggshield.core.config.enterprise_config.get_enterprise_config_filepath"

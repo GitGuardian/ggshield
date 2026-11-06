@@ -21,7 +21,6 @@ from ggshield.cmd.utils.output_format import OutputFormat
 from ggshield.core import ui
 from ggshield.core.config.user_config import UserConfig
 
-
 AnyFunction = Callable[..., Any]
 
 

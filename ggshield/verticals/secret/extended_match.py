@@ -7,7 +7,6 @@ from ggshield.core.filter import censor_string
 from ggshield.core.lines import Line
 from ggshield.core.match_span import MatchSpan
 
-
 # The number of lines to display before and after a secret in the patch
 NB_CONTEXT_LINES = 3
 

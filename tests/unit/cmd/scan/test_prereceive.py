@@ -182,8 +182,7 @@ class TestPreReceive:
             )
         assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
         scan_commit_range_mock.assert_called_once()
-        assert (
-            """> How to remediate
+        assert """> How to remediate
 
   A pre-receive hook set server side prevented you from pushing secrets.
 
@@ -196,9 +195,7 @@ class TestPreReceive:
 
 > [To apply with caution] If you want to bypass ggshield (false positive or other reason), run:
 
-    git push -o breakglass"""
-            in result.output
-        )
+    git push -o breakglass""" in result.output
 
     @patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
     def test_stdin_breakglass_2ndoption(

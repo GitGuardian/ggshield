@@ -6,7 +6,6 @@ from ggshield.utils.git_shell import get_remotes
 
 from .supported_ci import SupportedCI
 
-
 # Note: this does not exist (yet ?) for CircleCI, see
 # https://circleci.canny.io/config/p/provide-env-variable-for-branch-name-targeted-by-pull-request
 CI_TARGET_BRANCH_ASSOC: Dict[SupportedCI, str] = {

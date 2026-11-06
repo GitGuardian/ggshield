@@ -52,7 +52,6 @@ from ggshield.verticals.honeytoken.placement import (
 )
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
-
 _LIST_KEYS = ("clusters", "users", "contexts")
 
 

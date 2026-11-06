@@ -10,7 +10,6 @@ from typing import Any, Dict, Optional
 
 from ggshield.core.dirs import get_plugins_dir
 
-
 logger = logging.getLogger(__name__)
 
 TRUST_STORE_FILENAME = "plugin_trust.json"

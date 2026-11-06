@@ -8,7 +8,6 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.text_utils import STYLE, format_text
 from ggshield.verticals.hmsl import get_client
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,5 +36,5 @@ def status_cmd(
 
 
 def format_status(health_check: bool) -> str:
-    (color, status) = ("green", "healthy") if health_check else ("red", "unhealthy")
+    color, status = ("green", "healthy") if health_check else ("red", "unhealthy")
     return format_text(status, {"fg": color})

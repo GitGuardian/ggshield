@@ -11,7 +11,6 @@ from ggshield.verticals.ai.agent_activity.orchestrator import (
     send_agent_activity_batch,
 )
 
-
 _USER = UserInfo(hostname="dev-laptop", username="dev", machine_id="machine-001")
 
 

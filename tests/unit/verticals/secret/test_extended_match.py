@@ -5,7 +5,6 @@ from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.secret.extended_match import ExtendedMatch
 from tests.unit.conftest import _SINGLE_MOVE_PATCH
 
-
 PLAIN_CONTENT = """/*
 01234567890
 */

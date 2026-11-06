@@ -21,7 +21,6 @@ from ggshield.verticals.honeytoken.secure_file import (
     unlink_via_fd,
 )
 
-
 posix_only = pytest.mark.skipif(not FD_HARDENED, reason="needs dir fds / O_NOFOLLOW")
 
 

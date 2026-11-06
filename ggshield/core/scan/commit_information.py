@@ -7,7 +7,6 @@ from ggshield.utils.git_shell import git
 
 from .commit_utils import DIFF_EMPTY_COMMIT_INFO_BLOCK, HEADER_COMMON_ARGS, PatchHeader
 
-
 _INFO_HEADER_REGEX = re.compile(
     r"Author:\s(?P<author>.*?) <(?P<email>.*?)>\nDate:\s+(?P<date>.+)"
 )

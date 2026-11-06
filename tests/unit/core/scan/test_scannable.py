@@ -23,7 +23,7 @@ def test_string_scannable_path():
         ("x" * 100, True),
         ("x" * 10, False),
         ("é" * 40, True),  # Longer than 50 as utf-8
-        ("\uD800", False),  # Triggers an encoding error
+        ("\ud800", False),  # Triggers an encoding error
     ),
 )
 def test_string_scannable_is_longer_than(content, is_longer):

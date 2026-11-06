@@ -5,7 +5,6 @@ from click import UsageError
 from . import ui
 from .constants import ON_PREMISE_API_URL_PATH_PREFIX
 
-
 GITGUARDIAN_DOMAINS = ["gitguardian.com", "gitguardian.tech"]
 
 

@@ -8,7 +8,6 @@ from ggshield.verticals.hmsl import HMSLClient
 from ggshield.verticals.hmsl.client import PREFIX_LENGTH
 from ggshield.verticals.hmsl.crypto import hash_string
 
-
 SAMPLE_QUERY = ["408a5b05c35bb4d230e31da1f9afa0e8881050cb72775e925d6bc7cb945b4f39"]
 SAMPLE_RESPONSE = {
     "matches": [

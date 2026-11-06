@@ -37,7 +37,6 @@ from ggshield.verticals.honeytoken.placement import (
 )
 from ggshield.verticals.honeytoken.secure_file import SecureFileError
 
-
 _ACCESS_KEY = "aws_access_key_id"
 _SECRET_KEY = "aws_secret_access_key"
 

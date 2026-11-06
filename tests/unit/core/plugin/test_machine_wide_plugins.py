@@ -29,7 +29,6 @@ from ggshield.core.plugin.loader import PluginLoader
 from ggshield.core.plugin.signature import SignatureVerificationMode
 from ggshield.core.plugin.trust import PluginTrustStore, compute_file_sha256
 
-
 posix_only = pytest.mark.skipif(os.name == "nt", reason="POSIX file modes only")
 
 

@@ -18,7 +18,6 @@ from perfbench_utils import (
     work_dir_option,
 )
 
-
 DEFAULT_GGSHIELD_VERSIONS = ["prod", "current"]
 
 REPO_BENCHMARK_COMMANDS = [

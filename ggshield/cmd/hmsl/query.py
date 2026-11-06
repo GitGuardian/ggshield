@@ -14,7 +14,6 @@ from ggshield.core.errors import ParseError, UnexpectedError
 from ggshield.core.text_utils import pluralize
 from ggshield.verticals.hmsl import HASH_REGEX, PREFIX_REGEX, get_client
 
-
 logger = logging.getLogger(__name__)
 
 

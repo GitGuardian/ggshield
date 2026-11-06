@@ -12,7 +12,6 @@ from ggshield.utils.itertools import batched
 
 from .crypto import decrypt, make_hint
 
-
 PREFIX_LENGTH = 5
 HASHES_BATCH_SIZE = 100
 PREFIXES_BATCH_SIZE = 10

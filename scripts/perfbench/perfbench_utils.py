@@ -6,7 +6,6 @@ from typing import Any, List, Sequence, TextIO
 
 import click
 
-
 DEFAULT_WORK_DIR = (Path(__file__).parent / ".perfbench").absolute()
 
 REPO_DIR = Path(__file__).parents[2].absolute()

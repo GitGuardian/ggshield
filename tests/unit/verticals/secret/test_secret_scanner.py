@@ -56,7 +56,6 @@ from tests.unit.conftest import (
     my_vcr,
 )
 
-
 ExpectedScan = namedtuple(
     "expectedScan", ("exit_code", "matches", "first_match", "want")
 )
@@ -517,8 +516,7 @@ def test_scan_merge_commit(client, cache):
     WHEN it is scanned
     THEN the secret is found
     """
-    commit = Commit.from_patch(
-        f"""
+    commit = Commit.from_patch(f"""
 commit ca68e177596982fa38f181aa9944340a359748d2
 Merge: 2c023f8 502d03c
 Author: Aurelien Gateau <aurelien.gateau@gitguardian.com>
@@ -534,8 +532,7 @@ index 7601807,5716ca5..8c27e55
  -bar
 ++username=owly
 ++password={_SIMPLE_SECRET_TOKEN}
-"""
-    )
+""")
 
     with my_vcr.use_cassette("test_scan_merge_commit"):
         scanner = SecretScanner(

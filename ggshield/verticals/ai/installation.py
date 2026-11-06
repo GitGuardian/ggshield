@@ -15,7 +15,6 @@ import tomlkit
 from pygitguardian.models import HealthCheckResponse
 from tomlkit.exceptions import TOMLKitError
 
-
 if sys.version_info >= (3, 11):
     import tomllib
 else:

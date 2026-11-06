@@ -3,13 +3,13 @@
 This script benchmarks ggshield by measuring the time spent to run different
 ggshield commands against several repositories, using several ggshield versions
 """
+
 import logging
 
 import click
 from report_cmd import report_cmd
 from run_cmd import run_cmd
 from setup_cmd import setup_cmd
-
 
 LOG_FORMAT = "%(asctime)s %(levelname)s: %(message)s"
 

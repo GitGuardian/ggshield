@@ -1,7 +1,6 @@
 from ggshield.cmd.secret.scan.docset import generate_files_from_docsets
 from tests.unit.conftest import DATA_PATH
 
-
 DOCSET_EXAMPLE_PATH = DATA_PATH / "docset-example.jsonl"
 
 

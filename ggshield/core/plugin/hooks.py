@@ -7,7 +7,6 @@ from typing import Optional
 
 from ggshield.core.plugin.registry import PluginRegistry
 
-
 logger = logging.getLogger(__name__)
 
 _global_registry: Optional[PluginRegistry] = None

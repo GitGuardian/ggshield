@@ -4,7 +4,6 @@ import click
 
 from .constants import IncidentStatus
 
-
 LIGHT_GREY = (146, 146, 146)
 ORANGE = (255, 128, 80)
 

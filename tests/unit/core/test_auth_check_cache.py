@@ -19,7 +19,6 @@ from ggshield.core.client import check_client_api_key
 from ggshield.core.errors import APIKeyCheckError, handle_api_error
 from tests.conftest import skipwindows
 
-
 API_TOKENS_RESPONSE = APITokensResponse.from_dict(
     {
         "id": "5ddaad0c-5a0c-4674-beb5-1cd198d13360",

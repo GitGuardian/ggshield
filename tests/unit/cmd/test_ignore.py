@@ -20,7 +20,6 @@ from tests.unit.conftest import (
     my_vcr,
 )
 
-
 DOT_GITGUARDIAN_YAML = os.path.join(tempfile.gettempdir(), ".gitguardian.yml")
 
 FOUND_SECRETS = [

@@ -18,7 +18,6 @@ from ggshield.utils.git_shell import (
 from ... import ui
 from .supported_ci import SupportedCI
 
-
 logger = logging.getLogger(__name__)
 
 

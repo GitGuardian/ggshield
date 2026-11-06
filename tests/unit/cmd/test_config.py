@@ -19,7 +19,6 @@ from ggshield.utils.os import cd
 
 from .utils import add_instance_config
 
-
 DEFAULT_INSTANCE_URL = "https://dashboard.gitguardian.com"
 
 EXPECTED_OUTPUT = """instance: None

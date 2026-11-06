@@ -9,7 +9,6 @@ from ggshield.core.dirs import get_user_home_dir
 from ..agent_activity.sources import JSONLActivitySource
 from ..models import Agent, HookPayload, HookResult
 
-
 #: The events Junie fires that carry something to scan. It also fires
 #: SessionStart, Stop, StopFailure, SessionEnd and PermissionRequest, none of
 #: which carries a prompt or a tool input, and it has no PostToolUse at all.

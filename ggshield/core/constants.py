@@ -4,7 +4,6 @@ from typing import Any
 
 from ggshield.utils.os import getenv_int
 
-
 CPU_COUNT = os.cpu_count() or 1
 
 

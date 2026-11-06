@@ -48,7 +48,6 @@ from ggshield.verticals.secret.secret_scan_collection import Result as ScanResul
 from ggshield.verticals.secret.secret_scan_collection import Results, Secret
 from tests.conftest import skipwindows
 
-
 INSTANCE = "https://api.example.com"
 API_KEY = "some-api-key"
 

@@ -23,7 +23,6 @@ from ggshield.core.constants import DEFAULT_API_TIMEOUT, DEFAULT_LOCAL_CONFIG_PA
 from ggshield.core.errors import ParseError, UnexpectedError, format_validation_error
 from ggshield.core.types import FilteredConfig, IgnoredMatch
 
-
 logger = logging.getLogger(__name__)
 CURRENT_CONFIG_VERSION = 2
 

@@ -8,7 +8,6 @@ from tests.conftest import GG_VALID_TOKEN
 from tests.functional.utils import recreate_censored_content
 from tests.repository import Repository
 
-
 HOOK_CONTENT = """#!/bin/sh
 set -e
 ggshield secret scan pre-receive

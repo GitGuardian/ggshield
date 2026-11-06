@@ -9,7 +9,6 @@ from ggshield.core import ui
 from ggshield.utils.git_shell import get_git_root, is_git_available, is_git_dir
 from ggshield.utils.os import getenv_bool
 
-
 TRACKED_ENV_VARS = {
     "GITGUARDIAN_INSTANCE",
     "GITGUARDIAN_API_URL",

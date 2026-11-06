@@ -47,8 +47,7 @@ Date: Thu Sep 29 15:55:41 2022 +0000
 Date: Thu Sep 29 15:55:41 2022 +0000
 
     A commit with no author
-"""
-            + ":000000 100644 0000000 8714891 A\0new.txt\0",
+""" + ":000000 100644 0000000 8714891 A\0new.txt\0",
             CommitInformation(
                 "",
                 "",

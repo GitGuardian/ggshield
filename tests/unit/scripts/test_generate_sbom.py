@@ -8,7 +8,6 @@ from typing import Dict, List, Sequence
 import generate_sbom
 import pytest
 
-
 # The SBOM generator runs on the Python that the OS packages bundle, and needs
 # Python 3.10 or later (sys.stdlib_module_names)
 pytestmark = pytest.mark.skipif(

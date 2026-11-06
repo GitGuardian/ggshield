@@ -2,7 +2,6 @@ import pytest
 
 from ggshield.core.config.utils import get_global_path
 
-
 TEST_AUTH_CONFIG = {
     "default_token_lifetime": 2,
     "instances": [

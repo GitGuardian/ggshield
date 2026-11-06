@@ -2,7 +2,6 @@ import click
 
 from ggshield.verticals.hmsl.collection import NAMING_STRATEGIES, InputType
 
-
 input_arg = click.argument(
     "path",
     type=click.Path(

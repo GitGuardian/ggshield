@@ -10,7 +10,6 @@ from ggshield.core.scan import DecodeError, File
 from ggshield.core.scan.file import create_files_from_paths
 from tests.conftest import is_windows
 
-
 UNICODE_TEST_CONTENT = "Ascii 123, accents: éèà, hiragana: ぁ, emoji: 🛡️"
 
 

@@ -7,7 +7,6 @@ from ggshield.__main__ import cli
 from ggshield.verticals.hmsl.crypto import hash_string
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
-
 RESULTS_CONTENT = (
     '{"hint": "f7f17c88638b42465b6c620a0c7648ef470e611c1fdf90166aac613601799f81", "payload": '
     '"KzzhJEq/pM2RaWav9NAvjw45Gfp/26UGDDzYiDNuOCup0PfoAHNViOGX14/a7uUNWLk53zGIar3s2xOW/xxzMEgTT2owjH52gGalhwKBfTY="}\n'

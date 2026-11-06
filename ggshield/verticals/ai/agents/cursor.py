@@ -29,7 +29,6 @@ from ..models import (
     Transport,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

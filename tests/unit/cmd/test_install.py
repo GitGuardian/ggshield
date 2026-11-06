@@ -28,7 +28,6 @@ from ggshield.verticals.ai.installation import (
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
 
-
 SAMPLE_PRE_COMMIT = f"""#!/bin/sh
 
 # ggshield-hook-version: {GGSHIELD_HOOK_VERSION}

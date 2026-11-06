@@ -16,7 +16,6 @@ from ggshield.core.machine_id import (
 )
 from ggshield.verticals.honeytoken.targets import resolve_targets
 
-
 _REGISTRATION_BUDGET = 5.0
 
 

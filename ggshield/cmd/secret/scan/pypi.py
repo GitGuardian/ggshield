@@ -25,7 +25,6 @@ from ggshield.utils.archive import safe_unpack
 from ggshield.utils.files import ListFilesMode
 from ggshield.verticals.secret import SecretScanCollection, SecretScanner
 
-
 PYPI_DOWNLOAD_TIMEOUT = 30
 DEFAULT_INDEX_URL = "https://pypi.org/simple/"
 

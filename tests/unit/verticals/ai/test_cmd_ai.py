@@ -23,7 +23,6 @@ from ggshield.verticals.ai.agent_activity.orchestrator import AgentActivityRepor
 from ggshield.verticals.ai.history import BackfillReport
 from ggshield.verticals.ai.models import Scope, Transport
 
-
 CLAUDE_PRE_TOOL_USE_PAYLOAD = json.dumps(
     {
         "session_id": "abc123",

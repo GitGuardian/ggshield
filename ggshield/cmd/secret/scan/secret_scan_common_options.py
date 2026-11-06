@@ -27,7 +27,6 @@ from ggshield.verticals.secret.output import (
     SecretTextOutputHandler,
 )
 
-
 IGNORED_DEFAULT_WILDCARDS = [
     "**/.git/*/**/*",  # only keep files in .git/ but not in subdirectories
     "**/.pytest_cache/**/*",

@@ -8,13 +8,11 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.errors import UnknownInstanceError
 
 
-@click.command(
-    help=f"""
+@click.command(help=f"""
 Print the value of the given configuration key.
 If `--instance` is passed, retrieve the value for this specific instance.
 
-{FIELD_NAMES_DOC}"""
-)
+{FIELD_NAMES_DOC}""")
 @click.argument(
     "field_name",
     nargs=1,

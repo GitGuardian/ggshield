@@ -31,7 +31,6 @@ from .output import SecretOutputHandler
 from .secret_scan_collection import Results, SecretScanCollection
 from .secret_scanner import SecretScanner
 
-
 logger = logging.getLogger(__name__)
 
 
