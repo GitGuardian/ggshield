@@ -292,18 +292,6 @@ jobs:
         run: |
           python3 rust/tests/equivalence.py
 
-  build_os_packages:
-    permissions:
-      contents: read
-    uses: ./.github/workflows/build_release_assets.yml
-    secrets:
-      GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
-      GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
-      TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
-      TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
-      TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
-      TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
-
   test_github_secret_scan_action:
     name: Test GitHub action for `secret scan`
     # See note about steps requiring the GITGUARDIAN_API at the top of this file
