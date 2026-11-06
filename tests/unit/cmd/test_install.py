@@ -20,6 +20,7 @@ from ggshield.cmd.install import (
     install_local,
     upgrade_hook,
 )
+from ggshield.core.config.token_store import ALLOW_KEYCHAIN_DIALOG_ENV_VAR
 from ggshield.core.errors import ExitCode, MissingTokenError
 from ggshield.verticals.ai.installation import (
     _is_interactive,
@@ -633,6 +634,25 @@ class TestHookCredentialStoreWarmUp:
         assert args[0] == ["/opt/gitguardian/ggshield", "secret", "scan", "ai-hook"]
         assert json.loads(kwargs["input"])["hook_event_name"] == "UserPromptSubmit"
         assert kwargs["timeout"] > 0
+
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_the_warm_up_allows_the_keychain_dialog(
+        self, run_mock: Mock, bundle, monkeypatch
+    ):
+        """
+        GIVEN a setup run with its stderr redirected to a file
+        WHEN the warm-up runs the hook
+        THEN the hook is told to allow the Keychain dialog, and its output is
+             captured instead of printed in the setup terminal
+        """
+        monkeypatch.delenv(ALLOW_KEYCHAIN_DIALOG_ENV_VAR, raising=False)
+
+        _warm_hook_credential_store()
+
+        kwargs = run_mock.call_args.kwargs
+        assert kwargs["env"][ALLOW_KEYCHAIN_DIALOG_ENV_VAR] == "1"
+        assert kwargs["capture_output"] is True
+        assert ALLOW_KEYCHAIN_DIALOG_ENV_VAR not in os.environ
 
     @pytest.mark.parametrize("platform", ["linux", "win32"])
     @patch("ggshield.verticals.ai.installation.subprocess.run")

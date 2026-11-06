@@ -11,14 +11,18 @@ from ggshield.core.config import Config
 from ggshield.core.config.auth_config import (
     InstanceConfig,
     prepare_auth_config_dict_for_save,
+    token_read_failure_message,
 )
 from ggshield.core.config.token_store import (
     KEYRING_SENTINEL,
-    KeyringTokenStore,
-    reset_token_store,
+    FileKeystore,
+    KeystoreError,
+    KeystoreFailure,
+    OSKeystore,
+    reset_keystore,
 )
 from ggshield.core.config.utils import get_auth_config_filepath
-from ggshield.core.errors import UnknownInstanceError
+from ggshield.core.errors import AuthError, UnknownInstanceError
 from tests.unit.conftest import write_text, write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
 
@@ -171,9 +175,9 @@ class TestAuthConfig:
 
 @pytest.fixture(autouse=False)
 def _reset_token_store():
-    reset_token_store()
+    reset_keystore()
     yield
-    reset_token_store()
+    reset_keystore()
 
 
 def _sentinel_auth_config() -> dict:
@@ -218,14 +222,14 @@ class TestAuthConfigKeyring:
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
 
         stored_tokens = {}
-        mock_store = KeyringTokenStore()
+        mock_store = OSKeystore()
         mock_store.store_token = MagicMock(
             side_effect=lambda url, token: stored_tokens.update({url: token})
         )
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
@@ -262,30 +266,31 @@ class TestAuthConfigKeyring:
         write_yaml(get_auth_config_filepath(), sentinel_config)
 
         real_token = "real-token-from-keyring"
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock(return_value=real_token)
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(return_value=real_token)
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
-            mock_store.get_token.assert_not_called()
+            mock_store.read_token.assert_not_called()
 
             assert config.auth_config.instances[0].token == real_token
             assert config.auth_config.instances[1].token == real_token
 
-        assert mock_store.get_token.call_count == 2
+        assert mock_store.read_token.call_count == 2
         # The resolved token is memoised, so a second read costs nothing
         assert config.auth_config.instances[0].token == real_token
-        assert mock_store.get_token.call_count == 2
+        assert mock_store.read_token.call_count == 2
 
     def test_load_keyring_missing_token(self, monkeypatch):
         """
-        GIVEN a YAML config with keyring sentinel
-        WHEN the keyring returns None for a token
-        THEN the token reads as empty and the sentinel is kept in the config
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN the keystore has no item for the instance
+        THEN reading the token reports the missing item, and the config still
+             marks the token as stored in the keystore
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -295,18 +300,22 @@ class TestAuthConfigKeyring:
                 account["token"] = KEYRING_SENTINEL
         write_yaml(get_auth_config_filepath(), sentinel_config)
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock(return_value=None)
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.NOT_FOUND)
+        )
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
 
-            assert config.auth_config.instances[0].token == ""
-            assert config.auth_config.instances[1].token == ""
+            with pytest.raises(KeystoreError) as exc_info:
+                config.auth_config.instances[0].token
+
+        assert exc_info.value.failure == KeystoreFailure.NOT_FOUND
 
         # Account metadata and the sentinel are preserved, so a later save()
         # keeps pointing at the stored token
@@ -325,16 +334,18 @@ class TestAuthConfigKeyring:
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
 
         stored_tokens = {}
-        mock_store = KeyringTokenStore()
+        mock_store = OSKeystore()
         mock_store.store_token = MagicMock(
             side_effect=lambda url, token: stored_tokens.update({url: token})
         )
-        mock_store.get_token = MagicMock(side_effect=lambda url: stored_tokens.get(url))
+        mock_store.read_token = MagicMock(
+            side_effect=lambda url: stored_tokens.get(url)
+        )
         mock_store.is_available = MagicMock(return_value=True)
 
         # Load with cleartext (no sentinel, so no keyring lookup)
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
@@ -347,7 +358,7 @@ class TestAuthConfigKeyring:
 
         # Save triggers migration
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config.auth_config.save()
@@ -367,24 +378,37 @@ class TestAuthConfigKeyring:
 
     def test_save_fallback_on_keyring_error(self, monkeypatch):
         """
-        GIVEN a config with tokens
-        WHEN keyring raises an error during save
-        THEN cleartext tokens are preserved in YAML
+        GIVEN a config with clear-text tokens
+        WHEN the keystore refuses the write during save
+        THEN the tokens stay in clear text in the YAML file, with one warning per
+             instance
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
         write_yaml(get_auth_config_filepath(), TEST_AUTH_CONFIG)
 
-        mock_store = KeyringTokenStore()
-        mock_store.store_token = MagicMock(side_effect=RuntimeError("keyring broken"))
+        mock_store = OSKeystore()
+        store_error = KeystoreError(KeystoreFailure.DENIED, "keyring broken")
+        mock_store.store_token = MagicMock(side_effect=store_error)
         mock_store.is_available = MagicMock(return_value=True)
 
-        with patch(
-            "ggshield.core.config.auth_config.get_token_store",
-            return_value=mock_store,
+        with (
+            patch(
+                "ggshield.core.config.auth_config.get_keystore",
+                return_value=mock_store,
+            ),
+            patch("ggshield.core.ui.display_warning") as mock_warning,
         ):
             config = Config()
             config.auth_config.save()
+
+        warnings = [call.args[0] for call in mock_warning.call_args_list]
+        assert len(warnings) == len(config.auth_config.instances)
+        for instance, warning in zip(config.auth_config.instances, warnings):
+            assert f"'{instance.url}'" in warning
+            assert "keyring broken" in warning
+            assert str(get_auth_config_filepath()) in warning
+        assert not config.auth_config.instances[0].token_in_keystore
 
         # Verify YAML still has cleartext tokens (not sentinels)
         import yaml
@@ -397,9 +421,10 @@ class TestAuthConfigKeyring:
 
     def test_load_keyring_get_token_exception(self, monkeypatch):
         """
-        GIVEN a YAML config with keyring sentinel
-        WHEN get_token raises an exception
-        THEN the token reads as empty and the sentinel is kept in the config
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN the keystore refuses the read
+        THEN the keystore error comes through with its cause, and the config
+             still marks the token as stored in the keystore
         """
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
 
@@ -409,17 +434,23 @@ class TestAuthConfigKeyring:
                 account["token"] = KEYRING_SENTINEL
         write_yaml(get_auth_config_filepath(), sentinel_config)
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock(side_effect=RuntimeError("keyring locked"))
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.DENIED, "keyring locked")
+        )
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
 
-            assert config.auth_config.instances[0].token == ""
+            with pytest.raises(KeystoreError) as exc_info:
+                config.auth_config.instances[0].token
+
+        assert exc_info.value.failure == KeystoreFailure.DENIED
+        assert exc_info.value.detail == "keyring locked"
 
         assert config.auth_config.instances[0].account is not None
         assert config.auth_config.instances[0].account.token == KEYRING_SENTINEL
@@ -427,9 +458,10 @@ class TestAuthConfigKeyring:
 
     def test_load_sentinel_without_keyring(self, monkeypatch):
         """
-        GIVEN a YAML config with keyring sentinel tokens
-        WHEN reading a token with GGSHIELD_NO_KEYRING=1 (keyring disabled)
-        THEN the token reads as empty and the sentinel is kept in the config
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN a token is read with GGSHIELD_NO_KEYRING=1
+        THEN the keystore reports itself as disabled, and the config still marks
+             the token as stored in the keystore
         """
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
 
@@ -441,9 +473,9 @@ class TestAuthConfigKeyring:
 
         config = Config()
 
-        # Sentinel is detected rather than sent as an API token
-        assert config.auth_config.instances[0].token == ""
-        assert config.auth_config.instances[1].token == ""
+        with pytest.raises(KeystoreError) as exc_info:
+            config.auth_config.instances[0].token
+        assert exc_info.value.failure == KeystoreFailure.DISABLED
         assert config.auth_config.instances[0].account is not None
         assert config.auth_config.instances[0].account.token == KEYRING_SENTINEL
 
@@ -463,19 +495,19 @@ class TestAuthConfigKeyring:
                 account["token"] = KEYRING_SENTINEL
         write_yaml(get_auth_config_filepath(), sentinel_config)
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock()
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock()
         mock_store.is_available = MagicMock()
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ) as mock_get_store:
             Config()
 
         mock_get_store.assert_not_called()
         mock_store.is_available.assert_not_called()
-        mock_store.get_token.assert_not_called()
+        mock_store.read_token.assert_not_called()
 
     def test_load_does_not_touch_the_store(self, monkeypatch):
         """
@@ -487,9 +519,7 @@ class TestAuthConfigKeyring:
 
         write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
 
-        with patch(
-            "ggshield.core.config.auth_config.get_token_store"
-        ) as mock_get_store:
+        with patch("ggshield.core.config.auth_config.get_keystore") as mock_get_store:
             config = Config()
             # Everything a token-free command reads stays local
             assert config.auth_config.default_token_lifetime == 2
@@ -509,12 +539,12 @@ class TestAuthConfigKeyring:
         raw_config["instances"][0]["accounts"][0]["expire_at"] = None
         write_yaml(get_auth_config_filepath(), raw_config)
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock(return_value="real-token-from-keyring")
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(return_value="real-token-from-keyring")
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             token = Config().auth_config.get_instance_token(
@@ -522,7 +552,7 @@ class TestAuthConfigKeyring:
             )
 
         assert token == "real-token-from-keyring"
-        mock_store.get_token.assert_called_once_with(
+        mock_store.read_token.assert_called_once_with(
             "https://dashboard.gitguardian.com"
         )
 
@@ -536,20 +566,20 @@ class TestAuthConfigKeyring:
 
         write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock()
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock()
         mock_store.store_token = MagicMock()
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
             config.auth_config.default_token_lifetime = 42
             config.auth_config.save()
 
-        mock_store.get_token.assert_not_called()
+        mock_store.read_token.assert_not_called()
         mock_store.store_token.assert_not_called()
         assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
 
@@ -563,17 +593,20 @@ class TestAuthConfigKeyring:
 
         write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
 
-        mock_store = KeyringTokenStore()
-        mock_store.get_token = MagicMock(side_effect=RuntimeError("keyring locked"))
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(
+            side_effect=KeystoreError(KeystoreFailure.DENIED, "keyring locked")
+        )
         mock_store.store_token = MagicMock()
         mock_store.is_available = MagicMock(return_value=True)
 
         with patch(
-            "ggshield.core.config.auth_config.get_token_store",
+            "ggshield.core.config.auth_config.get_keystore",
             return_value=mock_store,
         ):
             config = Config()
-            assert config.auth_config.instances[0].token == ""
+            with pytest.raises(KeystoreError):
+                config.auth_config.instances[0].token
             config.auth_config.save()
 
         mock_store.store_token.assert_not_called()
@@ -590,10 +623,96 @@ class TestAuthConfigKeyring:
         write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
 
         config = Config()
-        assert config.auth_config.instances[0].token == ""
+        with pytest.raises(KeystoreError):
+            config.auth_config.instances[0].token
         config.auth_config.save()
 
         assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
+
+    def test_save_does_not_rewrite_a_token_it_only_read(self, monkeypatch):
+        """
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN a token is read and the config is saved
+        THEN the keystore is not written, so the macOS Keychain item keeps its
+             access list, and the config still marks the tokens as stored in the
+             keystore
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        mock_store = OSKeystore()
+        mock_store.read_token = MagicMock(return_value="real-token-from-keyring")
+        mock_store.store_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
+        ):
+            config = Config()
+            assert config.auth_config.instances[0].token == "real-token-from-keyring"
+            config.auth_config.save()
+
+        mock_store.store_token.assert_not_called()
+        assert config.auth_config.instances[0].token_in_keystore
+        assert _saved_tokens() == [KEYRING_SENTINEL, KEYRING_SENTINEL]
+
+    def test_unreachable_store_is_not_reported_as_a_missing_token(self, monkeypatch):
+        """
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN the keystore is unreachable in this session, as on Linux without D-Bus
+        THEN the error says so, and does not say that no token is saved
+        """
+        raw_config = _sentinel_auth_config()
+        raw_config["instances"][0]["accounts"][0]["expire_at"] = None
+        write_yaml(get_auth_config_filepath(), raw_config)
+        file_store = FileKeystore(KeystoreFailure.UNAVAILABLE, "no D-Bus session")
+
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=file_store,
+        ):
+            config = Config()
+            with pytest.raises(AuthError) as exc_info:
+                config.auth_config.get_instance_token(
+                    "https://dashboard.gitguardian.com"
+                )
+
+        assert "cannot be reached in this session (no D-Bus session)" in str(
+            exc_info.value
+        )
+        assert "No token is saved" not in str(exc_info.value)
+        assert (
+            "Run `ggshield auth login` to store a new token, "
+            "or set GITGUARDIAN_API_KEY." in str(exc_info.value)
+        )
+
+    def test_forget_account_deletes_the_stored_token(self, monkeypatch):
+        """
+        GIVEN the config marks the tokens as stored in the keystore
+        WHEN an account is forgotten
+        THEN its token is deleted from the keystore and the account is cleared
+        """
+        monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
+
+        write_yaml(get_auth_config_filepath(), _sentinel_auth_config())
+
+        mock_store = OSKeystore()
+        mock_store.delete_token = MagicMock()
+        mock_store.is_available = MagicMock(return_value=True)
+
+        with patch(
+            "ggshield.core.config.auth_config.get_keystore",
+            return_value=mock_store,
+        ):
+            config = Config()
+            config.auth_config.forget_account("https://dashboard.gitguardian.com")
+
+        mock_store.delete_token.assert_called_once_with(
+            "https://dashboard.gitguardian.com"
+        )
+        assert config.auth_config.instances[0].account is None
 
     def test_file_store_preserves_cleartext(self, monkeypatch):
         """
@@ -614,3 +733,21 @@ class TestAuthConfigKeyring:
 
         original_token = TEST_AUTH_CONFIG["instances"][0]["accounts"][0]["token"]
         assert saved_data["instances"][0]["accounts"][0]["token"] == original_token
+
+
+@pytest.mark.parametrize("failure", list(KeystoreFailure))
+def test_token_read_failure_message_suggests_no_command(failure):
+    """
+    GIVEN a keystore read failure of any kind
+    WHEN building its message
+    THEN the message names the instance and suggests no command, since the
+         remedy depends on the command the user ran
+    """
+    instance_url = "https://dashboard.gitguardian.com"
+
+    message = token_read_failure_message(
+        KeystoreError(failure, "some detail"), instance_url
+    )
+
+    assert instance_url in message
+    assert "`" not in message

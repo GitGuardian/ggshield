@@ -1,3 +1,4 @@
+import contextlib
 import json
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
@@ -18,6 +19,7 @@ from pygitguardian.models import (
 
 from ggshield.__main__ import cli
 from ggshield.cmd.ai.discover import print_summary
+from ggshield.core.config.token_store import ALLOW_KEYCHAIN_DIALOG_ENV_VAR
 from ggshield.core.errors import APIKeyCheckError, MissingTokenError
 from ggshield.verticals.ai.agent_activity.orchestrator import AgentActivityReport
 from ggshield.verticals.ai.history import BackfillReport
@@ -199,6 +201,67 @@ class TestAiHookCmd:
         assert response["continue"] is True
         assert "NOT scanned" in response["systemMessage"]
         assert "ggshield auth login" in response["systemMessage"]
+
+    @pytest.mark.parametrize(("allowed", "guarded"), [("1", False), (None, True)])
+    def test_keychain_dialogs_follow_the_warm_up_variable(
+        self, monkeypatch, allowed, guarded
+    ):
+        """
+        GIVEN a hook run by the setup warm-up, which sets the variable, or by an
+              agent, which does not
+        WHEN the hook chooses how to read the token
+        THEN Keychain dialogs are turned off unless the variable is set
+        """
+        from ggshield.cmd.secret.scan import ai_hook
+
+        if allowed is None:
+            monkeypatch.delenv(ALLOW_KEYCHAIN_DIALOG_ENV_VAR, raising=False)
+        else:
+            monkeypatch.setenv(ALLOW_KEYCHAIN_DIALOG_ENV_VAR, allowed)
+        guard = MagicMock()
+        monkeypatch.setattr(ai_hook, "keychain_prompts_disabled", guard)
+
+        ai_hook._keychain_dialogs()
+
+        assert guard.called is guarded
+
+    def test_the_hook_reads_the_token_with_keychain_dialogs_off(self):
+        """
+        GIVEN a hook started by an agent, which cannot answer a Keychain dialog
+        WHEN it runs
+        THEN it reads the token inside keychain_prompts_disabled()
+        """
+        events = []
+
+        @contextlib.contextmanager
+        def fake_guard():
+            events.append("dialogs off")
+            try:
+                yield
+            finally:
+                events.append("dialogs restored")
+
+        def fake_client(config):
+            events.append("token read")
+            raise MissingTokenError(instance="https://dashboard.gitguardian.com")
+
+        with (
+            patch(
+                "ggshield.cmd.secret.scan.ai_hook.keychain_prompts_disabled",
+                fake_guard,
+            ),
+            patch(
+                "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+                side_effect=fake_client,
+            ),
+        ):
+            CliRunner().invoke(
+                cli,
+                ["secret", "scan", "ai-hook"],
+                input=CLAUDE_PRE_TOOL_USE_PAYLOAD,
+            )
+
+        assert events == ["dialogs off", "token read", "dialogs restored"]
 
     @patch("ggshield.cmd.secret.scan.ai_hook.AIHookScanner")
     @patch("ggshield.cmd.secret.scan.ai_hook.SecretScanner")

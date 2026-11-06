@@ -1,8 +1,10 @@
 import contextlib
+import ctypes
 import logging
 import os
 import sys
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Generator, List, Optional
 
 import filelock
@@ -10,6 +12,7 @@ import keyring
 import keyring.backends.fail
 import keyring.errors
 
+from ggshield.core import ui
 from ggshield.core.dirs import get_cache_dir
 from ggshield.utils.os import getenv_bool
 
@@ -18,6 +21,31 @@ logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "ggshield"
 KEYRING_SENTINEL = "__KEYRING__"
+
+
+def keystore_display_name() -> str:
+    if sys.platform == "darwin":
+        return "macOS Keychain"
+    if sys.platform == "win32":
+        return "Windows Credential Manager"
+    if sys.platform.startswith("linux"):
+        return "Secret Service"
+    return "OS credential store"
+
+
+class KeystoreFailure(Enum):
+    DISABLED = "disabled"
+    UNAVAILABLE = "unavailable"
+    DENIED = "denied"
+    NOT_FOUND = "not_found"
+
+
+class KeystoreError(Exception):
+    def __init__(self, failure: KeystoreFailure, detail: str = ""):
+        super().__init__(detail or failure.value)
+        self.failure = failure
+        self.detail = detail
+
 
 # Concurrent reads of the OS credential store can fail (macOS securityd rejects
 # most simultaneous reads of the login Keychain), so fetching the token in
@@ -47,6 +75,41 @@ def _keyring_lock() -> Generator[None, None, None]:
         yield
     finally:
         lock.release()
+
+
+ALLOW_KEYCHAIN_DIALOG_ENV_VAR = "GGSHIELD_ALLOW_KEYCHAIN_DIALOG"
+
+
+@contextlib.contextmanager
+def keychain_prompts_disabled() -> Generator[None, None, None]:
+    """Make Keychain reads in this block fail instead of showing a dialog.
+
+    The setting applies to the whole process while the block runs, and the
+    previous setting is restored afterwards.
+    """
+    if sys.platform != "darwin" or not _writes_to_the_apple_keychain():
+        yield
+        return
+    try:
+        from keyring.backends.macOS import api
+
+        set_allowed = api._sec.SecKeychainSetUserInteractionAllowed
+        set_allowed.argtypes = [ctypes.c_ubyte]
+        set_allowed.restype = ctypes.c_int32
+        get_allowed = api._sec.SecKeychainGetUserInteractionAllowed
+        get_allowed.argtypes = [ctypes.POINTER(ctypes.c_ubyte)]
+        get_allowed.restype = ctypes.c_int32
+        previous = ctypes.c_ubyte(1)
+        if get_allowed(ctypes.byref(previous)) != 0 or set_allowed(0) != 0:
+            raise OSError("the Security framework refused the change")
+    except Exception:
+        logger.debug("Could not disable Keychain user interaction", exc_info=True)
+        yield
+        return
+    try:
+        yield
+    finally:
+        set_allowed(previous.value)
 
 
 # Names of the sibling binaries that must be able to read the token without a
@@ -113,8 +176,6 @@ def _macos_store_token(instance_url: str, token: str) -> None:
     SecAccessCreate/SecTrustedApplicationCreateFromPath are deprecated but they
     remain the only way to set a per-item ACL.
     """
-    import ctypes
-
     from keyring.backends.macOS import api
 
     paths = _macos_trusted_binaries()
@@ -181,7 +242,7 @@ def _macos_store_token(instance_url: str, token: str) -> None:
     )
 
 
-class TokenStore(ABC):
+class Keystore(ABC):
     """Abstract base class for token storage backends."""
 
     @property
@@ -195,7 +256,7 @@ class TokenStore(ABC):
     def store_token(self, instance_url: str, token: str) -> None: ...
 
     @abstractmethod
-    def get_token(self, instance_url: str) -> Optional[str]: ...
+    def read_token(self, instance_url: str) -> str: ...
 
     @abstractmethod
     def delete_token(self, instance_url: str) -> None: ...
@@ -204,8 +265,11 @@ class TokenStore(ABC):
     def is_available(self) -> bool: ...
 
 
-class KeyringTokenStore(TokenStore):
+class OSKeystore(Keystore):
     """Stores tokens in the OS credential store via the keyring library."""
+
+    def __init__(self) -> None:
+        self.unavailable_reason = ""
 
     @property
     def uses_external_storage(self) -> bool:
@@ -213,28 +277,34 @@ class KeyringTokenStore(TokenStore):
 
     def store_token(self, instance_url: str, token: str) -> None:
         with _keyring_lock():
+            acl_error: Optional[Exception] = None
             if sys.platform == "darwin" and _writes_to_the_apple_keychain():
                 try:
                     _macos_store_token(instance_url, token)
                     return
                 except Exception as exc:
-                    # Loud on purpose: the token is still stored, but only this
-                    # binary can read it without asking. The other one prompts,
-                    # and an agent-spawned hook cannot answer a Keychain dialog —
-                    # so the symptom is a hook that stops scanning, with the cause
-                    # nowhere the user would look.
-                    logger.warning(
-                        "Could not grant every ggshield binary access to the token "
-                        "in the Keychain (%s). The token was stored, but macOS may "
-                        "ask for permission again; run 'ggshield api-status' once in "
-                        "a terminal to approve it.",
-                        exc,
-                    )
-            keyring.set_password(KEYRING_SERVICE, instance_url, token)
+                    acl_error = exc
+            try:
+                keyring.set_password(KEYRING_SERVICE, instance_url, token)
+            except Exception as exc:
+                raise KeystoreError(KeystoreFailure.DENIED, str(exc)) from exc
+            if acl_error is not None:
+                ui.display_warning(
+                    "Could not grant every ggshield binary access to the token "
+                    f"in the Keychain ({acl_error}). The token was stored, but "
+                    "macOS may ask for permission again, and the AI hook cannot "
+                    "answer that dialog."
+                )
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        with _keyring_lock():
-            return keyring.get_password(KEYRING_SERVICE, instance_url)
+    def read_token(self, instance_url: str) -> str:
+        try:
+            with _keyring_lock():
+                token = keyring.get_password(KEYRING_SERVICE, instance_url)
+        except Exception as exc:
+            raise KeystoreError(KeystoreFailure.DENIED, str(exc)) from exc
+        if token is None:
+            raise KeystoreError(KeystoreFailure.NOT_FOUND)
+        return token
 
     def delete_token(self, instance_url: str) -> None:
         with _keyring_lock():
@@ -260,18 +330,28 @@ class KeyringTokenStore(TokenStore):
         try:
             kr = keyring.get_keyring()
             if isinstance(kr, keyring.backends.fail.Keyring):
+                self.unavailable_reason = "no credential store backend is available"
                 return False
             # Hold the lock across the probe so it doesn't race the token
             # reads of concurrent processes.
             with _keyring_lock():
                 keyring.get_password(KEYRING_SERVICE, "__ggshield_probe__")
             return True
-        except Exception:
+        except Exception as exc:
+            self.unavailable_reason = str(exc) or type(exc).__name__
             return False
 
 
-class FileTokenStore(TokenStore):
+class FileKeystore(Keystore):
     """Fallback: tokens remain in the YAML config file."""
+
+    def __init__(
+        self,
+        failure: KeystoreFailure = KeystoreFailure.DISABLED,
+        detail: str = "",
+    ):
+        self.failure = failure
+        self.detail = detail
 
     @property
     def uses_external_storage(self) -> bool:
@@ -280,8 +360,8 @@ class FileTokenStore(TokenStore):
     def store_token(self, instance_url: str, token: str) -> None:
         pass
 
-    def get_token(self, instance_url: str) -> Optional[str]:
-        return None
+    def read_token(self, instance_url: str) -> str:
+        raise KeystoreError(self.failure, self.detail)
 
     def delete_token(self, instance_url: str) -> None:
         pass
@@ -290,32 +370,33 @@ class FileTokenStore(TokenStore):
         return True
 
 
-_token_store: Optional[TokenStore] = None
+_keystore: Optional[Keystore] = None
 
 
-def get_token_store() -> TokenStore:
+def get_keystore() -> Keystore:
     """Return the active token store, selecting keyring when available."""
-    global _token_store
-    if _token_store is not None:
-        return _token_store
+    global _keystore
+    if _keystore is not None:
+        return _keystore
 
     if getenv_bool("GGSHIELD_NO_KEYRING", default=False):
         logger.debug("Keyring disabled via GGSHIELD_NO_KEYRING env var")
-        _token_store = FileTokenStore()
-        return _token_store
+        _keystore = FileKeystore(KeystoreFailure.DISABLED)
+        return _keystore
 
-    store = KeyringTokenStore()
+    store = OSKeystore()
     if store.is_available():
-        _token_store = store
+        _keystore = store
     else:
         logger.debug(
-            "Keyring is not available, falling back to file-based token storage"
+            "Keyring is not available (%s), falling back to file-based token storage",
+            store.unavailable_reason,
         )
-        _token_store = FileTokenStore()
-    return _token_store
+        _keystore = FileKeystore(KeystoreFailure.UNAVAILABLE, store.unavailable_reason)
+    return _keystore
 
 
-def reset_token_store() -> None:
+def reset_keystore() -> None:
     """Reset the cached token store. Used in tests."""
-    global _token_store
-    _token_store = None
+    global _keystore
+    _keystore = None

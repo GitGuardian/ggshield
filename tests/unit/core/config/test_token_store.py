@@ -12,11 +12,14 @@ from ggshield.core.config import token_store
 from ggshield.core.config.token_store import (
     KEYRING_SENTINEL,
     KEYRING_SERVICE,
-    FileTokenStore,
-    KeyringTokenStore,
+    FileKeystore,
+    KeystoreError,
+    KeystoreFailure,
+    OSKeystore,
     _macos_trusted_binaries,
-    get_token_store,
-    reset_token_store,
+    get_keystore,
+    keychain_prompts_disabled,
+    reset_keystore,
 )
 
 
@@ -33,26 +36,64 @@ class TestKeyringTokenStore:
         """GIVEN a platform without Keychain ACLs WHEN storing THEN keyring is
         called directly"""
         monkeypatch.setattr(sys, "platform", "linux")
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with patch("keyring.set_password") as mock_set:
             store.store_token(INSTANCE_URL, TOKEN)
             mock_set.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL, TOKEN)
 
-    def test_get_token(self):
-        store = KeyringTokenStore()
+    def test_store_token_raises_when_nothing_is_written(self, monkeypatch):
+        """GIVEN a keystore that refuses the write WHEN a token is stored THEN a
+        DENIED KeystoreError carries the reason"""
+        import keyring.errors
+
+        monkeypatch.setattr(sys, "platform", "linux")
+        with patch(
+            "keyring.set_password",
+            side_effect=keyring.errors.PasswordSetError("Keychain is locked"),
+        ):
+            with pytest.raises(KeystoreError) as exc_info:
+                OSKeystore().store_token(INSTANCE_URL, TOKEN)
+
+        assert exc_info.value.failure == KeystoreFailure.DENIED
+        assert exc_info.value.detail == "Keychain is locked"
+
+    def test_read_token(self):
+        store = OSKeystore()
         with patch("keyring.get_password", return_value=TOKEN) as mock_get:
-            result = store.get_token(INSTANCE_URL)
+            result = store.read_token(INSTANCE_URL)
             mock_get.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL)
             assert result == TOKEN
 
-    def test_get_token_not_found(self):
-        store = KeyringTokenStore()
+    def test_read_token_not_found(self):
+        """GIVEN no item for the instance WHEN the token is read THEN NOT_FOUND
+        is raised"""
+        store = OSKeystore()
         with patch("keyring.get_password", return_value=None):
-            result = store.get_token(INSTANCE_URL)
-            assert result is None
+            with pytest.raises(KeystoreError) as exc_info:
+                store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.NOT_FOUND
+
+    def test_read_token_denied(self):
+        """GIVEN a keystore that refuses the read WHEN the token is read THEN
+        DENIED is raised with the reason from the keystore"""
+        import keyring.errors
+
+        store = OSKeystore()
+        with patch(
+            "keyring.get_password",
+            side_effect=keyring.errors.KeyringLocked(
+                "User interaction is not allowed."
+            ),
+        ):
+            with pytest.raises(KeystoreError) as exc_info:
+                store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.DENIED
+        assert exc_info.value.detail == "User interaction is not allowed."
 
     def test_delete_token(self):
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with patch("keyring.delete_password") as mock_delete:
             store.delete_token(INSTANCE_URL)
             mock_delete.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL)
@@ -60,7 +101,7 @@ class TestKeyringTokenStore:
     def test_delete_token_not_found(self):
         import keyring.errors
 
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with patch(
             "keyring.delete_password",
             side_effect=keyring.errors.PasswordDeleteError("not found"),
@@ -71,7 +112,7 @@ class TestKeyringTokenStore:
     def test_is_available_true(self):
         """GIVEN a working backend WHEN probing THEN a read of an unknown key
         returning None means available"""
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with (
             patch("keyring.get_keyring", return_value=MagicMock()),
             patch("keyring.get_password", return_value=None) as mock_get,
@@ -85,7 +126,7 @@ class TestKeyringTokenStore:
         Regression guard: probing with set_password pops a blocking modal on
         macOS when no writable keychain can be resolved.
         """
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with (
             patch("keyring.get_keyring", return_value=MagicMock()),
             patch("keyring.get_password", return_value=None),
@@ -99,14 +140,14 @@ class TestKeyringTokenStore:
     def test_is_available_false_fail_backend(self):
         import keyring.backends.fail
 
-        store = KeyringTokenStore()
+        store = OSKeystore()
         fail_keyring = keyring.backends.fail.Keyring()
         with patch("keyring.get_keyring", return_value=fail_keyring):
             assert store.is_available() is False
 
     def test_is_available_false_probe_fails(self):
         """GIVEN a backend whose get_password raises THEN it is not available"""
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with (
             patch("keyring.get_keyring", return_value=MagicMock()),
             patch("keyring.get_password", side_effect=RuntimeError("no keychain")),
@@ -116,7 +157,7 @@ class TestKeyringTokenStore:
     def test_is_available_true_with_stale_probe_entry(self):
         """GIVEN an old ggshield left a probe entry in the keychain THEN the
         backend is still reported available (we never delete it: that's a write)"""
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with (
             patch("keyring.get_keyring", return_value=MagicMock()),
             patch("keyring.get_password", return_value="test"),
@@ -126,7 +167,7 @@ class TestKeyringTokenStore:
             mock_delete.assert_not_called()
 
     def test_is_available_false_on_exception(self):
-        store = KeyringTokenStore()
+        store = OSKeystore()
         with patch("keyring.get_keyring", side_effect=RuntimeError("broken")):
             assert store.is_available() is False
 
@@ -183,7 +224,7 @@ class TestMacOSKeychainACL:
             patch.object(ctypes.c_void_p, "in_dll", return_value=ctypes.c_void_p(1)),
             patch("keyring.set_password") as mock_set,
         ):
-            KeyringTokenStore().store_token(INSTANCE_URL, TOKEN)
+            OSKeystore().store_token(INSTANCE_URL, TOKEN)
 
         # One trusted-app handle per trusted binary, whatever that list holds.
         assert fake_api._sec.SecTrustedApplicationCreateFromPath.call_count == len(
@@ -201,8 +242,9 @@ class TestMacOSKeychainACL:
         mock_set.assert_not_called()
 
     def test_store_token_falls_back_when_acl_fails(self, monkeypatch):
-        """GIVEN the Security API refuses WHEN storing a token THEN we fall back
-        to a plain keyring write: login must never break over an ACL"""
+        """GIVEN the Security framework refuses the access list WHEN a token is
+        stored THEN a plain keystore write follows, with a warning about the
+        missing access list"""
         monkeypatch.setattr(sys, "platform", "darwin")
         monkeypatch.setattr(token_store, "_writes_to_the_apple_keychain", lambda: True)
         with (
@@ -211,10 +253,37 @@ class TestMacOSKeychainACL:
                 side_effect=RuntimeError("no such symbol"),
             ),
             patch("keyring.set_password") as mock_set,
+            patch("ggshield.core.ui.display_warning") as mock_warning,
         ):
-            KeyringTokenStore().store_token(INSTANCE_URL, TOKEN)
+            OSKeystore().store_token(INSTANCE_URL, TOKEN)
 
         mock_set.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL, TOKEN)
+        mock_warning.assert_called_once()
+        assert "no such symbol" in mock_warning.call_args.args[0]
+
+    def test_store_token_does_not_claim_success_when_nothing_is_written(
+        self, monkeypatch
+    ):
+        """GIVEN a locked Keychain, where the access-list write and the plain write
+        both fail WHEN a token is stored THEN an error is raised, and no warning
+        says the token was stored"""
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(token_store, "_writes_to_the_apple_keychain", lambda: True)
+        with (
+            patch(
+                "ggshield.core.config.token_store._macos_store_token",
+                side_effect=RuntimeError("User interaction is not allowed."),
+            ),
+            patch(
+                "keyring.set_password",
+                side_effect=RuntimeError("User interaction is not allowed."),
+            ),
+            patch("ggshield.core.ui.display_warning") as mock_warning,
+        ):
+            with pytest.raises(KeystoreError):
+                OSKeystore().store_token(INSTANCE_URL, TOKEN)
+
+        mock_warning.assert_not_called()
 
     def test_store_token_is_unchanged_off_macos(self, monkeypatch):
         """GIVEN Linux or Windows WHEN storing a token THEN the macOS path is
@@ -224,7 +293,7 @@ class TestMacOSKeychainACL:
             patch("ggshield.core.config.token_store._macos_store_token") as mock_acl,
             patch("keyring.set_password") as mock_set,
         ):
-            KeyringTokenStore().store_token(INSTANCE_URL, TOKEN)
+            OSKeystore().store_token(INSTANCE_URL, TOKEN)
 
         mock_acl.assert_not_called()
         mock_set.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL, TOKEN)
@@ -243,7 +312,7 @@ class TestMacOSKeychainACL:
             patch("ggshield.core.config.token_store._macos_store_token") as mock_acl,
             patch("keyring.set_password") as mock_set,
         ):
-            KeyringTokenStore().store_token(INSTANCE_URL, TOKEN)
+            OSKeystore().store_token(INSTANCE_URL, TOKEN)
 
         mock_acl.assert_not_called()
         mock_set.assert_called_once_with(KEYRING_SERVICE, INSTANCE_URL, TOKEN)
@@ -275,30 +344,109 @@ class TestMacOSKeychainACL:
             assert hasattr(api, "create_cf")
 
 
+class TestKeychainPrompts:
+    """A hook started by an agent cannot answer a Keychain dialog. The agent
+    stops the hook before the user can choose "Always Allow", so the dialog
+    returned on every turn. The hook therefore reads the token inside
+    keychain_prompts_disabled(), where a read fails instead of showing a
+    dialog."""
+
+    @pytest.fixture(autouse=True)
+    def _macos(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "darwin")
+        monkeypatch.setattr(token_store, "_writes_to_the_apple_keychain", lambda: True)
+
+    @staticmethod
+    def _security_api(status: int = 0) -> MagicMock:
+        fake_api = MagicMock()
+        fake_api._sec.SecKeychainGetUserInteractionAllowed.return_value = 0
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.return_value = status
+        return fake_api
+
+    @staticmethod
+    def _read(fake_api: MagicMock, guarded: bool) -> list:
+        set_allowed = fake_api._sec.SecKeychainSetUserInteractionAllowed
+        seen = []
+
+        def fake_get(service, url):
+            seen.append(
+                set_allowed.call_args_list[-1].args[0] if set_allowed.called else None
+            )
+            return TOKEN
+
+        with (
+            patch("keyring.backends.macOS.api", fake_api, create=True),
+            patch("keyring.get_password", side_effect=fake_get),
+        ):
+            if guarded:
+                with keychain_prompts_disabled():
+                    OSKeystore().read_token(INSTANCE_URL)
+            else:
+                OSKeystore().read_token(INSTANCE_URL)
+        return seen
+
+    def test_a_read_in_the_block_shows_no_dialog(self):
+        """GIVEN a read inside keychain_prompts_disabled() WHEN the token is read
+        THEN user interaction is off during the read and restored after the
+        block"""
+        fake_api = self._security_api()
+
+        assert self._read(fake_api, guarded=True) == [0]
+
+        set_allowed = fake_api._sec.SecKeychainSetUserInteractionAllowed
+        assert set_allowed.call_count == 2
+        assert set_allowed.call_args_list[-1].args[0] != 0
+
+    def test_a_read_outside_the_block_is_left_alone(self):
+        """GIVEN an interactive command, which reads outside the block WHEN it
+        reads the token THEN user interaction is not changed"""
+        fake_api = self._security_api()
+
+        assert self._read(fake_api, guarded=False) == [None]
+
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.assert_not_called()
+
+    def test_a_refused_change_is_not_restored(self):
+        """GIVEN the Security framework refuses to change the setting WHEN the
+        hook reads inside the block THEN the read goes ahead and the setting is
+        not written again"""
+        fake_api = self._security_api(status=-1)
+
+        self._read(fake_api, guarded=True)
+
+        fake_api._sec.SecKeychainSetUserInteractionAllowed.assert_called_once_with(0)
+
+
 class TestFileTokenStore:
     def test_store_token_is_noop(self):
-        store = FileTokenStore()
+        store = FileKeystore()
         store.store_token(INSTANCE_URL, TOKEN)  # should not raise
 
-    def test_get_token_returns_none(self):
-        store = FileTokenStore()
-        assert store.get_token(INSTANCE_URL) is None
+    def test_read_token_raises_why_the_store_is_not_used(self):
+        """GIVEN a file keystore chosen because the OS keystore is unreachable
+        WHEN a stored token is read THEN the reason for that choice is raised"""
+        store = FileKeystore(KeystoreFailure.UNAVAILABLE, "no D-Bus session")
+        with pytest.raises(KeystoreError) as exc_info:
+            store.read_token(INSTANCE_URL)
+
+        assert exc_info.value.failure == KeystoreFailure.UNAVAILABLE
+        assert exc_info.value.detail == "no D-Bus session"
 
     def test_delete_token_is_noop(self):
-        store = FileTokenStore()
+        store = FileKeystore()
         store.delete_token(INSTANCE_URL)  # should not raise
 
     def test_is_available(self):
-        store = FileTokenStore()
+        store = FileKeystore()
         assert store.is_available() is True
 
 
 class TestGetTokenStore:
     @pytest.fixture(autouse=True)
     def _reset(self):
-        reset_token_store()
+        reset_keystore()
         yield
-        reset_token_store()
+        reset_keystore()
 
     def test_returns_keyring_when_available(self, monkeypatch):
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
@@ -310,8 +458,8 @@ class TestGetTokenStore:
                 side_effect=AssertionError("selection must not write"),
             ),
         ):
-            store = get_token_store()
-            assert isinstance(store, KeyringTokenStore)
+            store = get_keystore()
+            assert isinstance(store, OSKeystore)
 
     def test_returns_file_store_when_keyring_unavailable(self, monkeypatch):
         import keyring.backends.fail
@@ -319,39 +467,45 @@ class TestGetTokenStore:
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
         fail_keyring = keyring.backends.fail.Keyring()
         with patch("keyring.get_keyring", return_value=fail_keyring):
-            store = get_token_store()
-            assert isinstance(store, FileTokenStore)
+            store = get_keystore()
+            assert isinstance(store, FileKeystore)
+            assert store.failure == KeystoreFailure.UNAVAILABLE
+            assert store.detail == "no credential store backend is available"
 
     def test_returns_file_store_when_probe_raises(self, monkeypatch):
-        """GIVEN a backend that can't be read WHEN selecting a store THEN we
-        degrade to the file store instead of crashing"""
+        """GIVEN a keystore that cannot be read WHEN a keystore is selected THEN
+        the file keystore is used, and the reason from the availability check
+        is kept"""
         monkeypatch.delenv("GGSHIELD_NO_KEYRING", raising=False)
         with (
             patch("keyring.get_keyring", return_value=MagicMock()),
             patch("keyring.get_password", side_effect=RuntimeError("no keychain")),
         ):
-            store = get_token_store()
-            assert isinstance(store, FileTokenStore)
+            store = get_keystore()
+            assert isinstance(store, FileKeystore)
+            assert store.failure == KeystoreFailure.UNAVAILABLE
+            assert store.detail == "no keychain"
 
     @pytest.mark.parametrize("value", ("1", "true", "yes", "TRUE", "Yes"))
     def test_env_var_disables_keyring(self, monkeypatch, value):
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", value)
-        store = get_token_store()
-        assert isinstance(store, FileTokenStore)
+        store = get_keystore()
+        assert isinstance(store, FileKeystore)
+        assert store.failure == KeystoreFailure.DISABLED
 
     def test_caches_result(self, monkeypatch):
         monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
-        store1 = get_token_store()
-        store2 = get_token_store()
+        store1 = get_keystore()
+        store2 = get_keystore()
         assert store1 is store2
 
 
 class TestUsesExternalStorage:
     def test_keyring_store_uses_external_storage(self):
-        assert KeyringTokenStore().uses_external_storage is True
+        assert OSKeystore().uses_external_storage is True
 
     def test_file_store_does_not_use_external_storage(self):
-        assert FileTokenStore().uses_external_storage is False
+        assert FileKeystore().uses_external_storage is False
 
 
 class TestKeyRingSentinel:
@@ -360,13 +514,13 @@ class TestKeyRingSentinel:
 
 
 class TestKeyringConcurrency:
-    """macOS securityd fails most concurrent reads of the login Keychain, which
-    made hook fan-outs (parallel agents/sub-agents) lose scans to spurious auth
-    errors. get_token must serialize keychain access across processes/threads."""
+    """macOS rejects most concurrent reads of the login Keychain. Hooks that
+    run in parallel then failed to authenticate. read_token therefore
+    serializes keystore access across processes and threads."""
 
-    def test_get_token_is_serialized(self, monkeypatch, tmp_path):
+    def test_read_token_is_serialized(self, monkeypatch, tmp_path):
         monkeypatch.setenv("GG_CACHE_DIR", str(tmp_path))
-        store = KeyringTokenStore()
+        store = OSKeystore()
 
         state = {"active": 0, "max": 0}
         guard = threading.Lock()
@@ -383,7 +537,7 @@ class TestKeyringConcurrency:
         results = []
 
         def worker():
-            results.append(store.get_token(INSTANCE_URL))
+            results.append(store.read_token(INSTANCE_URL))
 
         with patch("keyring.get_password", side_effect=fake_get):
             threads = [threading.Thread(target=worker) for _ in range(20)]

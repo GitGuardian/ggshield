@@ -832,18 +832,18 @@ def _single_worker_api_key_check(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _disable_keyring(monkeypatch):
-    """Prevent tests from touching the real OS keyring.
+    """Prevent tests from using the real keystore.
 
-    Sets GGSHIELD_NO_KEYRING=1 and resets the cached token store so every test
-    starts with a FileTokenStore.  Tests that explicitly need keyring behaviour
-    should mock the store directly.
+    Set GGSHIELD_NO_KEYRING=1 and reset the cached keystore, so every test
+    starts with a FileKeystore. Tests that need keystore behaviour mock the
+    keystore.
     """
-    from ggshield.core.config.token_store import reset_token_store
+    from ggshield.core.config.token_store import reset_keystore
 
     monkeypatch.setenv("GGSHIELD_NO_KEYRING", "1")
-    reset_token_store()
+    reset_keystore()
     yield
-    reset_token_store()
+    reset_keystore()
 
 
 @pytest.fixture(autouse=True)
