@@ -3,7 +3,7 @@ from typing import Any, Tuple
 
 import click
 
-from ggshield.cmd.honeytoken.plant import plant_cmd
+from ggshield.cmd.honeytoken.plant import ALL_TYPES, plant_cmd
 from ggshield.cmd.install import (
     get_default_global_hook_dir_path,
     get_default_system_hook_dir_path,
@@ -97,8 +97,9 @@ def setup_cmd(
 
     Configures every protection in one idempotent run: the ggshield AI hook for
     each detected AI coding assistant, the global git pre-commit/pre-push hooks,
-    and a honeytoken to detect endpoint intrusion. Safe to re-run — it adds what
-    is missing and leaves existing entries untouched.
+    and a honeytoken of each type the workspace offers (AWS, kubeconfig) to
+    detect endpoint intrusion. Safe to re-run — it adds what is missing and
+    leaves existing entries untouched.
 
     Each protection is on by default; drop one with `--no-ai-hooks`,
     `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
@@ -261,9 +262,9 @@ def _setup_git_hooks(system: bool) -> bool:
 
 
 def _setup_honeytokens(ctx: click.Context) -> bool:
-    """Plant a honeytoken on this machine (idempotent reconcile via `plant`)."""
-    click.echo(click.style("Honeytoken", bold=True))
-    return ctx.invoke(plant_cmd) == 0
+    """Plant every honeytoken type on this machine (idempotent reconcile via `plant`)."""
+    click.echo(click.style("Honeytokens", bold=True))
+    return ctx.invoke(plant_cmd, token_type=ALL_TYPES) == 0
 
 
 def _setup_endpoint_registration(ctx: click.Context) -> None:

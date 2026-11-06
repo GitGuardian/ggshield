@@ -826,3 +826,142 @@ def test_unknown_method_on_write_says_client_may_be_out_of_date(
     assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
     assert "client may be out of date" in result.output
     assert "missing credentials" not in result.output
+
+
+# --- --type all -----------------------------------------------------------------------
+
+
+def _expect_type(token_type: str):
+    def check(body) -> None:
+        assert body["type"] == token_type
+        assert "method" not in body and "config" not in body
+
+    return check
+
+
+def test_all_reconciles_each_type_and_applies_the_merged_state(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # Each answer lists every live deployment: dep-a comes back twice but is applied
+    # and confirmed once.
+    aws = _deployment("write", dep_id="dep-a", token=("AKIAEXAMPLE", "s3"))
+    kube = _kube_deployment("write", dep_id="dep-k", subdomain="abc123", bearer="b")
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response({"deployments": [aws]}),
+        json_checker=_expect_type("aws"),
+    )
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response({"deployments": [aws, kube]}),
+        json_checker=_expect_type("kubeconfig"),
+    )
+    for dep_id in ("dep-a", "dep-k"):
+        mock.add_request(
+            ExpectedRequest(
+                "PATCH", f"{ENDPOINT}/{dep_id}", create_json_response({}, 200)
+            )
+        )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    mock.assert_all_requests_happened()
+    assert Path("home/.aws/credentials").exists()
+    assert Path("home/.kube/config").exists()
+    assert "2 written" in result.output
+
+
+@pytest.mark.parametrize("status", [400, 403])
+def test_all_skips_a_type_the_workspace_does_not_offer(
+    cli_fs_runner: CliRunner, monkeypatch, status: int
+) -> None:
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("write", token=("AKIAEXAMPLE", "s3"))]}
+        ),
+    )
+    mock.add_POST(ENDPOINT, create_json_response({"detail": "no access"}, status))
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_ok(result)
+    assert "kubeconfig honeytokens are not available on this workspace" in (
+        result.output
+    )
+    assert "1 written" in result.output
+
+
+def test_all_still_plants_the_other_types_when_one_fails(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    mock = _install_mock(monkeypatch)
+    mock.add_POST(
+        ENDPOINT,
+        create_json_response(
+            {"deployments": [_deployment("write", token=("AKIAEXAMPLE", "s3"))]}
+        ),
+    )
+    mock.add_POST(ENDPOINT, create_json_response({"detail": "boom"}, 500))
+    mock.add_request(
+        ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
+    )
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
+    assert Path("home/.aws/credentials").exists()
+    assert "kubeconfig: endpoint-deployments API error (500)" in result.output
+
+
+def test_all_fails_when_no_type_reconciles(
+    cli_fs_runner: CliRunner, monkeypatch
+) -> None:
+    # A token without `honeytokens:write` is refused for every type: an auth failure.
+    mock = _install_mock(monkeypatch)
+    for _ in range(2):
+        mock.add_POST(ENDPOINT, create_json_response({"detail": "forbidden"}, 403))
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.AUTHENTICATION_ERROR)
+    mock.assert_all_requests_happened()
+    assert not Path("home/.aws/credentials").exists()
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        ["--method", "aws_credentials"],
+        ["--filename", "credentials"],
+        ["--profile-name", "prod"],
+    ],
+)
+def test_all_rejects_placement_options(cli_fs_runner: CliRunner, option) -> None:
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", *option, "--user-dir", "home"]
+    )
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
+    assert "cannot be combined" in result.output
+
+
+def test_unknown_type_is_a_usage_error(cli_fs_runner: CliRunner) -> None:
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "gcp", "--user-dir", "home"]
+    )
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)

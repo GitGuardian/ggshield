@@ -19,8 +19,8 @@ def machine_group(**kwargs: Any) -> None:
     """
     Scan and protect this machine.
 
-    `setup` sets up all of this machine's protections (AI hooks, git hooks, and a
-    honeytoken) in one idempotent command. `doctor` checks that everything is
+    `setup` sets up all of this machine's protections (AI hooks, git hooks, and
+    honeytokens) in one idempotent command. `doctor` checks that everything is
     correctly set up — AI hooks, git hooks, the token's scopes, and the
     `machine_scan` plugin when installed — without changing anything. Secret and
     endpoint scanning (`scan`) is provided by the `machine_scan` plugin and merges
