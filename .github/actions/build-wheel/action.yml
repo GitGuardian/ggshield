@@ -57,7 +57,7 @@ runs:
         MACOS_P12_PASSWORD: ${{ inputs.macos-p12-password }}
         # Same rcodesign as the build-os-packages action installs for the
         # standalone bundles; bump both together. The checksum is the aarch64
-        # one -- the macOS wheel is built on macos-14 and lipo'd, so there is
+        # one -- the macOS wheel is built on macos-26 and lipo'd, so there is
         # no Intel runner here. Not named RCODESIGN_*: rcodesign folds every
         # variable carrying that prefix into its configuration and fails on
         # the keys it does not recognise.
@@ -70,8 +70,6 @@ runs:
           exit 1
         fi
 
-        # scripts/download needs `sha256sum`, which macOS does not ship.
-        brew install coreutils
         # Unpacked outside the checkout: `python -m build` runs on it next.
         scripts/download \
           "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F$APPLE_CODESIGN_VERSION/apple-codesign-$APPLE_CODESIGN_VERSION-aarch64-apple-darwin.tar.gz" \
