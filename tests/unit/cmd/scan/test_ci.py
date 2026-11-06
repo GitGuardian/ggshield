@@ -17,7 +17,10 @@ from ggshield.core.errors import (
     QuotaLimitReachedError,
     ServiceUnavailableError,
 )
-from ggshield.core.git_hooks.ci.commit_range import collect_commit_range_from_ci_env
+from ggshield.core.git_hooks.ci.commit_range import (
+    _fetch_target_branch,
+    collect_commit_range_from_ci_env,
+)
 from ggshield.utils.git_shell import EMPTY_SHA
 from ggshield.utils.os import cd
 from tests.repository import Repository
@@ -536,3 +539,18 @@ def test_collect_commit_range_from_ci_env(
         commits, _ = collect_commit_range_from_ci_env()
 
     assert subjets_for_commits(commits, dummy_repo) == expected_subjects
+
+
+def test_fetch_target_branch_does_not_interpret_branch_as_option(tmp_path):
+    """
+    GIVEN a target branch name that looks like a `git fetch` option running a command
+    WHEN _fetch_target_branch() is called with it
+    THEN the fetch fails without running the command
+    """
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    with cd(str(tmp_path)):
+        _fetch_target_branch(".", "--upload-pack=echo >injected")
+
+    assert not (tmp_path / "injected").exists()

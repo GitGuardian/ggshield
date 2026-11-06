@@ -31,6 +31,7 @@ from ggshield.utils.git_shell import (
     is_git_dir,
     is_gitignored,
     is_valid_git_commit_ref,
+    read_git_file,
     simplify_git_url,
 )
 from ggshield.utils.os import cd
@@ -169,6 +170,37 @@ def test_is_git_dir(tmp_path):
 def test_is_valid_git_commit_ref():
     assert is_valid_git_commit_ref("HEAD")
     assert not is_valid_git_commit_ref("invalid_ref")
+
+
+def test_is_valid_git_commit_ref_passes_ref_after_end_of_options():
+    """
+    GIVEN a ref that looks like a git option
+    WHEN is_valid_git_commit_ref() is called
+    THEN the ref is passed after --end-of-options and is reported as invalid
+    """
+    with patch("ggshield.utils.git_shell.git", wraps=git) as git_spy:
+        assert not is_valid_git_commit_ref("--batch")
+
+    cmd = git_spy.call_args.args[0]
+    assert cmd == ["cat-file", "-e", "--end-of-options", "--batch^{commit}"]
+
+
+def test_read_git_file_does_not_interpret_ref_as_option(tmp_path):
+    """
+    GIVEN a ref that looks like a `git show` option writing to a file
+    WHEN read_git_file() is called with it
+    THEN git fails to resolve the ref and does not write the file
+    """
+    repo = Repository.create(tmp_path / "repo")
+    (repo.path / "a.txt").write_text("content")
+    repo.add("a.txt")
+    repo.create_commit()
+    injected = tmp_path / "injected"
+
+    with pytest.raises(subprocess.CalledProcessError):
+        read_git_file(f"--output={injected}", Path("a.txt"), repo.path)
+
+    assert list(tmp_path.glob("injected*")) == []
 
 
 def test_check_git_dir(tmp_path):
@@ -578,6 +610,23 @@ def test_get_filepaths_from_ref(tmp_path):
     assert "second.py" not in filepaths
 
 
+def test_get_filepaths_from_ref_passes_ref_after_end_of_options(tmp_path):
+    """
+    GIVEN a repository
+    WHEN get_filepaths_from_ref() is called
+    THEN `git ls-tree` receives the ref after --end-of-options
+    """
+    repo = Repository.create(tmp_path)
+    repo.create_commit()
+
+    with patch("ggshield.utils.git_shell.git", wraps=git) as git_spy:
+        get_filepaths_from_ref("HEAD", tmp_path)
+
+    ls_tree_cmd = git_spy.call_args.args[0]
+    assert ls_tree_cmd[0] == "ls-tree"
+    assert ls_tree_cmd[-2:] == ["--end-of-options", "HEAD"]
+
+
 def test_get_staged_filepaths(tmp_path):
     # GIVEN a repository
     repo = Repository.create(tmp_path)
@@ -672,6 +721,24 @@ def test_get_default_branch_with_remote(tmp_path):
 
     # THEN the default branch is the remote initial branch
     assert default_branch == "origin/foo"
+
+
+def test_get_default_branch_passes_remote_after_end_of_options(tmp_path):
+    """
+    GIVEN a repository with a remote
+    WHEN getting the default branch
+    THEN `git remote show` receives the remote name after --end-of-options
+    """
+    remote_repository = Repository.create(tmp_path / "remote")
+    remote_repository.create_commit()
+    local_repository = Repository.clone(remote_repository.path, tmp_path / "local")
+
+    with patch("ggshield.utils.git_shell.git", wraps=git) as git_spy:
+        get_default_branch(local_repository.path)
+
+    assert ["remote", "show", "--end-of-options", "origin"] in [
+        call.args[0] for call in git_spy.call_args_list
+    ]
 
 
 def test_get_default_branch_without_remote(tmp_path):
