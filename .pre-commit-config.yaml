@@ -55,7 +55,7 @@ repos:
         files: ^scripts/(install/.*\.sh|smoke-test-wheel)$
 
   - repo: https://github.com/thlorenz/doctoc
-    rev: v2.2.0
+    rev: v2.5.0
     hooks:
       - id: doctoc
         types: [markdown]
