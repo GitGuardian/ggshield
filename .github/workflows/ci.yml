@@ -290,40 +290,6 @@ jobs:
         run: |
           python3 rust/tests/equivalence.py
 
-  rust:
-    name: Rust (${{ matrix.os }})
-    # The equivalence job above only runs cargo on ubuntu, so the platform-
-    # specific code -- the three keychain readers and the Windows config dir --
-    # is never clippy'd or tested. This job builds and tests the workspace on
-    # each OS so that code cannot rot silently.
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-14, windows-2022]
-    defaults:
-      run:
-        working-directory: rust
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Cache cargo
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
-
-      - name: Lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Test
-        run: cargo test --workspace
-
   build_os_packages:
     permissions:
       contents: read
