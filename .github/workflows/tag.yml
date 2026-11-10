@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-15-intel, macos-14]
+        os: [windows-2022, macos-15-intel, macos-26]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,7 +86,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runs-on: macos-14, wheel: macos-universal2 }
+          - { runs-on: macos-26, wheel: macos-universal2 }
           - { runs-on: windows-latest, wheel: windows-amd64 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
