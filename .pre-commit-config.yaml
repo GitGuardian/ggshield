@@ -13,7 +13,7 @@ repos:
       - id: flake8
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         # rust/hook/src/templates holds the ai-hook's message verbatim: a line
@@ -28,7 +28,7 @@ repos:
         exclude: .importlinter|rust/hook/src/templates/.*
 
   - repo: https://github.com/Woile/commitizen
-    rev: v4.18.0
+    rev: v4.19.3
     hooks:
       - id: commitizen
         # don't forget to run pre-commit install --hook-type commit-msg for this hook to run
@@ -55,7 +55,7 @@ repos:
         files: ^scripts/(install/.*\.sh|smoke-test-wheel)$
 
   - repo: https://github.com/thlorenz/doctoc
-    rev: v2.2.0
+    rev: v2.5.0
     hooks:
       - id: doctoc
         types: [markdown]

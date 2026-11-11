@@ -24,6 +24,7 @@ else:
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
 from ggshield.core.config import Config
+from ggshield.core.config.token_store import ALLOW_KEYCHAIN_DIALOG_ENV_VAR
 from ggshield.core.dirs import get_user_home_dir
 from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import pluralize
@@ -578,6 +579,9 @@ def _warm_hook_credential_store() -> None:
     Only macOS grants per binary, and only the bundle runs the hook from another
     binary: everywhere else the token has already been read by the identity the
     hook will use.
+
+    The hook allows a Keychain dialog only when ALLOW_KEYCHAIN_DIALOG_ENV_VAR is
+    set. Agents do not set it, so the hook does not show a dialog there.
     """
     if sys.platform != "darwin" or not getattr(sys, "frozen", False):
         return
@@ -590,6 +594,7 @@ def _warm_hook_credential_store() -> None:
             input=_WARM_UP_EVENT,
             text=True,
             capture_output=True,
+            env={**os.environ, ALLOW_KEYCHAIN_DIALOG_ENV_VAR: "1"},
             # Room to answer a Keychain dialog, and a bound so setup cannot hang
             # on one nobody answers.
             timeout=60,

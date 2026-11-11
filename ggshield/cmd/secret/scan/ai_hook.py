@@ -1,6 +1,7 @@
+import contextlib
 import sys
 from dataclasses import replace
-from typing import Any
+from typing import Any, ContextManager
 
 import click
 
@@ -10,7 +11,12 @@ from ggshield.cmd.secret.scan.secret_scan_common_options import (
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.client import create_client_from_config
+from ggshield.core.config.token_store import (
+    ALLOW_KEYCHAIN_DIALOG_ENV_VAR,
+    keychain_prompts_disabled,
+)
 from ggshield.core.scan import ScanContext, ScanMode
+from ggshield.utils.os import getenv_bool
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
     build_agent_headers,
@@ -20,6 +26,18 @@ from ggshield.verticals.secret import SecretScanner
 
 
 MAX_READ_SIZE = 1024 * 1024 * 10  # We restrict stdin read to 10MB
+
+
+def _keychain_dialogs() -> ContextManager[None]:
+    """Allow a Keychain dialog only when a user can see it.
+
+    Agents run the hook in the background, so Keychain reads fail instead of
+    showing a dialog. Only the `machine setup` warm-up, which runs while the
+    user is at the terminal, sets the variable that allows the dialog.
+    """
+    if getenv_bool(ALLOW_KEYCHAIN_DIALOG_ENV_VAR):
+        return contextlib.nullcontext()
+    return keychain_prompts_disabled()
 
 
 # Kept visible in help (a user debugging the hook should be able to read it),
@@ -51,7 +69,8 @@ def ai_hook_cmd(
 
     try:
         config = ctx_obj.config
-        ctx_obj.client = create_client_from_config(config)
+        with _keychain_dialogs():
+            ctx_obj.client = create_client_from_config(config)
         scanner = SecretScanner(
             client=ctx_obj.client,
             cache=ctx_obj.cache,

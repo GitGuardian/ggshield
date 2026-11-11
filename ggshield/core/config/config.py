@@ -8,7 +8,6 @@ from typing import Any, Optional, Set, Tuple
 import click
 
 from ggshield.core.config.auth_config import AuthConfig
-from ggshield.core.config.token_store import get_token_store
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
@@ -197,11 +196,11 @@ class Config:
                 else ConfigSource.ENV_VAR
             )
         except KeyError:
-            key = self.auth_config.get_instance_token(self.instance_name)
-            store = get_token_store()
+            instance_name = self.instance_name
+            key = self.auth_config.get_instance_token(instance_name)
             source = (
                 ConfigSource.KEYRING
-                if store.uses_external_storage
+                if self.auth_config.get_instance(instance_name).token_in_keystore
                 else ConfigSource.USER_CONFIG
             )
         return key, source

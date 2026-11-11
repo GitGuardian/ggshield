@@ -58,4 +58,4 @@ curl --fail --location \
 echo "Verifying integrity"
 # `-c`, not `--check`: the musllinux images used to build the wheels give us
 # BusyBox's sha256sum, which takes only the short form.
-echo "$sum  $filename" | sha256sum -c
+echo "$sum  $filename" | sha256sum -c -

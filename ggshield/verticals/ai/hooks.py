@@ -13,6 +13,11 @@ from notifypy import Notify
 from pygitguardian.config import DOCUMENT_SIZE_THRESHOLD_BYTES
 
 from ggshield.core import ui
+from ggshield.core.config.token_store import (
+    KeystoreError,
+    KeystoreFailure,
+    keystore_display_name,
+)
 from ggshield.core.dirs import get_cache_dir
 from ggshield.core.errors import AuthError
 from ggshield.core.filter import censor_match
@@ -275,7 +280,25 @@ def emit_fail_open_response(stdin_content: str, error: Exception) -> int:
 
 
 def _cannot_scan_warning(error: Exception) -> str:
-    if isinstance(error, AuthError):
+    cause = error.__cause__ if isinstance(error, AuthError) else None
+    failure = cause.failure if isinstance(cause, KeystoreError) else None
+    store = keystore_display_name()
+    if failure == KeystoreFailure.NOT_FOUND:
+        reason = f"ggshield's token should be in the {store}, but it is not there"
+        remediation = "Run 'ggshield auth login' to store a new one."
+    elif failure in (KeystoreFailure.DENIED, KeystoreFailure.UNAVAILABLE):
+        reason = f"ggshield could not read its token from the {store}"
+        likely_cause = (
+            "The Keychain may be locked, or its item may not trust this "
+            "ggshield binary."
+            if sys.platform == "darwin"
+            else f"The {store} may be locked."
+        )
+        remediation = (
+            f"{likely_cause} Run 'ggshield auth login' in a terminal to store "
+            "the token again."
+        )
+    elif isinstance(error, AuthError):
         reason = "ggshield could not authenticate to GitGuardian"
         remediation = (
             "Run 'ggshield auth login' to authenticate. If you are already "
