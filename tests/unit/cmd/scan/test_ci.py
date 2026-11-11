@@ -140,6 +140,14 @@ def test_gitlab_ci_range(
         ({"CI": "true", "BITBUCKET_COMMIT": "12345abcd"}, "ci/BITBUCKET PIPELINES"),
         ({"CI": "true", "DRONE": "1", "DRONE_COMMIT_BEFORE": "c0ff331a"}, "ci/DRONE"),
         (
+            {
+                "HARNESS_BUILD_ID": "7",
+                "DRONE": "true",
+                "DRONE_COMMIT_BEFORE": "c0ff331a",
+            },
+            "ci/HARNESS",
+        ),
+        (
             {"BUILD_BUILDID": "1234", "BUILD_SOURCEVERSION": "b4dd3caf"},
             "ci/AZURE PIPELINES",
         ),
@@ -180,7 +188,7 @@ def test_ci_cmd_does_not_work_outside_ci(_, cli_fs_runner: click.testing.CliRunn
     assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
 
     # And the error message explains why
-    assert "only be used in a CI environment" in result.output
+    assert "only be used in a supported CI environment" in result.output
 
 
 @patch("ggshield.cmd.secret.scan.ci.check_git_dir")
@@ -194,9 +202,10 @@ def test_ci_cmd_does_not_work_if_ci_env_is_odd(
     result = cli_fs_runner.invoke(cli, ["secret", "scan", "ci"])
 
     # THEN it fails
-    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    assert_invoke_exited_with(result, ExitCode.USAGE_ERROR)
 
     # And the error message explains why
+    assert "only be used in a supported CI environment" in result.output
     assert "Current CI is not detected" in result.output
 
 
@@ -519,6 +528,41 @@ def subjets_for_commits(commit_shas: List[str], dummy_repo: Repository) -> List[
                 "CI_COMMIT_BEFORE_SHA": "branch~1",
             },
             ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {
+                "HARNESS_BUILD_ID": "7",
+                "DRONE": "true",
+                "DRONE_COMMIT_BRANCH": "main",
+                "DRONE_COMMIT_BEFORE": "main",
+            },
+            ["branch_commit_1", "branch_commit_2"],
+        ),
+        (
+            {
+                "HARNESS_BUILD_ID": "7",
+                "DRONE": "true",
+                "DRONE_COMMIT_BRANCH": "branch",
+                "DRONE_COMMIT_BEFORE": "branch~1",
+            },
+            ["branch_commit_2"],
+        ),
+        (
+            {
+                "HARNESS_BUILD_ID": "7",
+                "DRONE": "true",
+                "DRONE_COMMIT_BRANCH": "branch",
+                "DRONE_COMMIT_BEFORE": EMPTY_SHA,
+            },
+            ["branch_commit_2"],
+        ),
+        (
+            {
+                "HARNESS_BUILD_ID": "7",
+                "DRONE": "true",
+                "DRONE_COMMIT_BRANCH": "branch",
+            },
+            ["branch_commit_2"],
         ),
     ],
 )

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +18,9 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.cache import ReadOnlyCache
 from ggshield.core.client import create_client_from_config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.git_hooks.ci import collect_commit_range_from_ci_env
+from ggshield.core.git_hooks.ci.supported_ci import SupportedCI
 from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.git_shell import check_git_dir
 from ggshield.verticals.secret.repo import scan_commit_range
@@ -39,8 +40,12 @@ def ci_cmd(ctx: click.Context, **kwargs: Any) -> int:
     ctx_obj.client = create_client_from_config(ctx_obj.config)
     config = ctx_obj.config
     check_git_dir()
-    if not (os.getenv("CI") or os.getenv("JENKINS_HOME") or os.getenv("BUILD_BUILDID")):
-        raise UsageError("`secret scan ci` should only be used in a CI environment.")
+    try:
+        SupportedCI.from_ci_env()
+    except UnexpectedError as exc:
+        raise UsageError(
+            f"`secret scan ci` should only be used in a supported CI environment. {exc}"
+        ) from exc
 
     commit_list, ci_mode = collect_commit_range_from_ci_env()
     mode_header = f"{ScanMode.CI.value}/{ci_mode.value}"
