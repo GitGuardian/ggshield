@@ -12,6 +12,7 @@ class SupportedCI(Enum):
     GITHUB = "GITHUB ACTIONS"
     BITBUCKET = "BITBUCKET PIPELINES"
     DRONE = "DRONE"
+    HARNESS = "HARNESS"
     AZURE = "AZURE PIPELINES"
 
     @staticmethod
@@ -28,6 +29,8 @@ class SupportedCI(Enum):
             return SupportedCI.CIRCLECI
         if os.getenv("BITBUCKET_COMMIT"):
             return SupportedCI.BITBUCKET
+        if os.getenv("HARNESS_BUILD_ID"):
+            return SupportedCI.HARNESS
         if os.getenv("DRONE"):
             return SupportedCI.DRONE
         if os.getenv("BUILD_BUILDID"):

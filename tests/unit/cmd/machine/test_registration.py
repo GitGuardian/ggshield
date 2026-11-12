@@ -25,6 +25,7 @@ CI_VARS = (
     "CIRCLECI",
     "BITBUCKET_COMMIT",
     "DRONE",
+    "HARNESS_BUILD_ID",
     "BUILD_BUILDID",
 )
 NO_FEATURES = ["--no-ai-hooks", "--no-git-hooks", "--no-honeytokens"]
