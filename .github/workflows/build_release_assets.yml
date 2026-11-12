@@ -1,6 +1,6 @@
 name: Build release assets
 
-# This workflow is used by the ci and tag workflows to build all release
+# This workflow is used by the packages and tag workflows to build all release
 # assets. It can also be triggered manually.
 
 on:
