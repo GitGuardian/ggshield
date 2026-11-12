@@ -190,10 +190,12 @@ tests = [
 ]
 dev = [
     "scriv[toml]",
-    "black==24.3.0",
     "coverage",
-    "flake8",
+    # Keep linters synced across pyproject.toml and .pre-commit-config.yaml
+    "black==24.10.0",
+    "flake8==7.5.0; python_version >= '3.11'",
     "flake8-isort",
+    "isort==9.0.2; python_version >= '3.10'",
     "flake8-quotes",
     "import-linter",
     "pre-commit",
