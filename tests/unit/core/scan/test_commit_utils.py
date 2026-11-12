@@ -12,7 +12,7 @@ from ggshield.core.scan.commit_utils import (
     convert_multi_parent_diff,
     get_file_sha_in_ref,
 )
-from ggshield.utils.git_shell import Filemode
+from ggshield.utils.git_shell import Filemode, git
 from tests.repository import Repository
 
 
@@ -261,3 +261,28 @@ def test_excluded_binary_file_in_patch_is_not_reported(
     assert paths == [Path("notes.txt")]
     display_warning.assert_not_called()
     display_verbose.assert_not_called()
+
+
+def test_get_file_sha_in_ref_passes_ref_after_end_of_options(tmp_path):
+    """
+    GIVEN a repository with a committed file
+    WHEN get_file_sha_in_ref() is called
+    THEN `git ls-tree` receives the ref after --end-of-options, before the files
+    AND the file sha is returned
+    """
+    repo = Repository.create(tmp_path)
+    (tmp_path / "a.txt").write_text("content")
+    repo.add("a.txt")
+    repo.create_commit()
+
+    with patch("ggshield.core.scan.commit_utils.git", wraps=git) as git_spy:
+        shas = dict(get_file_sha_in_ref("HEAD", ["a.txt"], tmp_path))
+
+    assert git_spy.call_args.args[0] == [
+        "ls-tree",
+        "-z",
+        "--end-of-options",
+        "HEAD",
+        "a.txt",
+    ]
+    assert list(shas) == ["a.txt"]
