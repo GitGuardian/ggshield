@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 
@@ -21,6 +21,7 @@ from ggshield.verticals.honeytoken.endpoint_deployments import (
     EndpointDeploymentsClient,
     EndpointDeploymentsError,
     HoneytokenCreds,
+    HoneytokenType,
     KubeconfigToken,
 )
 from ggshield.verticals.honeytoken.kubeconfig_file import (
@@ -53,6 +54,12 @@ class _Outcome:
     api_auth_failure: bool = False
     fs_failure: bool = False
 
+
+ALL_TYPES = "all"
+
+# A workspace that does not offer a type answers 403 (type not enabled for the
+# account) or, on a backend predating the type, 400.
+_TYPE_UNAVAILABLE_STATUSES = (400, 403)
 
 _AWS_METHODS = (
     DeploymentMethod.AWS_CREDENTIALS,
@@ -107,9 +114,14 @@ def _apply_remove(
 @click.option(
     "--type",
     "token_type",
-    default="aws",
-    help="Honeytoken type to create for this machine (aws, kubeconfig). Existing "
-    "deployments of every type are synchronized regardless.",
+    type=click.Choice(
+        [*(t.value for t in HoneytokenType), ALL_TYPES], case_sensitive=False
+    ),
+    default=HoneytokenType.AWS.value,
+    help="Honeytoken type to create for this machine. `all` creates every type the "
+    "workspace offers, each with its default placement, so it cannot be combined "
+    "with --method, --filename or --profile-name. Existing deployments of every type "
+    "are synchronized regardless.",
 )
 @click.option(
     "--method",
@@ -185,6 +197,11 @@ def plant_cmd(
 
     Authorize with the `honeytokens:write` scope.
     """
+    if token_type == ALL_TYPES and (method or filename or profile_name):
+        raise click.UsageError(
+            "--type all uses each type's default placement: --method, --filename "
+            "and --profile-name cannot be combined with it."
+        )
     try:
         targets = resolve_targets(user, user_dir)
     except LookupError as exc:
@@ -262,6 +279,8 @@ def _reconcile_for_user(
             deployments = client.list(
                 machine_info_for(target.username)["machine_id"], target.username
             )
+        elif token_type == ALL_TYPES:
+            deployments = _reconcile_all_types(client, target, outcome)
         else:
             deployments = client.reconcile(
                 machine_info_for(target.username),
@@ -387,6 +406,39 @@ def _reconcile_for_user(
     else:
         click.echo(summary)
     return outcome
+
+
+def _reconcile_all_types(
+    client: EndpointDeploymentsClient, target: Target, outcome: _Outcome
+) -> List[Deployment]:
+    """Reconcile each type with its default placement and merge the answers by id, as
+    each one already lists the user's live deployments of every type. A type the
+    workspace does not offer is skipped rather than failed, so `machine setup` stays
+    green where it is disabled. Raises the first error when no type reconciles."""
+    machine_info = machine_info_for(target.username)
+    merged: Dict[str, Deployment] = {}
+    errors: List[Tuple[HoneytokenType, EndpointDeploymentsError]] = []
+    for token_type in HoneytokenType:
+        try:
+            deployments = client.reconcile(machine_info, token_type.value)
+        except EndpointDeploymentsError as exc:
+            errors.append((token_type, exc))
+            continue
+        merged.update((item.id, item) for item in deployments)
+
+    if len(errors) == len(HoneytokenType):
+        raise errors[0][1]
+    for token_type, exc in errors:
+        if exc.status_code in _TYPE_UNAVAILABLE_STATUSES:
+            click.echo(
+                f"[{target.username}] {token_type.value} honeytokens are not "
+                f"available on this workspace (HTTP {exc.status_code}), skipped"
+            )
+        else:
+            click.echo(f"[{target.username}] {token_type.value}: {exc}", err=True)
+            outcome.api_failure = True
+            outcome.api_auth_failure |= exc.is_auth
+    return list(merged.values())
 
 
 def _confirm(
