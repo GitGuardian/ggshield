@@ -379,6 +379,49 @@ class TestScanDirectory:
         assert self.path_line("dir/subdir/file4") in result.output
         assert not result.exception
 
+    def test_directory_sops_file_not_ignored_by_default(self, cli_fs_runner):
+        """
+        GIVEN a directory containing a .sops file
+        WHEN it is scanned without any exclusion
+        THEN the .sops file is part of the scan
+        """
+        self.create_files()
+        write_text(Path("dir/secrets.sops"), "This is a file with no secrets.")
+        result = cli_fs_runner.invoke(
+            cli, ["secret", "scan", "-v", "path", "./", "-r"], input="n\n"
+        )
+        assert_invoke_ok(result)
+        assert self.path_line("dir/secrets.sops") in result.output
+
+    @pytest.mark.parametrize(
+        "use_config", [False, True], ids=["cli-option", "config-file"]
+    )
+    def test_directory_sops_file_can_be_excluded(self, cli_fs_runner, use_config):
+        """
+        GIVEN a directory containing a .sops file
+        WHEN it is scanned with an exclusion for .sops files, from the command
+        line or from .gitguardian.yaml
+        THEN the .sops file is not part of the scan
+        """
+        self.create_files()
+        write_text(Path("dir/secrets.sops"), "This is a file with no secrets.")
+        if use_config:
+            write_text(
+                Path(".gitguardian.yaml"),
+                'version: 2\nsecret:\n  ignored_paths:\n    - "**/*.sops"\n',
+            )
+            exclude_args = []
+        else:
+            exclude_args = ["--exclude", "**/*.sops"]
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "-v", *exclude_args, "path", "./", "-r"],
+            input="n\n",
+        )
+        assert_invoke_ok(result)
+        assert self.path_line("dir/secrets.sops") not in result.output
+        assert self.path_line("dir/file2") in result.output
+
     def test_directory_verbose_ignored_path_abort(self, cli_fs_runner):
         self.create_files()
         result = cli_fs_runner.invoke(

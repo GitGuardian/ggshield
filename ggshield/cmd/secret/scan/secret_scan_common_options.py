@@ -42,7 +42,6 @@ IGNORED_DEFAULT_WILDCARDS = [
     "**/*.storyboard*",
     "**/*.xib",
     "**/*.mdx*",
-    "**/*.sops",
 ]
 
 
