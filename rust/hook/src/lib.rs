@@ -201,19 +201,27 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
     let result = if secrets.is_empty() {
         HookResult::allow(payload)
     } else {
-        let result = HookResult::block(
-            payload,
-            message::from_secrets(&secrets, payload),
-            secrets.len(),
-        );
+        let result = HookResult {
+            user_message: message::user_message(&secrets, payload),
+            ..HookResult::block(
+                payload,
+                message::from_secrets(&secrets, payload),
+                secrets.len(),
+            )
+        };
         // `has_secret_already_leaked()`: on PostToolUse the secret is already in
-        // the agent's context, so tell the user out-of-band. Best effort, and
-        // only for the invocation that scanned: one event, one banner. An agent
-        // that lets us replace the output leaked nothing, so a banner there
-        // would report a non-event.
-        if payload.event_type == EventType::PostToolUse && !output::can_redact_tool_output(payload)
-        {
-            notify(&result);
+        // the agent's context, so tell the user out-of-band. An agent that lets
+        // us replace the output leaked nothing, so a banner there would report a
+        // non-event. The banner is also the only way to hand the false-positive
+        // hint to the user on an agent whose every field reaches the model.
+        // Best effort, and only for the invocation that scanned: one event, one
+        // banner.
+        let leaked = payload.event_type == EventType::PostToolUse
+            && !output::can_redact_tool_output(payload);
+        let hint = message::notification_hint(&secrets, payload);
+        if leaked || !hint.is_empty() {
+            let (title, body) = notification(&result, leaked, &hint);
+            notify::send(&title, &body);
         }
         result
     };
@@ -502,12 +510,37 @@ fn is_path_binary(path: &Path) -> bool {
         .is_some_and(|ext| binary_extensions::BINARY_EXTENSIONS.contains(&ext))
 }
 
-/// `_send_secret_notification()`. Best effort; every failure is swallowed so the
-/// block decision still gets emitted.
-///
-/// Only the wording lives here; `notify` owns the per-OS delivery.
-fn notify(result: &HookResult) {
-    let source = match result.payload.tool {
+/// The banner of `_send_secret_notification()`, as (title, body): what reached
+/// the agent when the secret leaked, otherwise what was blocked, in the title so
+/// the body is the hint alone. Banners truncate long bodies. `notify` owns the
+/// per-OS delivery.
+fn notification(result: &HookResult, leaked: bool, hint: &str) -> (String, String) {
+    let agent = result.payload.agent.display_name();
+    let secrets = message::pluralize("secret", result.nbr_secrets, None);
+    if !leaked {
+        return (
+            format!(
+                "ggshield blocked {} {secrets} in {agent}",
+                result.nbr_secrets
+            ),
+            hint.to_string(),
+        );
+    }
+    let what = format!(
+        "{agent} got access to {} {secrets} by {}",
+        result.nbr_secrets,
+        notification_source(result)
+    );
+    let body = if hint.is_empty() {
+        what
+    } else {
+        format!("{what}. {hint}")
+    };
+    ("ggshield - Secrets Detected".to_string(), body)
+}
+
+fn notification_source(result: &HookResult) -> String {
+    match result.payload.tool {
         Some(Tool::Read) => "reading a file".to_string(),
         Some(Tool::Bash) => {
             let command = result
@@ -524,14 +557,7 @@ fn notify(result: &HookResult) {
             }
         }
         _ => "using a tool".to_string(),
-    };
-    let body = format!(
-        "{} got access to {} {} by {source}",
-        result.payload.agent.display_name(),
-        result.nbr_secrets,
-        message::pluralize("secret", result.nbr_secrets, None)
-    );
-    notify::send("ggshield - Secrets Detected", &body);
+    }
 }
 
 #[cfg(test)]
@@ -690,6 +716,41 @@ mod tests {
             raw: serde_json::Value::Object(Default::default()),
             read_range: None,
         }
+    }
+
+    /// GIVEN a block on an agent, with and without a leak and a hint
+    /// WHEN the banner is built
+    /// THEN a block that leaked nothing puts what happened in the title and the
+    /// hint alone in the body; a leak keeps its sentence and appends the hint.
+    #[test]
+    fn the_notification_body_carries_the_false_positive_hint() {
+        let mut p = text_payload("id", "");
+        p.agent = payload::Agent::Codex;
+        p.tool = Some(Tool::Read);
+        let result = HookResult::block(&p, "nope".into(), 1);
+        let hint = "If this is a false positive, run: ggshield secret ignore --last-found";
+        let leak_title = "ggshield - Secrets Detected".to_string();
+        assert_eq!(
+            notification(&result, false, hint),
+            (
+                "ggshield blocked 1 secret in Codex".to_string(),
+                hint.to_string()
+            )
+        );
+        assert_eq!(
+            notification(&result, true, hint),
+            (
+                leak_title.clone(),
+                format!("Codex got access to 1 secret by reading a file. {hint}")
+            )
+        );
+        assert_eq!(
+            notification(&result, true, ""),
+            (
+                leak_title,
+                "Codex got access to 1 secret by reading a file".to_string()
+            )
+        );
     }
 
     /// GIVEN one event carrying an empty, a clean, a leaky and another clean payload

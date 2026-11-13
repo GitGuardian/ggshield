@@ -21,6 +21,9 @@ pub struct HookResult<'a> {
     /// Set when the action is allowed but the user must be warned, typically
     /// because the scan could not run at all.
     pub warning: String,
+    /// Shown to the user on a block, never to the model. Only set for agents
+    /// where `has_user_only_channel()` holds.
+    pub user_message: String,
 }
 
 impl<'a> HookResult<'a> {
@@ -31,6 +34,7 @@ impl<'a> HookResult<'a> {
             nbr_secrets: 0,
             payload,
             warning: String::new(),
+            user_message: String::new(),
         }
     }
 
@@ -48,6 +52,7 @@ impl<'a> HookResult<'a> {
             nbr_secrets,
             payload,
             warning: String::new(),
+            user_message: String::new(),
         }
     }
 }
@@ -135,6 +140,16 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // is a breach.
             Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
         }
+}
+
+/// Whether this agent shows the user a block message the model never reads, so
+/// text meant for the human only (the false-positive hint) can go there.
+///
+/// Only Claude Code's `systemMessage` is established against a live session. The
+/// other agents' warning fields are documented as user-facing, but a field that
+/// also reached the model would hand it the very command we keep from it.
+pub fn has_user_only_channel(payload: &Payload) -> bool {
+    payload.agent == Agent::Claude
 }
 
 /// The output Claude Code hands the model in place of the one that held the
@@ -257,7 +272,7 @@ pub fn emission(result: &HookResult) -> Emission {
             if !result.block {
                 allow_with_optional_warning(&result.warning)
             } else {
-                match event {
+                let mut value = match event {
                     EventType::PostToolUse => claude_post_tool_use(result),
                     EventType::UserPrompt => claude_user_prompt_block(message),
                     EventType::PreToolUse => deny_pre_tool_use(message),
@@ -266,7 +281,13 @@ pub fn emission(result: &HookResult) -> Emission {
                         ("continue", false.into()),
                         ("stopReason", message.into()),
                     ]),
+                };
+                if let Value::Object(map) = &mut value
+                    && !result.user_message.is_empty()
+                {
+                    map.insert("systemMessage".into(), result.user_message.clone().into());
                 }
+                value
             },
             0,
         ),
@@ -551,6 +572,30 @@ mod tests {
             blocked(Agent::Claude, EventType::Other).as_deref(),
             Some(r#"{"continue":false,"stopReason":"nope"}"#)
         );
+    }
+
+    /// GIVEN a Claude block carrying a message for the user
+    /// WHEN it is emitted on each event
+    /// THEN it rides in `systemMessage`, which Claude Code shows the user without
+    /// adding it to the model's context, and never in the model-facing fields.
+    #[test]
+    fn claude_sends_the_user_message_in_system_message() {
+        for event in [
+            EventType::PreToolUse,
+            EventType::PostToolUse,
+            EventType::UserPrompt,
+            EventType::Other,
+        ] {
+            let p = payload(Agent::Claude, event);
+            let result = HookResult {
+                user_message: "for the user".into(),
+                ..HookResult::block(&p, "nope".into(), 1)
+            };
+            let out = emitted(&result).expect("claude emits json");
+            let value: Value = serde_json::from_str(&out).expect("valid json");
+            assert_eq!(value["systemMessage"], "for the user", "{event:?}");
+            assert_eq!(out.matches("for the user").count(), 1, "{event:?}: {out}");
+        }
     }
 
     /// GIVEN an allow, a warning and a block on each Codex event

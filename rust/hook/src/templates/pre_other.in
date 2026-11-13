@@ -8,4 +8,4 @@ The tool call was not executed and the {secrets} {were} not leaked.
   Since the {secrets} {were} detected before the tool call was made:  
   1. consider moving the {secrets} to a secrets manager.
 
-{false_positive_instructions}
+{agent_instructions}

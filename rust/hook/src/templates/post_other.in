@@ -8,4 +8,4 @@ The {secrets} {were} exposed to the AI agent and may persist in conversation log
   Since the {secrets} {were} leaked after the tool call was made:  
 {remediation_steps}
 
-{false_positive_instructions}
+{agent_instructions}

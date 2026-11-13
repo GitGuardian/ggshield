@@ -1202,9 +1202,14 @@ def free_port():
         return s.getsockname()[1]
 
 
-def start_mock(mode, request_log):
+def start_mock(mode, request_log, validity="valid"):
     port = free_port()
-    env = {**os.environ, "MODE": mode, "REQUEST_LOG": str(request_log)}
+    env = {
+        **os.environ,
+        "MODE": mode,
+        "REQUEST_LOG": str(request_log),
+        "VALIDITY": validity,
+    }
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "tests" / "mock_api.py"), str(port)],
         env=env,
@@ -1477,7 +1482,9 @@ def compare_configs(tmp, ignore_sha):
     failures = []
     print("\n.gitguardian.yaml: every key that reaches this path")
     log = tmp / "requests-config.jsonl"
-    mock, port = start_mock("secret", log)
+    # Unchecked, unlike the agents matrix: a valid secret gets no false-positive
+    # hint, and the guard below needs one.
+    mock, port = start_mock("secret", log, validity="unknown")
     # One payload shape is enough here: the variable under test is the config.
     payload = agent_payloads()["claude"]["pre_read"]
     requests_by_case = {}
@@ -1504,12 +1511,19 @@ def compare_configs(tmp, ignore_sha):
                 print(f"        ^ expected the config to {expected}, but it did not")
 
             # A block must carry the `ignored_matches` entry that would silence
-            # it: both sides agreeing on a message that dropped it would still
-            # read as equivalent.
+            # it, in the user-only `systemMessage` and never in what the model
+            # reads: both sides agreeing on a message that misplaced it would
+            # still read as equivalent.
             if actual == "block":
+                entry = f"- match: {ignore_sha}"
                 for side, out in (("python", py), ("rust", rs)):
-                    if f"- match: {ignore_sha}".encode() not in out.stdout:
+                    verdict = json.loads(out.stdout)
+                    if entry not in verdict.get("systemMessage", ""):
                         failures.append(f"config/{case} ({side} has no ignore sha)")
+                    if entry in json.dumps(verdict["hookSpecificOutput"]):
+                        failures.append(
+                            f"config/{case} ({side} shows the model the sha)"
+                        )
                         print(f"        ^ {side} blocked without the ignore sha")
     finally:
         mock.kill()
