@@ -1510,17 +1510,17 @@ def compare_configs(tmp, ignore_sha):
                 failures.append(f"config/{case} (expected {expected}, got {actual})")
                 print(f"        ^ expected the config to {expected}, but it did not")
 
-            # A block must carry the `ignored_matches` entry that would silence
-            # it, in the user-only `systemMessage` and never in what the model
-            # reads: both sides agreeing on a message that misplaced it would
-            # still read as equivalent.
+            # A block must carry the ignore command that would silence it, in
+            # the user-only `systemMessage` and never in what the model reads:
+            # both sides agreeing on a message that misplaced it would still
+            # read as equivalent.
             if actual == "block":
-                entry = f"- match: {ignore_sha}"
+                command = f"ggshield secret ignore {ignore_sha} --name "
                 for side, out in (("python", py), ("rust", rs)):
                     verdict = json.loads(out.stdout)
-                    if entry not in verdict.get("systemMessage", ""):
+                    if command not in verdict.get("systemMessage", ""):
                         failures.append(f"config/{case} ({side} has no ignore sha)")
-                    if entry in json.dumps(verdict["hookSpecificOutput"]):
+                    if ignore_sha in json.dumps(verdict["hookSpecificOutput"]):
                         failures.append(
                             f"config/{case} ({side} shows the model the sha)"
                         )

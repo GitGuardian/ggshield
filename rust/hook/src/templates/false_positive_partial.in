@@ -1,3 +1,0 @@
-> If {this_is}, add to secret.ignored_matches in .gitguardian.yaml:
-
-{ignore_shas}

@@ -44,6 +44,7 @@ from ggshield.verticals.ai.hooks import (
     AIHookScanner,
     _cannot_scan_warning,
     _false_positive_block,
+    _ignore_name,
     _send_desktop_notification,
     build_agent_headers,
     find_filepaths,
@@ -1348,7 +1349,8 @@ class TestMessageFromSecrets:
             (["valid"], ""),
             (
                 ["unknown"],
-                "If this is a false positive, run: ggshield secret ignore --last-found",
+                'If this is a false positive, see "Handling false positives" '
+                "in the ggshield AI hook docs.",
             ),
             (
                 ["valid", "no_checker"],
@@ -1423,48 +1425,99 @@ class TestMessageFromSecrets:
         )
 
     def test_claude_sends_the_false_positive_hint_to_the_user_only(self):
-        """On Claude Code the hint goes to systemMessage, for the unchecked
-        secrets only, and the model text carries no way to ignore them."""
+        """On Claude Code the hint goes to systemMessage, as one ignore command
+        for the unchecked secret only, and the model text carries no way to
+        ignore it."""
         valid = _make_secret("sk-valid")
         unchecked = _make_secret("sk-unchecked", validity="unknown")
+        sha = unchecked.get_ignore_sha()
         payload = HookPayload(
             event_type=EventType.PRE_TOOL_USE,
-            tool=Tool.BASH,
+            tool=Tool.READ,
             content="content",
-            identifier="id",
+            identifier="/repo/.env",
             agent=Claude(),
             raw={},
+        )
+        command = (
+            f"    ggshield secret ignore {sha} "
+            f'--name "{unchecked.detector_display_name} - /repo/.env"'
         )
         cases = [
             ([valid], ""),
             (
                 [unchecked],
-                "> If this is a false positive, run:\n\n"
-                "    ggshield secret ignore --last-found",
+                "> If this is a false positive, "
+                "run at the root of the repository the agent works in:\n\n",
             ),
             (
                 [valid, unchecked],
                 "> If the secret not marked valid is a false positive, "
-                "add to secret.ignored_matches",
+                "run at the root of the repository the agent works in:\n\n",
             ),
         ]
         for secrets, hint in cases:
             message = AIHookScanner._message_from_secrets(
                 secrets, payload, escape_markdown=True
             )
-            for leak in ("secret ignore", "ignored_matches", "- match:", "handling"):
+            for leak in ("secret ignore", "ignored_matches", sha, "handling"):
                 assert leak not in message
             assert "> Instructions for the AI agent" in message
 
-            user_message = _false_positive_block(secrets)
-            assert user_message.startswith(hint)
+            user_message = _false_positive_block(secrets, payload)
             if hint:
-                assert user_message.endswith(
-                    f"    - match: {unchecked.get_ignore_sha()}"
-                )
-                assert user_message.count("- match:") == 1
+                assert user_message == hint + command
             else:
                 assert user_message == ""
+
+    def test_one_ignore_command_per_sha(self):
+        """Two secrets sharing an ignore sha get one command: running it twice
+        ignores nothing more."""
+        secrets = [
+            _make_secret("sk-same", validity="unknown"),
+            _make_secret("sk-same", validity="unknown"),
+            _make_secret("sk-other", validity="unknown"),
+        ]
+        payload = self._payload(tool=Tool.BASH)
+        commands = _false_positive_block(secrets, payload).split("\n\n", 1)[1]
+        assert commands.splitlines() == [
+            f'    ggshield secret ignore {secret.get_ignore_sha()} --name "{name}"'
+            for secret, name in (
+                (secrets[0], secrets[0].detector_display_name),
+                (secrets[2], secrets[2].detector_display_name),
+            )
+        ]
+
+    @pytest.mark.parametrize(
+        "tool, identifier, name",
+        [
+            (Tool.READ, "/repo/config/.env", "Generic Password - /repo/config/.env"),
+            (Tool.READ, "C:\\repo\\.env", "Generic Password - C:/repo/.env"),
+            (
+                Tool.READ,
+                '/repo/a"$(id)`id`%PATH%!x\u201dé.env',
+                "Generic Password - /repo/a__(id)_id__PATH__x__.env",
+            ),
+            (Tool.BASH, "cat .env", "Generic Password"),
+        ],
+    )
+    def test_the_ignore_name_is_safe_to_paste_in_a_shell(
+        self, tool: Tool, identifier: str, name: str
+    ):
+        """A read names the detector and the file, anything else the detector
+        alone, and no character a shell expands or that closes the quotes
+        survives."""
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=tool,
+            content="",
+            identifier=identifier,
+            agent=Claude(),
+            raw={},
+        )
+        secret = _make_secret("sk-xxx")
+        secret.detector_display_name = "Generic Password"
+        assert _ignore_name(secret, payload) == name
 
 
 class TestSendSecretNotification:
