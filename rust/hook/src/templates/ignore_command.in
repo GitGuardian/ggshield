@@ -1,0 +1,1 @@
+    ggshield secret ignore {sha} --name "{name}"

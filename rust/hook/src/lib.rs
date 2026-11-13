@@ -728,7 +728,7 @@ mod tests {
         p.agent = payload::Agent::Codex;
         p.tool = Some(Tool::Read);
         let result = HookResult::block(&p, "nope".into(), 1);
-        let hint = "If this is a false positive, run: ggshield secret ignore --last-found";
+        let hint = "If this is a false positive, see \"Handling false positives\" in the ggshield AI hook docs.";
         let leak_title = "ggshield - Secrets Detected".to_string();
         assert_eq!(
             notification(&result, false, hint),

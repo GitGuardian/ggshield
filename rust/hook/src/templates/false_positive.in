@@ -1,7 +1,3 @@
-> If {this_is}, run:
+> If {this_is}, run at the root of the repository the agent works in:
 
-    ggshield secret ignore --last-found
-
-  which adds to secret.ignored_matches in .gitguardian.yaml:
-
-{ignore_shas}
+{commands}

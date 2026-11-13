@@ -255,3 +255,25 @@ def test_ignore_last_found_preserve_previous_config(client, isolated_fs):
     assert matches_ignore == found_secrets
     assert config.user_config.secret.ignored_paths == previous_paths
     assert config.user_config.exit_zero is True
+
+
+def test_last_found_without_cache_fails_loudly(cli_fs_runner, tmp_path):
+    """
+    GIVEN no secrets cache, an empty one, or one that lists no secrets
+    WHEN I run `secret ignore --last-found`
+    THEN it fails with a message that says why, and writes no config
+    """
+    cache_path = tmp_path / ".cache_ggshield"  # where conftest points CACHE_PATH
+    cmd = ["secret", "ignore", "--last-found"]
+    for cache_content in (None, "", '{"last_found_secrets": []}'):
+        if cache_content is not None:
+            cache_path.write_text(cache_content)
+        result = cli_fs_runner.invoke(cli, cmd, color=False, catch_exceptions=False)
+
+        assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+        assert (
+            f"No secrets to ignore: {cache_path} is missing or lists no secrets."
+            in result.output
+        )
+        assert "Added" not in result.output
+        assert not os.path.exists(".gitguardian.yaml")

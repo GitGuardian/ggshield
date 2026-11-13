@@ -29,14 +29,13 @@ const REMEDIATION_STEPS_WITH_INCIDENT_TEMPLATE: &str =
     include_str!("templates/remediation_steps_with_incident.in");
 const AGENT_INSTRUCTIONS_TEMPLATE: &str = include_str!("templates/agent_instructions.in");
 const FALSE_POSITIVE_TEMPLATE: &str = include_str!("templates/false_positive.in");
-// `--last-found` would also ignore the valid secrets of the same scan.
-const FALSE_POSITIVE_PARTIAL_TEMPLATE: &str = include_str!("templates/false_positive_partial.in");
-// One line each: a notification is neither copyable nor long enough for the
-// `ignored_matches` entries.
+const IGNORE_COMMAND_TEMPLATE: &str = include_str!("templates/ignore_command.in");
+// A pointer, not the command: a banner truncates long text and cannot be
+// copied from, and the command carries a 64-character sha.
 const FALSE_POSITIVE_NOTIFICATION_TEMPLATE: &str =
     include_str!("templates/false_positive_notification.in");
-const FALSE_POSITIVE_NOTIFICATION_PARTIAL_TEMPLATE: &str =
-    include_str!("templates/false_positive_notification_partial.in");
+// Safe inside double quotes in POSIX shells, PowerShell and cmd.
+const IGNORE_NAME_PUNCTUATION: &str = " ._-/:@+,=()[]";
 
 /// Agents render the message as markdown, where a single newline collapses into a
 /// space; two trailing spaces keep the break. The lines of a list are joined with
@@ -80,24 +79,43 @@ pub fn censor_string(text: &str) -> String {
     out
 }
 
-/// The `ignored_matches` entries for the given secrets, one per distinct ignore
-/// sha, in the order the secrets are reported.
+/// One ignore command per distinct ignore sha, in the order the secrets are
+/// reported. See `_false_positive_block()`.
 ///
-/// Spelled out because the message censors every match, so the sha is otherwise
-/// unknowable and a hand-written entry never matches. See
-/// `_false_positive_block()`.
-fn ignore_shas(secrets: &[&Secret]) -> String {
+/// The command names its secret by sha, so it reads no scan cache. The hint
+/// sends it to the repository root: see `_false_positive_block()`.
+fn ignore_commands(secrets: &[&Secret], payload: &Payload) -> String {
     let mut seen: Vec<String> = Vec::new();
+    let mut commands: Vec<String> = Vec::new();
     for secret in secrets {
         let sha = crate::api::ignore_sha(&secret.matches);
         if !seen.contains(&sha) {
+            commands.push(render(
+                IGNORE_COMMAND_TEMPLATE,
+                &[("sha", sha.clone()), ("name", ignore_name(secret, payload))],
+            ));
             seen.push(sha);
         }
     }
-    seen.iter()
-        .map(|sha| format!("    - match: {sha}"))
-        .collect::<Vec<_>>()
-        .join("\n")
+    commands.join("\n")
+}
+
+/// `_ignore_name()`: the detector, plus the file for a read. Any other character
+/// becomes `_` (`\\` becomes `/`), so a file name cannot close the quotes or
+/// expand in the shell the command is pasted into.
+fn ignore_name(secret: &Secret, payload: &Payload) -> String {
+    let mut name = secret.detector_display_name.clone();
+    if payload.tool == Some(Tool::Read) {
+        name.push_str(" - ");
+        name.push_str(&payload.identifier);
+    }
+    name.chars()
+        .map(|c| match c {
+            c if c.is_ascii_alphanumeric() || IGNORE_NAME_PUNCTUATION.contains(c) => c,
+            '\\' => '/',
+            _ => '_',
+        })
+        .collect()
 }
 
 /// One bullet per secret, plus its incident URL when we know one. The censoring
@@ -208,11 +226,7 @@ pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
     if !crate::output::has_user_only_channel(payload) {
         return String::new();
     }
-    false_positive_hint_for(
-        secrets,
-        FALSE_POSITIVE_TEMPLATE,
-        FALSE_POSITIVE_PARTIAL_TEMPLATE,
-    )
+    false_positive_hint(secrets, payload, FALSE_POSITIVE_TEMPLATE).unwrap_or_default()
 }
 
 /// The one-line false-positive hint for the desktop notification, the user's
@@ -222,20 +236,7 @@ pub fn notification_hint(secrets: &[Secret], payload: &Payload) -> String {
     if crate::output::has_user_only_channel(payload) {
         return String::new();
     }
-    false_positive_hint_for(
-        secrets,
-        FALSE_POSITIVE_NOTIFICATION_TEMPLATE,
-        FALSE_POSITIVE_NOTIFICATION_PARTIAL_TEMPLATE,
-    )
-}
-
-fn false_positive_hint_for(secrets: &[Secret], all_unchecked: &str, mixed: &str) -> String {
-    let template = if secrets.iter().any(is_valid) {
-        mixed
-    } else {
-        all_unchecked
-    };
-    false_positive_hint(secrets, template).unwrap_or_default()
+    false_positive_hint(secrets, payload, FALSE_POSITIVE_NOTIFICATION_TEMPLATE).unwrap_or_default()
 }
 
 fn is_valid(secret: &Secret) -> bool {
@@ -244,7 +245,7 @@ fn is_valid(secret: &Secret) -> bool {
 
 /// A false-positive hint about the secrets not checked as valid, or `None` when
 /// there are none: a working secret is never one to ignore.
-fn false_positive_hint(secrets: &[Secret], template: &str) -> Option<String> {
+fn false_positive_hint(secrets: &[Secret], payload: &Payload, template: &str) -> Option<String> {
     let candidates: Vec<&Secret> = secrets.iter().filter(|s| !is_valid(s)).collect();
     if candidates.is_empty() {
         return None;
@@ -267,7 +268,7 @@ fn false_positive_hint(secrets: &[Secret], template: &str) -> Option<String> {
         template,
         &[
             ("this_is", this_is),
-            ("ignore_shas", ignore_shas(&candidates)),
+            ("commands", ignore_commands(&candidates, payload)),
         ],
     ))
 }
@@ -418,19 +419,50 @@ mod tests {
     }
 
     /// GIVEN two secrets that share one ignore sha
-    /// WHEN the false-positive block is built
-    /// THEN the entry appears once: it is a config to paste, not a tally.
+    /// WHEN the ignore commands are built
+    /// THEN the command appears once: running it twice ignores nothing more.
     #[test]
-    fn the_ignore_sha_entries_are_deduplicated() {
+    fn the_ignore_commands_are_deduplicated() {
         let one = secret("AWS Keys", "valid", &["aaa"]);
         let same = secret("AWS Keys", "valid", &["aaa"]);
         let other = secret("Generic Password", "valid", &["bbb"]);
-        let rendered = ignore_shas(&[&one, &same, &other]);
+        let p = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
+        let rendered = ignore_commands(&[&one, &same, &other], &p);
 
         assert_eq!(rendered.lines().count(), 2, "{rendered}");
         for line in rendered.lines() {
-            assert!(line.starts_with("    - match: "), "{line}");
+            assert!(line.starts_with("    ggshield secret ignore "), "{line}");
         }
+    }
+
+    /// GIVEN a secret in a read file, and one in a command
+    /// WHEN the ignore name is built
+    /// THEN a read names the detector and the file, anything else the detector
+    /// alone, and no character that a shell expands or that closes the quotes
+    /// survives.
+    #[test]
+    fn the_ignore_name_is_safe_to_paste_in_a_shell() {
+        let s = secret("Generic Password", "unknown", &["hunter2hunter2"]);
+        let read = |path: &str| payload(EventType::PreToolUse, Some(Tool::Read), path);
+        assert_eq!(
+            ignore_name(&s, &read("/repo/config/.env")),
+            "Generic Password - /repo/config/.env"
+        );
+        assert_eq!(
+            ignore_name(&s, &read(r"C:\repo\.env")),
+            "Generic Password - C:/repo/.env"
+        );
+        assert_eq!(
+            ignore_name(&s, &read("/repo/a\"$(id)`id`%PATH%!x\u{201d}é.env")),
+            "Generic Password - /repo/a__(id)_id__PATH__x__.env"
+        );
+        assert_eq!(
+            ignore_name(
+                &s,
+                &payload(EventType::PreToolUse, Some(Tool::Bash), "cat .env")
+            ),
+            "Generic Password"
+        );
     }
 
     /// GIVEN two secrets found in a file the agent already read
@@ -532,16 +564,19 @@ mod tests {
         let valid = || secret("AWS Keys", "valid", &["AKIAsomething"]);
         let unchecked = || secret("Generic Password", "unknown", &["hunter2hunter2"]);
         let unchecked_sha = crate::api::ignore_sha(&unchecked().matches);
-        let p = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
+        let p = payload(EventType::PreToolUse, Some(Tool::Read), "/repo/.env");
+        let command = format!(
+            "    ggshield secret ignore {unchecked_sha} --name \"Generic Password - /repo/.env\""
+        );
         let cases: [(&[Secret], &str); 3] = [
             (&[valid()], ""),
             (
                 &[unchecked()],
-                "> If this is a false positive, run:\n\n    ggshield secret ignore --last-found",
+                "> If this is a false positive, run at the root of the repository the agent works in:\n\n",
             ),
             (
                 &[valid(), unchecked()],
-                "> If the secret not marked valid is a false positive, add to secret.ignored_matches",
+                "> If the secret not marked valid is a false positive, run at the root of the repository the agent works in:\n\n",
             ),
         ];
         for (secrets, hint) in cases {
@@ -549,7 +584,7 @@ mod tests {
             for leak in [
                 "secret ignore",
                 "ignored_matches",
-                "- match:",
+                &unchecked_sha,
                 "handling-false-positives",
             ] {
                 assert!(!msg.contains(leak), "{leak}: {msg}");
@@ -557,16 +592,11 @@ mod tests {
             assert!(msg.contains("> Instructions for the AI agent"), "{msg}");
 
             let user = user_message(secrets, &p);
-            assert!(user.starts_with(hint), "{user}");
             if hint.is_empty() {
                 assert_eq!(user, "");
             } else {
-                // Only the unchecked secret's entry: the valid one is never offered.
-                assert!(
-                    user.ends_with(&format!("    - match: {unchecked_sha}")),
-                    "{user}"
-                );
-                assert_eq!(user.matches("- match:").count(), 1, "{user}");
+                // Only the unchecked secret's command: the valid one is never offered.
+                assert_eq!(user, format!("{hint}{command}"));
             }
         }
     }
@@ -585,7 +615,7 @@ mod tests {
             (&[valid()], ""),
             (
                 &[unchecked()],
-                "If this is a false positive, run: ggshield secret ignore --last-found",
+                "If this is a false positive, see \"Handling false positives\" in the ggshield AI hook docs.",
             ),
             (
                 &[valid(), unchecked()],

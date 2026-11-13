@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import string
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -616,52 +617,62 @@ def _this_is_a_false_positive(secrets: Sequence[Secret]) -> str:
     )
 
 
-def _false_positive_block(secrets: Sequence[Secret]) -> str:
-    """The false-positive hint for the user's eyes only, with the entries it adds.
+# Safe inside double quotes in POSIX shells, PowerShell and cmd.
+_IGNORE_NAME_CHARS = frozenset(string.ascii_letters + string.digits + " ._-/:@+,=()[]")
 
-    Empty when every secret is valid. `--last-found` ignores every secret of the
-    scan, so it is offered only when none is valid. The shas are spelled out
-    because the message censors every match, so a hand-written entry otherwise
-    never matches. The sha is a digest, not the secret.
+
+def _ignore_name(secret: Secret, payload: HookPayload) -> str:
+    """The `--name` of an ignore command: the detector, plus the file for a read.
+
+    Any other character becomes `_` (`\\` becomes `/`), so a file name cannot
+    close the quotes or expand in the shell the command is pasted into.
+    """
+    name = secret.detector_display_name
+    if payload.tool == Tool.READ:
+        name += f" - {payload.identifier}"
+    return "".join(
+        c if c in _IGNORE_NAME_CHARS else "/" if c == "\\" else "_" for c in name
+    )
+
+
+def _false_positive_block(secrets: Sequence[Secret], payload: HookPayload) -> str:
+    """The false-positive hint for the user's eyes only: one ignore command per sha.
+
+    Empty when every secret is valid. The command names its secret by sha, so it
+    reads no scan cache. It runs at the repository root because the hook reads
+    `.gitguardian.yaml` there, and `secret ignore` creates a missing one in the
+    current directory. The sha is a digest, not the secret.
     """
     unchecked = _unchecked_secrets(secrets)
     if not unchecked:
         return ""
-    this_is_a_false_positive = _this_is_a_false_positive(secrets)
-    # dict, not set: one entry per sha, in the order the secrets are reported.
-    shas = dict.fromkeys(secret.get_ignore_sha() for secret in unchecked)
-    entries = "\n".join(f"    - match: {sha}" for sha in shas)
-    if len(unchecked) < len(secrets):
-        return f"""\
-> If {this_is_a_false_positive}, add to secret.ignored_matches in .gitguardian.yaml:
-
-{entries}"""
-    return f"""\
-> If {this_is_a_false_positive}, run:
-
-    ggshield secret ignore --last-found
-
-  which adds to secret.ignored_matches in .gitguardian.yaml:
-
-{entries}"""
+    commands: Dict[str, str] = {}
+    for secret in unchecked:
+        sha = secret.get_ignore_sha()
+        commands.setdefault(
+            sha,
+            f'    ggshield secret ignore {sha} --name "{_ignore_name(secret, payload)}"',
+        )
+    return (
+        f"> If {_this_is_a_false_positive(secrets)}, "
+        "run at the root of the repository the agent works in:\n\n"
+        + "\n".join(commands.values())
+    )
 
 
 def _notification_hint(secrets: Sequence[Secret]) -> str:
     """The one-line false-positive hint for the desktop notification.
 
-    One line: a notification is neither copyable nor long enough for the
-    `ignored_matches` entries. Empty when every secret is valid.
+    A pointer, not the command: a banner truncates long text and cannot be
+    copied from, and the command carries a 64-character sha. Empty when every
+    secret is valid.
     """
-    unchecked = _unchecked_secrets(secrets)
-    if not unchecked:
+    if not _unchecked_secrets(secrets):
         return ""
-    this_is_a_false_positive = _this_is_a_false_positive(secrets)
-    if len(unchecked) < len(secrets):
-        return (
-            f"If {this_is_a_false_positive}, see "
-            '"Handling false positives" in the ggshield AI hook docs.'
-        )
-    return f"If {this_is_a_false_positive}, run: ggshield secret ignore --last-found"
+    return (
+        f"If {_this_is_a_false_positive(secrets)}, see "
+        '"Handling false positives" in the ggshield AI hook docs.'
+    )
 
 
 class AIHookScanner:
@@ -891,7 +902,7 @@ class AIHookScanner:
                     nbr_secrets=len(secrets),
                     payload=payload,
                     user_message=(
-                        _false_positive_block(secrets)
+                        _false_positive_block(secrets, payload)
                         if payload.agent.has_user_only_channel
                         else ""
                     ),

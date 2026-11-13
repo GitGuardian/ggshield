@@ -6,6 +6,7 @@ from ggshield.cmd.utils.common_options import add_common_options
 from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.text_utils import pluralize
 from ggshield.core.types import IgnoredMatch
 
@@ -82,7 +83,18 @@ def ignore_last_found(config: Config, cache: Cache) -> int:
     Add last found secrets from .cache_ggshield into ignored_matches
     in the local .gitguardian.yaml config file so that they are ignored on next run
     Secrets are added as `hash`
+
+    Raises UnexpectedError when the cache holds no secret: the cache is read from
+    the current directory only, so an empty one usually means the wrong directory.
     """
+    if not cache.last_found_secrets:
+        raise UnexpectedError(
+            f"No secrets to ignore: {cache.cache_path} is missing or lists no"
+            " secrets. `--last-found` reads the secrets found by the last"
+            " `ggshield secret scan` run from the current directory. Run it from"
+            " that directory, or ignore a secret by its SHA with"
+            " `ggshield secret ignore SECRET_SHA --name NAME`."
+        )
     for secret in cache.last_found_secrets:
         config.add_ignored_match(secret)
     return len(cache.last_found_secrets)
