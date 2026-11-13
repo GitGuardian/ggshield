@@ -201,11 +201,15 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
     let result = if secrets.is_empty() {
         HookResult::allow(payload)
     } else {
-        let result = HookResult::block(
+        let mut result = HookResult::block(
             payload,
             message::from_secrets(&secrets, payload),
             secrets.len(),
         );
+        result.matches = secrets
+            .iter()
+            .flat_map(|secret| secret.matches.iter().map(|m| m.value.clone()))
+            .collect();
         // `has_secret_already_leaked()`: on PostToolUse the secret is already in
         // the agent's context, so tell the user out-of-band. Best effort, and
         // only for the invocation that scanned: one event, one banner. An agent
