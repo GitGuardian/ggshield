@@ -539,6 +539,22 @@ The {secrets} {were} exposed to the AI agent and may persist in conversation log
 
 {false_positive_instructions}"""
 
+# A file change the agent made: its output never reached the model, and the hook
+# redacted it from the stored transcript (see Agent.is_file_change).
+_POST_FILE_CHANGE_TEMPLATE = """\
+**🚨 Detected {count} {secrets} in {file_path} 🚨**
+{secret_lines}
+
+The agent's change to this file went through, and its result did not reach the model.
+The {secrets} {were} removed from the transcript stored on disk.
+
+> How to remediate
+
+  Since the {secrets} {were} found in a file the agent changed:
+  1. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}"""
+
 _PRE_TEMPLATES: Dict[Optional[Tool], str] = {
     Tool.BASH: _PRE_BASH_TEMPLATE,
     Tool.READ: _PRE_READ_TEMPLATE,
@@ -547,6 +563,13 @@ _POST_TEMPLATES: Dict[Optional[Tool], str] = {
     Tool.BASH: _POST_BASH_TEMPLATE,
     Tool.READ: _POST_READ_TEMPLATE,
 }
+
+
+def _tool_file_path(payload: HookPayload) -> str:
+    """The path the agent sent in `tool_input`, else the payload identifier."""
+    tool_input = payload.raw.get("tool_input")
+    path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+    return path if isinstance(path, str) else payload.identifier
 
 
 def _secret_lines(secrets: List[Secret], escape_markdown: bool) -> List[str]:
@@ -822,7 +845,13 @@ class AIHookScanner:
                     # Scan said nothing about this document (skipped or degraded): not
                     # a verdict, so nothing to cache and nothing to block on.
                     continue
-                secrets: List[Secret] = list(result.secrets)
+                # One document can hold the same value twice (a Claude Code Edit
+                # output has the file and its diff); that is one secret to report,
+                # keyed like `ignored_matches`.
+                unique: Dict[str, Secret] = {}
+                for secret in result.secrets:
+                    unique.setdefault(secret.get_ignore_sha(), secret)
+                secrets: List[Secret] = list(unique.values())
                 if not secrets:
                     # Per-document: cache only if nothing was filtered out locally,
                     # else "no secret" is a verdict about the config, not the content.
@@ -839,6 +868,7 @@ class AIHookScanner:
                     ),
                     nbr_secrets=len(secrets),
                     payload=payload,
+                    matches=[m.match for secret in secrets for m in secret.matches],
                 )
 
             remaining = leftover
@@ -873,6 +903,8 @@ class AIHookScanner:
         # file, not the prompt, so it gets the file wording, not the prompt wording.
         if payload.event_type == EventType.USER_PROMPT and payload.tool != Tool.READ:
             template = _USER_PROMPT_TEMPLATE
+        elif payload.agent.is_file_change(payload):
+            template = _POST_FILE_CHANGE_TEMPLATE
         elif payload.event_type == EventType.POST_TOOL_USE:
             template = _POST_TEMPLATES.get(payload.tool, _POST_OTHER_TEMPLATE)
         else:
@@ -887,6 +919,7 @@ class AIHookScanner:
             were=pluralize("was", count, "were"),
             them=pluralize("it", count, "them"),
             identifier=payload.identifier,
+            file_path=_tool_file_path(payload),
             secret_lines="\n".join(_secret_lines(secrets, escape_markdown)),
             post_remediation_steps=_post_remediation_steps(secrets),
             false_positive_instructions=_false_positive_block(secrets),

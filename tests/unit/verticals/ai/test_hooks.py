@@ -34,6 +34,7 @@ from ggshield.verticals.ai.agents import (
     Vibe,
     VSCode,
 )
+from ggshield.verticals.ai.agents.claude_code import redact
 from ggshield.verticals.ai.cache import (
     _verdict_cache_path,
     has_clean_verdict,
@@ -189,6 +190,28 @@ class TestAIHookScannerScanContent:
         assert "dummy-detector" in result.message
         assert "secret" in result.message.lower()
         assert "remove the secret from your prompt" in result.message
+
+    def test_a_secret_reported_twice_is_listed_and_counted_once(self):
+        """
+        GIVEN a document where the scan reports the same secret twice, plus another
+        WHEN the event is scanned
+        THEN the repeat is listed once and counted once.
+        """
+        hook_scanner = AIHookScanner(
+            _mock_scanner(["sk-same-value", "sk-same-value", "sk-other-value"])
+        )
+        payload = HookPayload(
+            event_type=EventType.POST_TOOL_USE,
+            tool=Tool.OTHER,
+            content="sk-same-value sk-same-value sk-other-value",
+            identifier="id",
+            agent=Cursor(),
+            raw={},
+        )
+        result = hook_scanner._scan_content(payload)
+        assert result.nbr_secrets == 2
+        assert "Detected 2 secrets" in result.message
+        assert result.message.count("dummy-detector") == 2
 
 
 class TestVerdictCacheShortCircuit:
@@ -813,6 +836,69 @@ class TestAIHookScannerScan:
         result = mock_notify.call_args[0][0]
         assert result.nbr_secrets == 1  # nbr_secrets
         assert result.payload.tool == Tool.BASH  # tool
+
+    @pytest.mark.parametrize("tool_name", ["Edit", "Write"])
+    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
+    @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
+    def test_scan_claude_file_change_is_redacted_without_blocking(
+        self, mock_notify: MagicMock, mock_echo: MagicMock, tool_name: str
+    ):
+        """
+        GIVEN a secret in the output of a Claude Code Edit or Write, which the
+        model never receives
+        WHEN scan() runs
+        THEN the agent is not blocked, no desktop notification is raised, the
+        user is told through systemMessage, and the stored output is the real
+        one with the secret replaced everywhere.
+        """
+        tool_response = {
+            "filePath": "/repo/lib/linear.ts",
+            "originalFile": "const KEY = 'sk-xxx';\nlet typo;\n",
+            "structuredPatch": [
+                {"lines": [" const KEY = 'sk-xxx';", "-let typo;", "+let fixed;"]}
+            ],
+            "userModified": False,
+        }
+        data = {
+            "hook_event_name": "PostToolUse",
+            "tool_name": tool_name,
+            "tool_input": {"file_path": "/repo/lib/linear.ts"},
+            "tool_response": tool_response,
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
+        }
+        code = AIHookScanner(_mock_scanner(["sk-xxx"])).scan(json.dumps(data))
+
+        assert code == 0
+        mock_notify.assert_not_called()
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out["continue"] is True
+        assert "decision" not in out
+        assert "Detected 1 secret in /repo/lib/linear.ts" in out["systemMessage"]
+        assert "removed from the transcript" in out["systemMessage"]
+        assert "exposed" not in out["systemMessage"]
+        redacted = out["hookSpecificOutput"]["updatedToolOutput"]
+        assert redacted == json.loads(
+            json.dumps(tool_response).replace("sk-xxx", "[redacted by ggshield]")
+        )
+
+    def test_claude_redacts_a_multi_line_secret_from_the_diff_lines(self):
+        """
+        GIVEN a multi-line secret, matched JSON-escaped and spread over diff lines
+        WHEN the Edit output is redacted
+        THEN no line of it survives, and the lines around it do.
+        """
+        key = "-----BEGIN FAKE KEY-----\nAAAAfakefake\n-----END FAKE KEY-----"
+        output = {
+            "originalFile": f"before\n{key}\nafter\n",
+            "structuredPatch": [
+                {"lines": [f" {line}" for line in key.split("\n")] + ["+after"]}
+            ],
+        }
+        redacted = json.dumps(redact(output, [json.dumps(key)[1:-1]]))
+        for line in key.split("\n"):
+            assert line not in redacted
+        assert "+after" in redacted
 
     @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
     def test_scan_post_tool_use_notifier_failure_still_emits_block(

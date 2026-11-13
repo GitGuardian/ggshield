@@ -117,6 +117,9 @@ class HookResult:
     # Set when the action is allowed but the user must be warned,
     # typically because the scan could not run at all.
     warning: str = ""
+    # The matched values, for an output that is redacted rather than blocked
+    # (see Agent.is_file_change).
+    matches: List[str] = field(default_factory=list)
 
     @classmethod
     def allow(cls, payload: "HookPayload") -> "HookResult":
@@ -249,6 +252,14 @@ class Agent(ABC):
         By default, this is in PostToolUse hooks, but it can depend on the agent.
         """
         return payload.event_type == EventType.POST_TOOL_USE
+
+    def is_file_change(self, payload: HookPayload) -> bool:
+        """Whether this PostToolUse is a file write whose output the model never
+        receives, so the hook redacts it instead of blocking the agent.
+
+        False unless the agent's edit payload was captured from a real session.
+        """
+        return False
 
     def event_cwd(self, data: Dict[str, Any]) -> str:
         """The directory the event happened in, used to resolve relative file

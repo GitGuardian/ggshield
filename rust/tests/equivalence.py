@@ -249,16 +249,33 @@ def agent_payloads():
         return built
 
     return {
-        "claude": shapes(
-            claude,
-            prompt_event="UserPromptSubmit",
-            pre="PreToolUse",
-            post="PostToolUse",
-            bash="Bash",
-            read="Read",
-            output_key="tool_response",
-            output_value={"stdout": CLIENT_ID, "stderr": "", "interrupted": False},
-        ),
+        "claude": {
+            **shapes(
+                claude,
+                prompt_event="UserPromptSubmit",
+                pre="PreToolUse",
+                post="PostToolUse",
+                bash="Bash",
+                read="Read",
+                output_key="tool_response",
+                output_value={"stdout": CLIENT_ID, "stderr": "", "interrupted": False},
+            ),
+            # The model only gets "updated successfully" for an Edit, so both
+            # sides redact the stored output instead of blocking.
+            "post_edit": {
+                **claude,
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "/repo/creds.py", "old_string": "a"},
+                "tool_response": {
+                    "filePath": "/repo/creds.py",
+                    "originalFile": f"KEY = '{CLIENT_ID}'\na = 1\n",
+                    "structuredPatch": [
+                        {"lines": [f" KEY = '{CLIENT_ID}'", "-a = 1", "+b = 1"]}
+                    ],
+                },
+            },
+        },
         "codex": shapes(
             codex,
             prompt_event="UserPromptSubmit",
