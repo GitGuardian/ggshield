@@ -190,6 +190,28 @@ class TestAIHookScannerScanContent:
         assert "secret" in result.message.lower()
         assert "remove the secret from your prompt" in result.message
 
+    def test_a_secret_reported_twice_is_listed_and_counted_once(self):
+        """
+        GIVEN a document where the scan reports the same secret twice, plus another
+        WHEN the event is scanned
+        THEN the repeat is listed once and counted once.
+        """
+        hook_scanner = AIHookScanner(
+            _mock_scanner(["sk-same-value", "sk-same-value", "sk-other-value"])
+        )
+        payload = HookPayload(
+            event_type=EventType.POST_TOOL_USE,
+            tool=Tool.OTHER,
+            content="sk-same-value sk-same-value sk-other-value",
+            identifier="id",
+            agent=Cursor(),
+            raw={},
+        )
+        result = hook_scanner._scan_content(payload)
+        assert result.nbr_secrets == 2
+        assert "Detected 2 secrets" in result.message
+        assert result.message.count("dummy-detector") == 2
+
 
 class TestVerdictCacheShortCircuit:
     """The clean-verdict cache must skip the API call, and only when it is safe to."""

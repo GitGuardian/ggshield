@@ -822,7 +822,13 @@ class AIHookScanner:
                     # Scan said nothing about this document (skipped or degraded): not
                     # a verdict, so nothing to cache and nothing to block on.
                     continue
-                secrets: List[Secret] = list(result.secrets)
+                # One document can hold the same value twice (a Claude Code Edit
+                # output has the file and its diff); that is one secret to report,
+                # keyed like `ignored_matches`.
+                unique: Dict[str, Secret] = {}
+                for secret in result.secrets:
+                    unique.setdefault(secret.get_ignore_sha(), secret)
+                secrets: List[Secret] = list(unique.values())
                 if not secrets:
                     # Per-document: cache only if nothing was filtered out locally,
                     # else "no secret" is a verdict about the config, not the content.
