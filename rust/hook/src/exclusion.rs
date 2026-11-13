@@ -13,7 +13,7 @@ use regex::{Regex, RegexSet};
 use ggshield_config::user_config::SecretConfig;
 
 /// `IGNORED_DEFAULT_WILDCARDS`, in `cmd/secret/scan/secret_scan_common_options.py`.
-const IGNORED_DEFAULT_WILDCARDS: [&str; 14] = [
+const IGNORED_DEFAULT_WILDCARDS: [&str; 13] = [
     "**/.git/*/**/*",
     "**/.pytest_cache/**/*",
     "**/.mypy_cache/**/*",
@@ -27,7 +27,6 @@ const IGNORED_DEFAULT_WILDCARDS: [&str; 14] = [
     "**/*.storyboard*",
     "**/*.xib",
     "**/*.mdx*",
-    "**/*.sops",
 ];
 
 /// `REGEX_SPECIAL_CHARS`. `*` is escaped here and unescaped by the two
@@ -275,6 +274,26 @@ mod tests {
         assert!(excluded.is_excluded("/repo/node_modules/pkg/creds.py", "/repo"));
         assert!(excluded.is_excluded("/repo/.venv/lib/thing.py", "/repo"));
         assert!(!excluded.is_excluded("/repo/src/creds.py", "/repo"));
+    }
+
+    /// GIVEN no user config at all
+    /// WHEN a SOPS file is tested
+    /// THEN it is not excluded: SOPS files can hold secrets committed in
+    /// plaintext.
+    #[test]
+    fn sops_files_are_not_excluded_by_default() {
+        let excluded = exclusions(&[]);
+        assert!(!excluded.is_excluded("/repo/secrets.sops", "/repo"));
+        assert!(!excluded.is_excluded("/repo/config/prod.sops", "/repo"));
+    }
+
+    /// GIVEN a user glob for SOPS files
+    /// WHEN a SOPS file is tested
+    /// THEN it is excluded.
+    #[test]
+    fn sops_files_can_still_be_excluded_by_the_user() {
+        let excluded = exclusions(&["**/*.sops"]);
+        assert!(excluded.is_excluded("/repo/config/prod.sops", "/repo"));
     }
 
     /// GIVEN a project whose own path runs through a vendor-like directory
