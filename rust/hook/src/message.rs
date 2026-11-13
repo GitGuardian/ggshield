@@ -27,7 +27,16 @@ const INCIDENT_URL_LINE_TEMPLATE: &str = include_str!("templates/incident_url_li
 const REMEDIATION_STEPS_TEMPLATE: &str = include_str!("templates/remediation_steps.in");
 const REMEDIATION_STEPS_WITH_INCIDENT_TEMPLATE: &str =
     include_str!("templates/remediation_steps_with_incident.in");
+const AGENT_INSTRUCTIONS_TEMPLATE: &str = include_str!("templates/agent_instructions.in");
 const FALSE_POSITIVE_TEMPLATE: &str = include_str!("templates/false_positive.in");
+// `--last-found` would also ignore the valid secrets of the same scan.
+const FALSE_POSITIVE_PARTIAL_TEMPLATE: &str = include_str!("templates/false_positive_partial.in");
+// One line each: a notification is neither copyable nor long enough for the
+// `ignored_matches` entries.
+const FALSE_POSITIVE_NOTIFICATION_TEMPLATE: &str =
+    include_str!("templates/false_positive_notification.in");
+const FALSE_POSITIVE_NOTIFICATION_PARTIAL_TEMPLATE: &str =
+    include_str!("templates/false_positive_notification_partial.in");
 
 /// Agents render the message as markdown, where a single newline collapses into a
 /// space; two trailing spaces keep the break. The lines of a list are joined with
@@ -71,13 +80,13 @@ pub fn censor_string(text: &str) -> String {
     out
 }
 
-/// The `ignored_matches` entries `ggshield secret ignore --last-found` would
-/// write, one per distinct ignore sha, in the order the secrets are reported.
+/// The `ignored_matches` entries for the given secrets, one per distinct ignore
+/// sha, in the order the secrets are reported.
 ///
 /// Spelled out because the message censors every match, so the sha is otherwise
 /// unknowable and a hand-written entry never matches. See
 /// `_false_positive_block()`.
-fn ignore_shas(secrets: &[Secret]) -> String {
+fn ignore_shas(secrets: &[&Secret]) -> String {
     let mut seen: Vec<String> = Vec::new();
     for secret in secrets {
         let sha = crate::api::ignore_sha(&secret.matches);
@@ -177,17 +186,8 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
             pluralize("its provider", count, Some("their providers")),
         ),
         ("incidents", pluralize("incident", nb_incidents, None)),
-        (
-            "this_is",
-            pluralize(
-                "this is a false positive",
-                count,
-                Some("these are false positives"),
-            ),
-        ),
         ("identifier", payload.identifier.clone()),
         ("secret_lines", secret_lines(secrets)),
-        ("ignore_shas", ignore_shas(secrets)),
     ];
     let steps = if nb_incidents > 0 {
         REMEDIATION_STEPS_WITH_INCIDENT_TEMPLATE
@@ -196,10 +196,80 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
     };
     fields.push(("remediation_steps", render(steps, &fields)));
     fields.push((
-        "false_positive_instructions",
-        render(FALSE_POSITIVE_TEMPLATE, &fields),
+        "agent_instructions",
+        render(AGENT_INSTRUCTIONS_TEMPLATE, &fields),
     ));
     render(template, &fields)
+}
+
+/// The false-positive hint for the agent's user-only field, or an empty string
+/// when the agent has no such field or every secret is valid.
+pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
+    if !crate::output::has_user_only_channel(payload) {
+        return String::new();
+    }
+    false_positive_hint_for(
+        secrets,
+        FALSE_POSITIVE_TEMPLATE,
+        FALSE_POSITIVE_PARTIAL_TEMPLATE,
+    )
+}
+
+/// The one-line false-positive hint for the desktop notification, the user's
+/// only channel on an agent without a user-only field. Empty when the agent has
+/// one, or when every secret is valid.
+pub fn notification_hint(secrets: &[Secret], payload: &Payload) -> String {
+    if crate::output::has_user_only_channel(payload) {
+        return String::new();
+    }
+    false_positive_hint_for(
+        secrets,
+        FALSE_POSITIVE_NOTIFICATION_TEMPLATE,
+        FALSE_POSITIVE_NOTIFICATION_PARTIAL_TEMPLATE,
+    )
+}
+
+fn false_positive_hint_for(secrets: &[Secret], all_unchecked: &str, mixed: &str) -> String {
+    let template = if secrets.iter().any(is_valid) {
+        mixed
+    } else {
+        all_unchecked
+    };
+    false_positive_hint(secrets, template).unwrap_or_default()
+}
+
+fn is_valid(secret: &Secret) -> bool {
+    matches!(secret.validity, Some(Validity::Valid))
+}
+
+/// A false-positive hint about the secrets not checked as valid, or `None` when
+/// there are none: a working secret is never one to ignore.
+fn false_positive_hint(secrets: &[Secret], template: &str) -> Option<String> {
+    let candidates: Vec<&Secret> = secrets.iter().filter(|s| !is_valid(s)).collect();
+    if candidates.is_empty() {
+        return None;
+    }
+    let count = candidates.len();
+    let this_is = if candidates.len() == secrets.len() {
+        pluralize(
+            "this is a false positive",
+            count,
+            Some("these are false positives"),
+        )
+    } else {
+        pluralize(
+            "the secret not marked valid is a false positive",
+            count,
+            Some("the secrets not marked valid are false positives"),
+        )
+    };
+    Some(render(
+        template,
+        &[
+            ("this_is", this_is),
+            ("ignore_shas", ignore_shas(&candidates)),
+        ],
+    ))
 }
 
 /// One pass, like `str.format`. Chained `replace` calls would re-scan inserted
@@ -340,12 +410,9 @@ mod tests {
         // The censoring asterisks are rendered as bullets.
         assert!(!msg.contains("): byI*"), "{msg}");
         assert!(msg.contains("The command was not executed and the secret was not leaked."));
-        assert!(msg.contains("    ggshield secret ignore --last-found"));
+        assert!(!msg.contains("secret ignore"), "{msg}");
         assert!(
-            msg.ends_with(&format!(
-                "    - match: {}",
-                crate::api::ignore_sha(&secrets[0].matches)
-            )),
+            msg.ends_with("do not suggest disabling or uninstalling the GitGuardian hook."),
             "{msg}"
         );
     }
@@ -358,7 +425,7 @@ mod tests {
         let one = secret("AWS Keys", "valid", &["aaa"]);
         let same = secret("AWS Keys", "valid", &["aaa"]);
         let other = secret("Generic Password", "valid", &["bbb"]);
-        let rendered = ignore_shas(&[one, same, other]);
+        let rendered = ignore_shas(&[&one, &same, &other]);
 
         assert_eq!(rendered.lines().count(), 2, "{rendered}");
         for line in rendered.lines() {
@@ -391,7 +458,7 @@ mod tests {
         assert!(msg.contains("Consider them compromised."));
         assert!(msg.contains("  1. revoke the secrets and issue new ones with their providers."));
         assert!(msg.contains("  2. consider moving the new secrets to a secrets manager."));
-        assert!(msg.contains("> If these are false positives, run:"));
+        assert!(!msg.contains("false positive"), "{msg}");
     }
 
     /// GIVEN a known secret with an incident URL
@@ -453,9 +520,124 @@ mod tests {
             assert!(msg.contains("not sent to the model"), "{tool:?}: {msg}");
             assert!(!msg.contains("Consider it compromised"), "{tool:?}: {msg}");
             assert!(!msg.contains("revoke"), "{tool:?}: {msg}");
-            // The false-positive escape hatch stays: a withheld output is still
-            // a blocked one, and the user may disagree with the finding.
-            assert!(msg.contains("ggshield secret ignore --last-found"), "{msg}");
+        }
+    }
+
+    /// GIVEN Claude Code, which has a channel only the user reads
+    /// WHEN secrets of each validity mix are blocked
+    /// THEN the model text never carries a way to ignore them, and the user gets
+    /// the hint only for the secrets not checked as valid.
+    #[test]
+    fn claude_sends_the_false_positive_hint_to_the_user_only() {
+        let valid = || secret("AWS Keys", "valid", &["AKIAsomething"]);
+        let unchecked = || secret("Generic Password", "unknown", &["hunter2hunter2"]);
+        let unchecked_sha = crate::api::ignore_sha(&unchecked().matches);
+        let p = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
+        let cases: [(&[Secret], &str); 3] = [
+            (&[valid()], ""),
+            (
+                &[unchecked()],
+                "> If this is a false positive, run:\n\n    ggshield secret ignore --last-found",
+            ),
+            (
+                &[valid(), unchecked()],
+                "> If the secret not marked valid is a false positive, add to secret.ignored_matches",
+            ),
+        ];
+        for (secrets, hint) in cases {
+            let msg = from_secrets(secrets, &p);
+            for leak in [
+                "secret ignore",
+                "ignored_matches",
+                "- match:",
+                "handling-false-positives",
+            ] {
+                assert!(!msg.contains(leak), "{leak}: {msg}");
+            }
+            assert!(msg.contains("> Instructions for the AI agent"), "{msg}");
+
+            let user = user_message(secrets, &p);
+            assert!(user.starts_with(hint), "{user}");
+            if hint.is_empty() {
+                assert_eq!(user, "");
+            } else {
+                // Only the unchecked secret's entry: the valid one is never offered.
+                assert!(
+                    user.ends_with(&format!("    - match: {unchecked_sha}")),
+                    "{user}"
+                );
+                assert_eq!(user.matches("- match:").count(), 1, "{user}");
+            }
+        }
+    }
+
+    /// GIVEN every supported agent, every event, and each validity mix
+    /// WHEN secrets are blocked
+    /// THEN the model text carries the instructions and no false-positive hint,
+    /// and the user gets the hint exactly once: in the user-only field where the
+    /// agent has one, in the notification otherwise, and nowhere for a valid
+    /// secret.
+    #[test]
+    fn every_agent_keeps_the_hint_from_the_model_and_gives_it_to_the_user() {
+        let valid = || secret("AWS Keys", "valid", &["AKIAsomething"]);
+        let unchecked = || secret("Generic Password", "unknown", &["hunter2hunter2"]);
+        let cases: [(&[Secret], &str); 3] = [
+            (&[valid()], ""),
+            (
+                &[unchecked()],
+                "If this is a false positive, run: ggshield secret ignore --last-found",
+            ),
+            (
+                &[valid(), unchecked()],
+                "If the secret not marked valid is a false positive, see \"Handling false positives\"",
+            ),
+        ];
+        for agent in crate::payload::AGENTS {
+            for event in [
+                EventType::UserPrompt,
+                EventType::PreToolUse,
+                EventType::PostToolUse,
+                EventType::Other,
+            ] {
+                let p = payload_for(agent, event, Some(Tool::Bash), "echo x");
+                for (secrets, notification) in &cases {
+                    let msg = from_secrets(secrets, &p);
+                    for leak in [
+                        "false positive",
+                        "secret ignore",
+                        "ignored_matches",
+                        "- match:",
+                    ] {
+                        assert!(!msg.contains(leak), "{agent:?}/{event:?} {leak}: {msg}");
+                    }
+                    assert!(
+                        msg.contains("> Instructions for the AI agent\n\n  Relay this notice to the user. Do not ignore the"),
+                        "{agent:?}/{event:?}: {msg}"
+                    );
+                    assert!(
+                        msg.ends_with(
+                            "do not suggest disabling or uninstalling the GitGuardian hook."
+                        ),
+                        "{agent:?}/{event:?}: {msg}"
+                    );
+
+                    let user = user_message(secrets, &p);
+                    let banner = notification_hint(secrets, &p);
+                    if agent == crate::payload::Agent::Claude {
+                        assert_eq!(banner, "", "{event:?}");
+                        assert_eq!(
+                            user.is_empty(),
+                            notification.is_empty(),
+                            "{event:?}: {user}"
+                        );
+                    } else {
+                        assert_eq!(user, "", "{agent:?}/{event:?}");
+                        assert!(banner.starts_with(notification), "{agent:?}: {banner}");
+                        assert_eq!(banner.is_empty(), notification.is_empty(), "{agent:?}");
+                        assert!(!banner.contains('\n'), "{agent:?}: {banner}");
+                    }
+                }
+            }
         }
     }
 

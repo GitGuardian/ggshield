@@ -100,6 +100,11 @@ class Claude(Agent):
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".claude"
 
+    @property
+    def has_user_only_channel(self) -> bool:
+        # systemMessage: shown in the UI, not added to the model's context.
+        return True
+
     def output_result(self, result: HookResult) -> int:
         response = {}
         if result.block:
@@ -129,6 +134,8 @@ class Claude(Agent):
                     "continue": False,
                     "stopReason": result.message,
                 }
+            if result.user_message:
+                response["systemMessage"] = result.user_message
         else:
             response["continue"] = True
             if result.warning:
