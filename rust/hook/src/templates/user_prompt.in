@@ -9,4 +9,4 @@ The prompt was not sent to the agent and the {secrets} {were} not leaked.
   1. remove the {secrets} from your prompt.  
   2. submit your prompt again.
 
-{false_positive_instructions}
+{agent_instructions}
