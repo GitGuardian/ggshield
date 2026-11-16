@@ -16,6 +16,15 @@ version: 2
 # One ecosystem per weekday. A shared slot opened all five within minutes, each
 # starting a CI run and a benchmark against the same API token; one PR a day
 # spreads that load, and the review work, across the week.
+
+# Keep linters synced across pyproject.toml and .pre-commit-config.yaml
+multi-ecosystem-groups:
+  python-linters:
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+    labels: ['dependencies', 'python:uv', 'pre_commit', 'skip-changelog']
+
 updates:
   - package-ecosystem: 'github-actions'
     directories: ['/', '/.github/actions/*']
@@ -56,10 +65,13 @@ updates:
     cooldown:
       default-days: 3
     labels: ['dependencies', 'python:uv', 'skip-changelog']
+    multi-ecosystem-group: 'python-linters'
+    patterns: ['black', 'flake8', 'isort']
     groups:
       uv-minor-patch:
         applies-to: version-updates
         patterns: ['*']
+        exclude-patterns: ['black', 'flake8', 'isort']
         update-types: ['minor', 'patch']
     ignore:
       # charset-normalizer 3.2+ changed its encoding detection and mis-decodes
@@ -91,10 +103,19 @@ updates:
     cooldown:
       default-days: 3
     labels: ['dependencies', 'pre_commit', 'skip-changelog']
+    multi-ecosystem-group: 'python-linters'
+    patterns:
+      - 'https://github.com/ambv/black'
+      - 'https://github.com/PyCQA/flake8'
+      - 'https://github.com/pycqa/isort'
     groups:
       pre-commit-minor-patch:
         applies-to: version-updates
         patterns: ['*']
+        exclude-patterns:
+          - 'https://github.com/ambv/black'
+          - 'https://github.com/PyCQA/flake8'
+          - 'https://github.com/pycqa/isort'
         update-types: ['minor', 'patch']
     ignore:
       # This repo's own hook: `rev` there tracks ggshield's __version__ in the
