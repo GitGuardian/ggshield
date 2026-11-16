@@ -5,7 +5,7 @@ import subprocess
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1912,6 +1912,49 @@ class TestAIHookScannerParseInput:
         assert payload.event_type == EventType.POST_TOOL_USE
         assert payload.tool == Tool.BASH
         assert "user1" in payload.content
+        assert isinstance(payload.agent, Copilot)
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "hello world"},
+                id="user_prompt",
+            ),
+            pytest.param(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "bash",
+                    "tool_input": {"command": "whoami"},
+                    "tool_use_id": "toolu_01",
+                },
+                id="pre_tool_use",
+            ),
+            pytest.param(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "bash",
+                    "tool_input": {"command": "whoami"},
+                    "tool_result": {
+                        "result_type": "success",
+                        "text_result_for_llm": "user1",
+                    },
+                    "tool_use_id": "toolu_01",
+                },
+                id="post_tool_use",
+            ),
+        ],
+    )
+    def test_copilot_desktop_app_payloads(self, extra: Dict[str, Any]):
+        """The Copilot desktop app (1.4.2) adds `tool_use_id` to tool events,
+        which must not stop it being recognized as Copilot."""
+        data = {
+            "cwd": "/home/user1/foo",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            **extra,
+        }
+        payload = parse_hook_input(json.dumps(data))[-1]
         assert isinstance(payload.agent, Copilot)
 
     def test_raises_if_no_agent_recognized(self):
