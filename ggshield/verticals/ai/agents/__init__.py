@@ -11,21 +11,21 @@ from .vibe import Vibe
 from .vscode import VSCode
 
 
-# Order matters: _detect_agent takes the first agent whose is_caller matches, so
-# exact matchers come before Claude's "claude" in transcript_path substring check.
-# Kiro comes last of all: it keys on event names the others share, so it is the
-# broadest matcher and every exact one gets first refusal.
+# Order matters: _detect_agent takes the first agent whose is_caller matches.
+# Same order as AGENTS in rust/hook/src/payload.rs: agents with a marker of their
+# own first, then Kiro and Copilot, which key on fields others share, then
+# Claude, which claims any session_id beside a transcript_path.
 AGENTS: Dict[str, Agent] = {
     agent.name: agent
     for agent in [
         Vibe(),
-        Claude(),
-        Codex(),
-        Copilot(),
         Cursor(),
+        Codex(),
         VSCode(),
         Junie(),
         Kiro(),
+        Copilot(),
+        Claude(),
     ]
 }
 

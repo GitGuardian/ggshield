@@ -2127,6 +2127,43 @@ class TestAIHookScannerParseInput:
 
         assert isinstance(payload.agent, Vibe)
 
+    def test_cursor_wins_over_claude_when_project_is_named_claude(self):
+        """Cursor mangles the project path into its transcript path, so a
+        project called claude-tools must still be answered as Cursor."""
+        data = {
+            "conversation_id": "75fed8a8-2078-4e49-80d2-776b20d441c3",
+            "session_id": "75fed8a8-2078-4e49-80d2-776b20d441c3",
+            "cursor_version": "2.5.25",
+            "workspace_roots": ["/home/user1/claude-tools"],
+            "transcript_path": (
+                "/home/user1/.cursor/projects/home-user1-claude-tools/"
+                "agent-transcripts/75fed8a8/75fed8a8.jsonl"
+            ),
+            "hook_event_name": "preToolUse",
+            "tool_name": "Shell",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Cursor)
+
+    def test_claude_with_relocated_config_dir(self):
+        """CLAUDE_CONFIG_DIR can put Claude Code's transcripts under a path
+        that does not say "claude"."""
+        data = {
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "transcript_path": "/workspace/.config/cc/projects/foo/3b7ae0c5.jsonl",
+            "cwd": "/workspace/foo",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Claude)
+
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""
         content = json.dumps(
