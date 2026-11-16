@@ -13,7 +13,7 @@ use regex::{Regex, RegexSet};
 use ggshield_config::user_config::SecretConfig;
 
 /// `IGNORED_DEFAULT_WILDCARDS`, in `cmd/secret/scan/secret_scan_common_options.py`.
-const IGNORED_DEFAULT_WILDCARDS: [&str; 14] = [
+const IGNORED_DEFAULT_WILDCARDS: [&str; 13] = [
     "**/.git/*/**/*",
     "**/.pytest_cache/**/*",
     "**/.mypy_cache/**/*",
@@ -27,7 +27,6 @@ const IGNORED_DEFAULT_WILDCARDS: [&str; 14] = [
     "**/*.storyboard*",
     "**/*.xib",
     "**/*.mdx*",
-    "**/*.sops",
 ];
 
 /// `REGEX_SPECIAL_CHARS`. `*` is escaped here and unescaped by the two
