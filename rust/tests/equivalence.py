@@ -130,8 +130,7 @@ def agent_bases():
         "turn_id": "turn_123",
         "model": "gpt-5.4",
     }
-    # Copilot CLI is detected by an EXACT key set, so its envelope must carry
-    # nothing beyond the four default fields.
+    # Copilot sends no marker of its own: only the four default fields.
     copilot = {
         "timestamp": "2026-02-26T11:28:53.112Z",
         "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
@@ -332,6 +331,25 @@ def agent_payloads():
             # post_agent is recognised as Vibe but maps to no event type, so it
             # must parse and pass through rather than being refused.
             "post_agent": {**vibe, "hook_event_name": "post_agent"},
+        },
+        # The Copilot desktop app: PascalCase events, and a `tool_use_id` on
+        # tool events that an exact key set once refused.
+        "copilot_desktop": {
+            shape: (
+                payload
+                if shape == "user_prompt"
+                else {**payload, "tool_use_id": "toolu_01"}
+            )
+            for shape, payload in shapes(
+                copilot,
+                prompt_event="UserPromptSubmit",
+                pre="PreToolUse",
+                post="PostToolUse",
+                bash="bash",
+                read="view",
+                output_key="tool_result",
+                output_value={"output": CLIENT_ID},
+            ).items()
         },
         "vscode": shapes(
             vscode,
@@ -2289,6 +2307,14 @@ def main():
                 "back-ported."
             ),
             "secret/copilot/post_bash": (
+                "Copilot CLI already replaces a blocked tool result, so the "
+                "secret never reached the model on either side. Rust says so; "
+                "Python still tells the user the secret was exposed and to "
+                "revoke it. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change "
+                "is not back-ported."
+            ),
+            "secret/copilot_desktop/post_bash": (
                 "Copilot CLI already replaces a blocked tool result, so the "
                 "secret never reached the model on either side. Rust says so; "
                 "Python still tells the user the secret was exposed and to "
