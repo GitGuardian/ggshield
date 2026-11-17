@@ -176,11 +176,17 @@ fn cannot_scan(stdin_content: &str, warning: String, fail: bool) -> CannotScan {
         },
         Ok(payloads) if !payloads.is_empty() => {
             let payload = &payloads[payloads.len() - 1];
+            let result = if fail && payload.event_type == EventType::Other {
+                // Nothing to scan, so the answer a working scan would give:
+                // blocking a lifecycle event can stop the agent's whole session.
+                HookResult::allow(payload)
+            } else if fail {
+                HookResult::block(payload, warning.clone(), 0)
+            } else {
+                HookResult::allow_with_warning(payload, warning.clone())
+            };
             CannotScan {
-                emission: output::emission(&HookResult::allow_with_warning(
-                    payload,
-                    warning.clone(),
-                )),
+                emission: output::emission(&result),
                 warning,
             }
         }
@@ -605,6 +611,61 @@ mod tests {
                 assert_eq!(answer.emission, Emission::Silent(code), "{fail:?}");
                 assert_eq!(answer.warning, error::UNRECOGNIZED_AGENT_WARNING);
             }
+        }
+    }
+
+    /// GIVEN a Claude Code tool call that could not be scanned
+    /// WHEN `ai_hook_failure_policy` is allow, then block
+    /// THEN allow lets it through with the warning, and block denies it with
+    /// the warning as the reason.
+    #[test]
+    fn a_known_agent_gets_its_own_answer_per_ai_hook_failure_policy() {
+        let event = claude_bash_event("ls");
+        let warning = "ggshield could not scan (boom) — this action was NOT scanned for secrets.";
+
+        let allowed = cannot_scan(&event, warning.into(), false);
+        assert_eq!(
+            allowed.emission,
+            Emission::Stdout(
+                serde_json::json!({"continue": true, "systemMessage": warning}),
+                0
+            )
+        );
+
+        let blocked = cannot_scan(&event, warning.into(), true);
+        assert_eq!(
+            blocked.emission,
+            Emission::Stdout(
+                serde_json::json!({"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": warning,
+                }}),
+                0
+            )
+        );
+    }
+
+    /// GIVEN Claude Code lifecycle events that could not be scanned
+    /// WHEN `ai_hook_failure_policy` is block
+    /// THEN each gets the answer a working scan gives, never a `continue: false`
+    /// that would stop the session, and the warning still goes to stderr.
+    #[test]
+    fn block_lets_a_lifecycle_event_through() {
+        for name in ["SessionStart", "Stop"] {
+            let event = serde_json::json!({
+                "session_id": "abc",
+                "transcript_path": "/Users/x/.claude/projects/p/abc.jsonl",
+                "cwd": "/tmp",
+                "hook_event_name": name,
+            })
+            .to_string();
+            let payloads = payload::parse(&event).expect("parses");
+            let clean = output::emission(&HookResult::allow(&payloads[0]));
+
+            let answer = cannot_scan(&event, "boom".into(), true);
+            assert_eq!(answer.emission, clean, "{name}");
+            assert_eq!(answer.warning, "boom");
         }
     }
 

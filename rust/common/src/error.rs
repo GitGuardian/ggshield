@@ -23,8 +23,9 @@ const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The OS credential store may be lock
 /// 1, **nothing** on stdout. Agents treat a non-zero exit with no JSON as a
 /// non-blocking error and surface stderr to the user.
 ///
-/// `Fail` mirrors `except Exception`: fail open, i.e. `{"continue": true}` plus a
-/// `systemMessage` warning and exit 0.
+/// `Fail` mirrors `except Exception`: the event went unscanned, and
+/// `secret.ai_hook_failure_policy` decides whether the agent's allow (with the
+/// warning) or its block (with the warning as the reason) answers it.
 ///
 /// `Fatal` mirrors config loading, which happens in the `cli` group callback in
 /// `__main__.py`, *before* `ai_hook_cmd` runs: a `ParseError` / `UnexpectedError`

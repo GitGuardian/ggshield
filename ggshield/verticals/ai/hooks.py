@@ -338,6 +338,14 @@ def emit_cannot_scan_response(stdin_content: str, error: Exception, fail: bool) 
         return 1
     warning = _cannot_scan_warning(error)
     ui.display_warning(warning)
+    if fail and payload.event_type == EventType.OTHER:
+        # Nothing to scan, so the answer a working scan would give: blocking a
+        # lifecycle event can stop the agent's whole session.
+        return payload.agent.output_result(HookResult.allow(payload))
+    if fail:
+        return payload.agent.output_result(
+            HookResult(block=True, message=warning, nbr_secrets=0, payload=payload)
+        )
     return payload.agent.output_result(HookResult.allow_with_warning(payload, warning))
 
 

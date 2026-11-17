@@ -296,6 +296,85 @@ class TestAiHookCmd:
         assert "NOT scanned" in response["systemMessage"]
 
     @pytest.mark.parametrize(
+        "error",
+        [
+            MissingTokenError(instance="https://dashboard.gitguardian.com"),
+            ConnectionError("server unreachable"),
+        ],
+        ids=["auth", "network"],
+    )
+    @pytest.mark.parametrize("policy", ["allow", "block"])
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_scan_failure_follows_ai_hook_failure_policy(
+        self,
+        mock_create_client: MagicMock,
+        mock_notify: MagicMock,
+        monkeypatch,
+        policy: str,
+        error: Exception,
+    ):
+        """
+        GIVEN a Claude Code tool call, and a token or a server that fails
+        WHEN the hook runs with ai_hook_failure_policy allow, then block
+        THEN allow lets the call through with the warning in the agent and on
+             stderr, block denies it with the warning as the reason, and neither
+             raises a desktop notification
+        """
+        mock_create_client.side_effect = error
+        monkeypatch.setenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", policy)
+
+        runner = CliRunner()
+        runner.mix_stderr = False
+        result = runner.invoke(
+            cli, ["secret", "scan", "ai-hook"], input=CLAUDE_PRE_TOOL_USE_PAYLOAD
+        )
+
+        assert result.exit_code == 0
+        response = json.loads(result.stdout)
+        assert "NOT scanned for secrets" in result.stderr
+        if policy == "allow":
+            assert response["continue"] is True
+            assert "NOT scanned for secrets" in response["systemMessage"]
+        else:
+            decision = response["hookSpecificOutput"]
+            assert decision["permissionDecision"] == "deny"
+            assert "NOT scanned for secrets" in decision["permissionDecisionReason"]
+        mock_notify.assert_not_called()
+
+    @pytest.mark.parametrize("event", ["SessionStart", "Stop"])
+    @patch(
+        "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+        side_effect=MissingTokenError(instance="https://dashboard.gitguardian.com"),
+    )
+    def test_block_lets_a_lifecycle_event_through(
+        self, mock_create_client: MagicMock, monkeypatch, event: str
+    ):
+        """
+        GIVEN a Claude Code lifecycle event, which carries nothing to scan, and a
+              missing token
+        WHEN the hook runs with ai_hook_failure_policy block
+        THEN it gets the answer a working scan gives rather than one that stops
+             the session, and the warning still goes to stderr
+        """
+        monkeypatch.setenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", "block")
+        payload = {
+            "session_id": "abc123",
+            "transcript_path": "/home/user/.claude/projects/p/transcript.jsonl",
+            "hook_event_name": event,
+        }
+
+        runner = CliRunner()
+        runner.mix_stderr = False
+        result = runner.invoke(
+            cli, ["secret", "scan", "ai-hook"], input=json.dumps(payload)
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == {"continue": True}
+        assert "NOT scanned for secrets" in result.stderr
+
+    @pytest.mark.parametrize(
         ("env", "config", "exit_code"),
         [
             pytest.param(None, None, 0, id="default"),
