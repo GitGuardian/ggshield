@@ -366,6 +366,41 @@ class TestUserConfig:
         config, _ = UserConfig.load(local_config_path)
         assert config.api_timeout == 30
 
+    def test_ai_hook_failure_policy_defaults_to_allow(self):
+        """
+        GIVEN no config file
+        WHEN a UserConfig is created
+        THEN the ai-hook lets an unscannable event through
+        """
+        assert UserConfig().secret.ai_hook_failure_policy == "allow"
+
+    def test_ai_hook_failure_policy_from_config_file(self, local_config_path):
+        """
+        GIVEN a config file setting secret.ai_hook_failure_policy to block
+        WHEN loading the config
+        THEN the value is read
+        """
+        write_yaml(
+            local_config_path,
+            {"version": 2, "secret": {"ai_hook_failure_policy": "block"}},
+        )
+        config, _ = UserConfig.load(local_config_path)
+        assert config.secret.ai_hook_failure_policy == "block"
+
+    def test_ai_hook_failure_policy_rejects_unknown_values(self, local_config_path):
+        """
+        GIVEN a config file with an ai_hook_failure_policy value that is neither
+              allow nor block
+        WHEN loading the config
+        THEN loading fails, as it does for any other invalid key
+        """
+        write_yaml(
+            local_config_path,
+            {"version": 2, "secret": {"ai_hook_failure_policy": "deny"}},
+        )
+        with pytest.raises(ParseError, match="ai_hook_failure_policy"):
+            UserConfig.load(local_config_path)
+
     def test_bad_local_config(self, local_config_path, global_config_path):
         """
         GIVEN a malformed .gitguardian.yaml, with a list of instance

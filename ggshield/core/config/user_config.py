@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from uuid import UUID
 
 import marshmallow_dataclass
-from marshmallow import ValidationError
+from marshmallow import ValidationError, validate
 
 from ggshield.core import ui
 from ggshield.core.config.utils import (
@@ -54,6 +54,13 @@ class SecretConfig(FilteredConfig):
     # so incidents record just the filename (e.g. `config.py` instead of
     # `src/app/config.py`).
     filename_only: bool = False
+    # What `secret scan ai-hook` does with an event it cannot scan: "allow" lets
+    # it through with a warning, "block" denies it. Can be overridden with the
+    # GITGUARDIAN_AI_HOOK_FAILURE_POLICY environment variable.
+    ai_hook_failure_policy: str = field(
+        default="allow",
+        metadata={"validate": validate.OneOf(["allow", "block"])},
+    )
 
     def add_ignored_match(self, secret: IgnoredMatch) -> None:
         """
@@ -85,6 +92,7 @@ class SecretConfig(FilteredConfig):
                 ),
                 "fail_on_server_error": self.fail_on_server_error,
                 "filename_only": self.filename_only,
+                "ai_hook_failure_policy": self.ai_hook_failure_policy,
             }
         )
 

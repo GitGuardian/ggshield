@@ -31,6 +31,16 @@ pub const DEFAULT_API_TIMEOUT: u64 = 60;
 pub const MIN_API_TIMEOUT: u64 = 1;
 pub const MAX_API_TIMEOUT: u64 = 3600;
 
+/// `secret.ai_hook_failure_policy`: what the hook does with an event it cannot
+/// scan.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AiHookFailurePolicy {
+    #[default]
+    Allow,
+    Block,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct SecretConfig {
     /// Each entry is either the sha256 "ignore sha" of a policy break or a
@@ -44,6 +54,7 @@ pub struct SecretConfig {
     /// When true, ignored secrets are still reported — so they still block.
     pub all_secrets: bool,
     pub filename_only: bool,
+    pub ai_hook_failure_policy: AiHookFailurePolicy,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -100,6 +111,8 @@ struct RawSecretConfig {
     all_secrets: Option<bool>,
     #[serde(alias = "filename-only")]
     filename_only: Option<bool>,
+    #[serde(alias = "ai-hook-failure-policy")]
+    ai_hook_failure_policy: Option<AiHookFailurePolicy>,
 }
 
 /// One `secret.ignored_matches` entry. `name` is never compared, so it is not read
@@ -202,6 +215,10 @@ impl RawUserConfig {
             .or(secret.ignore_known_secrets);
         secret.all_secrets = later.secret.all_secrets.or(secret.all_secrets);
         secret.filename_only = later.secret.filename_only.or(secret.filename_only);
+        secret.ai_hook_failure_policy = later
+            .secret
+            .ai_hook_failure_policy
+            .or(secret.ai_hook_failure_policy);
     }
 
     fn resolve(self) -> Result<UserConfig, Error> {
@@ -228,6 +245,7 @@ impl RawUserConfig {
                     .unwrap_or_default(),
                 all_secrets: self.secret.all_secrets.unwrap_or_default(),
                 filename_only: self.secret.filename_only.unwrap_or_default(),
+                ai_hook_failure_policy: self.secret.ai_hook_failure_policy.unwrap_or_default(),
             },
         })
     }
@@ -562,6 +580,39 @@ mod tests {
             merged.resolve().expect("resolves").secret.ignored_matches,
             vec!["aaa", "bbb"]
         );
+    }
+
+    /// GIVEN `secret.ai_hook_failure_policy` unset, set in either spelling, or
+    /// set to a value that is neither `allow` nor `block`
+    /// WHEN the config is loaded
+    /// THEN it defaults to allow, is read when set, and a bad value is fatal like
+    /// any other invalid key.
+    #[test]
+    fn ai_hook_failure_policy_is_read_and_validated() {
+        let of = |yaml: &str| parse(yaml).map(|c| c.secret.ai_hook_failure_policy);
+        assert_eq!(
+            of("version: 2\n").expect("parses"),
+            AiHookFailurePolicy::Allow
+        );
+        assert_eq!(
+            of("version: 2\nsecret:\n  ai_hook_failure_policy: block\n").expect("parses"),
+            AiHookFailurePolicy::Block
+        );
+        assert_eq!(
+            of("version: 2\nsecret:\n  ai-hook-failure-policy: block\n").expect("parses"),
+            AiHookFailurePolicy::Block
+        );
+        assert_eq!(
+            of("version: 2\nsecret:\n  ai_hook_failure_policy: allow\n").expect("parses"),
+            AiHookFailurePolicy::Allow
+        );
+        for bad in ["deny", "Block", "true"] {
+            let yaml = format!("version: 2\nsecret:\n  ai_hook_failure_policy: {bad}\n");
+            assert!(
+                matches!(of(&yaml), Err(Error::Fatal(_))),
+                "{bad} must be fatal"
+            );
+        }
     }
 
     /// GIVEN an empty config file
