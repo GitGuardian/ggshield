@@ -139,10 +139,13 @@ class Claude(Agent):
         return 0
 
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
-        # transcript_path may be present but null (Codex sends it as a nullable
-        # required field), so `or ""` guards against a None slipping through.
-        return "session_id" in hook_payload and "claude" in (
-            hook_payload.get("transcript_path") or ""
+        # The residual matcher, registered last: Claude Code sends no marker of
+        # its own, and $CLAUDE_CONFIG_DIR can move its transcripts anywhere.
+        transcript = hook_payload.get("transcript_path")
+        return (
+            "session_id" in hook_payload
+            and isinstance(transcript, str)
+            and transcript != ""
         )
 
     def read_range(self, tool_input: Dict[str, Any]) -> Optional[ReadRange]:

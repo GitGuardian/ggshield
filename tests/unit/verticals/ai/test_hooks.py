@@ -5,7 +5,7 @@ import subprocess
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1914,6 +1914,49 @@ class TestAIHookScannerParseInput:
         assert "user1" in payload.content
         assert isinstance(payload.agent, Copilot)
 
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "hello world"},
+                id="user_prompt",
+            ),
+            pytest.param(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "bash",
+                    "tool_input": {"command": "whoami"},
+                    "tool_use_id": "toolu_01",
+                },
+                id="pre_tool_use",
+            ),
+            pytest.param(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "bash",
+                    "tool_input": {"command": "whoami"},
+                    "tool_result": {
+                        "result_type": "success",
+                        "text_result_for_llm": "user1",
+                    },
+                    "tool_use_id": "toolu_01",
+                },
+                id="post_tool_use",
+            ),
+        ],
+    )
+    def test_copilot_desktop_app_payloads(self, extra: Dict[str, Any]):
+        """The Copilot desktop app (1.4.2) adds `tool_use_id` to tool events,
+        which must not stop it being recognized as Copilot."""
+        data = {
+            "cwd": "/home/user1/foo",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "timestamp": "2026-11-16T10:00:00.000Z",
+            **extra,
+        }
+        payload = parse_hook_input(json.dumps(data))[-1]
+        assert isinstance(payload.agent, Copilot)
+
     def test_raises_if_no_agent_recognized(self):
         """Test raises if no agent can be recognized."""
         data = {
@@ -2083,6 +2126,43 @@ class TestAIHookScannerParseInput:
         payload = parse_hook_input(json.dumps(data))[0]
 
         assert isinstance(payload.agent, Vibe)
+
+    def test_cursor_wins_over_claude_when_project_is_named_claude(self):
+        """Cursor mangles the project path into its transcript path, so a
+        project called claude-tools must still be answered as Cursor."""
+        data = {
+            "conversation_id": "75fed8a8-2078-4e49-80d2-776b20d441c3",
+            "session_id": "75fed8a8-2078-4e49-80d2-776b20d441c3",
+            "cursor_version": "2.5.25",
+            "workspace_roots": ["/home/user1/claude-tools"],
+            "transcript_path": (
+                "/home/user1/.cursor/projects/home-user1-claude-tools/"
+                "agent-transcripts/75fed8a8/75fed8a8.jsonl"
+            ),
+            "hook_event_name": "preToolUse",
+            "tool_name": "Shell",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Cursor)
+
+    def test_claude_with_relocated_config_dir(self):
+        """CLAUDE_CONFIG_DIR can put Claude Code's transcripts under a path
+        that does not say "claude"."""
+        data = {
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "transcript_path": "/workspace/.config/cc/projects/foo/3b7ae0c5.jsonl",
+            "cwd": "/workspace/foo",
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "whoami"},
+        }
+
+        payload = parse_hook_input(json.dumps(data))[0]
+
+        assert isinstance(payload.agent, Claude)
 
     def test_pre_tool_use_read_with_missing_file(self):
         """PRE_TOOL_USE with tool_name 'read' and non-existing file yields empty content."""

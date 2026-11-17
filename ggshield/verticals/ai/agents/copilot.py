@@ -90,10 +90,12 @@ class Copilot(VSCode):
         )
 
     def is_caller(self, hook_payload: dict[str, str]) -> bool:
-        # Copilot CLI only emits the default fields in all hooks, which in a way identifies it.
+        # Copilot sends no marker of its own: require its four default fields as
+        # a subset, so a field it adds later does not make every payload unclaimed.
         default_fields = {"hook_event_name", "session_id", "timestamp", "cwd"}
-        optional_fields = {"prompt", "tool_name", "tool_input", "tool_result"}
-        return set(hook_payload.keys()) - optional_fields == default_fields
+        foreign_keys = {"transcript_path", "cursor_version", "turn_id", "project_path"}
+        keys = hook_payload.keys()
+        return default_fields <= keys and not foreign_keys & keys
 
     def output_result(self, result: HookResult) -> int:
         # Copilot CLI ignores the inherited `{"continue": false}` on the prompt
