@@ -239,6 +239,61 @@ class TestMachineSetupCommand:
         assert_invoke_ok(result)
         assert "setup" in result.output
 
+    def test_git_hook_and_exclude_git_hook_are_mutually_exclusive(
+        self, cli_fs_runner: CliRunner
+    ):
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "machine",
+                "setup",
+                "--git-hook",
+                "pre-commit",
+                "--exclude-git-hook",
+                "pre-push",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "cannot be used together" in result.output
+
+    @patch("ggshield.cmd.machine.setup._setup_git_hooks")
+    def test_filter_git_hook(self, mock_setup, cli_fs_runner: CliRunner):
+        mock_setup.return_value = True
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "machine",
+                "setup",
+                "--no-ai-hooks",
+                "--no-honeytokens",
+                "--git-hook",
+                "pre-commit",
+            ],
+        )
+
+        assert_invoke_ok(result)
+        mock_setup.assert_called_once_with(False, ("pre-commit",), ())
+
+    @patch("ggshield.cmd.machine.setup._setup_git_hooks")
+    def test_exclude_git_hook(self, mock_setup, cli_fs_runner: CliRunner):
+        mock_setup.return_value = True
+
+        result = cli_fs_runner.invoke(
+            cli,
+            [
+                "machine",
+                "setup",
+                "--no-ai-hooks",
+                "--no-honeytokens",
+                "--exclude-git-hook",
+                "pre-push",
+            ],
+        )
+
+        assert_invoke_ok(result)
+        mock_setup.assert_called_once_with(False, (), ("pre-push",))
+
 
 class TestMachineSetupOrchestration:
     """`machine setup` runs all three protections by default; flags drop one."""
@@ -287,14 +342,14 @@ class TestMachineSetupOrchestration:
             cli_fs_runner, ["--system", "--no-ai-hooks", "--no-honeytokens"]
         )
         assert_invoke_ok(result)
-        m_git.assert_called_once_with(True)
+        m_git.assert_called_once_with(True, (), ())
 
     def test_git_hooks_default_to_non_system(self, cli_fs_runner: CliRunner):
         result, _m_ai, m_git, _m_ht = self._run(
             cli_fs_runner, ["--no-ai-hooks", "--no-honeytokens"]
         )
         assert_invoke_ok(result)
-        m_git.assert_called_once_with(False)
+        m_git.assert_called_once_with(False, (), ())
 
 
 class TestSetupGitHooks:
@@ -323,7 +378,9 @@ class TestSetupGitHooks:
         from ggshield.cmd.machine.setup import _setup_git_hooks
 
         mock_dir.return_value = tmp_path  # empty dir -> both hooks absent
-        assert _setup_git_hooks(system=False) is True
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )
         assert mock_install.call_count == 2  # pre-commit + pre-push
 
     @patch(f"{BASE}.install_global")
@@ -335,7 +392,9 @@ class TestSetupGitHooks:
         """
         from ggshield.cmd.machine.setup import _setup_git_hooks
 
-        assert _setup_git_hooks(system=False) is True
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )
         mock_install.assert_not_called()
         self.git_mock.assert_not_called()
         captured = capsys.readouterr()
@@ -353,7 +412,9 @@ class TestSetupGitHooks:
         mock_dir.return_value = tmp_path
         for hook_type in ("pre-commit", "pre-push"):
             (tmp_path / hook_type).write_text(_current_hook(hook_type))
-        assert _setup_git_hooks(system=False) is True
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )
         mock_install.assert_not_called()
 
     @patch(f"{BASE}.is_root", return_value=False)
@@ -370,7 +431,9 @@ class TestSetupGitHooks:
         (tmp_path / "pre-push").write_text(_current_hook("pre-push"))
         # A foreign hook means the machine has no ggshield pre-commit at all, so
         # setup must not report success.
-        assert _setup_git_hooks(system=False) is False
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is False
+        )
         mock_install.assert_not_called()
         assert (tmp_path / "pre-commit").read_text() == "#!/bin/sh\nother-tool\n"
 
@@ -386,7 +449,9 @@ class TestSetupGitHooks:
         mock_dir.return_value = tmp_path
         for hook_type in ("pre-commit", "pre-push"):
             (tmp_path / hook_type).write_text(_legacy_hook(hook_type))
-        assert _setup_git_hooks(system=False) is True
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )
         mock_install.assert_not_called()
         for hook_type in ("pre-commit", "pre-push"):
             assert hook_is_outdated(tmp_path / hook_type) is False
@@ -404,7 +469,9 @@ class TestSetupGitHooks:
         content = "#!/bin/sh\nggshield secret scan pre-commit --exit-zero\n"
         (tmp_path / "pre-commit").write_text(content)
         (tmp_path / "pre-push").write_text(_current_hook("pre-push"))
-        assert _setup_git_hooks(system=False) is False
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is False
+        )
         assert (tmp_path / "pre-commit").read_text() == content
 
     @patch(f"{BASE}.is_root", return_value=False)
@@ -423,7 +490,9 @@ class TestSetupGitHooks:
         for hook_type in ("pre-commit", "pre-push"):
             (tmp_path / hook_type).write_text(_current_hook(hook_type))
 
-        assert _setup_git_hooks(system=False) is True
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )
 
         mock_install.assert_not_called()
         self.git_mock.assert_called_once_with(
@@ -443,7 +512,10 @@ class TestSetupGitHooks:
         for hook_type in ("pre-commit", "pre-push"):
             (tmp_path / hook_type).write_text(_current_hook(hook_type))
         with patch(f"{self.BASE}.get_global_hook_dir_path", return_value=tmp_path):
-            assert _setup_git_hooks(system=False) is True
+            assert (
+                _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=())
+                is True
+            )
         self.git_mock.assert_not_called()
 
     @patch(f"{BASE}.is_root", return_value=False)
@@ -456,7 +528,7 @@ class TestSetupGitHooks:
         from ggshield.cmd.machine.setup import _setup_git_hooks
 
         mock_dir.return_value = tmp_path
-        assert _setup_git_hooks(system=True) is True
+        assert _setup_git_hooks(system=True, git_hooks=(), exclude_git_hooks=()) is True
         assert mock_install.call_count == 2  # install_system, not install_global
 
     @patch(f"{BASE}.is_root", return_value=True)
@@ -469,7 +541,9 @@ class TestSetupGitHooks:
         from ggshield.cmd.machine.setup import _setup_git_hooks
 
         mock_dir.return_value = tmp_path
-        assert _setup_git_hooks(system=False) is True  # root implies system scope
+        assert (
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=()) is True
+        )  # root implies system scope
         assert mock_install.call_count == 2
 
     @patch(f"{BASE}.is_root", return_value=False)
@@ -486,9 +560,49 @@ class TestSetupGitHooks:
             f"{self.BASE}.get_shadowing_hooks_path",
             return_value=Path("/repo/.husky/_"),
         ):
-            _setup_git_hooks(system=False)
+            _setup_git_hooks(system=False, git_hooks=(), exclude_git_hooks=())
         captured = capsys.readouterr()
         assert "core.hooksPath override" in captured.out + captured.err
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_install_only_pre_commit_hook(
+        self, mock_dir, _mock_cfg, mock_install, _mock_root, tmp_path
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path  # empty dir -> both hooks absent
+        assert (
+            _setup_git_hooks(
+                system=False, git_hooks=("pre-commit",), exclude_git_hooks=()
+            )
+            is True
+        )
+        mock_install.assert_called_once_with(
+            hook_type="pre-commit", force=False, append=False
+        )
+
+    @patch(f"{BASE}.is_root", return_value=False)
+    @patch(f"{BASE}.install_global")
+    @patch(f"{BASE}.get_global_hook_dir_path", return_value=None)
+    @patch(f"{BASE}.get_default_global_hook_dir_path")
+    def test_exclude_pre_push_hook(
+        self, mock_dir, _mock_cfg, mock_install, _mock_root, tmp_path
+    ):
+        from ggshield.cmd.machine.setup import _setup_git_hooks
+
+        mock_dir.return_value = tmp_path  # empty dir -> both hooks absent
+        assert (
+            _setup_git_hooks(
+                system=False, git_hooks=(), exclude_git_hooks=("pre-push",)
+            )
+            is True
+        )
+        mock_install.assert_called_once_with(
+            hook_type="pre-commit", force=False, append=False
+        )
 
 
 class TestHoneytokenPlant:

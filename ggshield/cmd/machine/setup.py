@@ -74,6 +74,22 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
     help="Skip these assistants when configuring the AI hook (repeatable).",
 )
 @click.option(
+    "--git-hook",
+    "git_hooks",
+    type=click.Choice(_GIT_HOOK_TYPES),
+    multiple=True,
+    metavar="GIT_HOOK",
+    help="Only configure these git hooks (repeatable). Defaults to every hook.",
+)
+@click.option(
+    "--exclude-git-hook",
+    "exclude_git_hooks",
+    type=click.Choice(_GIT_HOOK_TYPES),
+    multiple=True,
+    metavar="GIT_HOOK",
+    help="Skip these git hooks (repeatable).",
+)
+@click.option(
     "--system",
     "system",
     is_flag=True,
@@ -89,6 +105,8 @@ def setup_cmd(
     no_honeytokens: bool,
     agents: Tuple[str, ...],
     exclude_agents: Tuple[str, ...],
+    git_hooks: Tuple[str, ...],
+    exclude_git_hooks: Tuple[str, ...],
     system: bool,
     **kwargs: Any,
 ) -> int:
@@ -102,8 +120,9 @@ def setup_cmd(
 
     Each protection is on by default; drop one with `--no-ai-hooks`,
     `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
-    narrow which assistants get the AI hook. When run as root (or with
-    `--system`), the git hooks are installed machine-wide for every user.
+    narrow which assistants get the AI hook. `--git-hook` / `--exclude-git-hook`
+    select or exclude specific git hooks to set up. When run as root
+    (or with `--system`), the git hooks are installed machine-wide for every user.
 
     Finally, registers this machine and the honeytoken target users on the
     Endpoints page, even before the first scan. This best-effort step takes at
@@ -114,6 +133,11 @@ def setup_cmd(
     if agents and exclude_agents:
         raise click.UsageError("--agent and --exclude-agent cannot be used together.")
 
+    if git_hooks and exclude_git_hooks:
+        raise click.UsageError(
+            "--git-hook and --exclude-git-hook cannot be used together."
+        )
+
     failed = False
 
     if not no_ai_hooks:
@@ -121,7 +145,7 @@ def setup_cmd(
             failed = True
 
     if not no_git_hooks:
-        if not _setup_git_hooks(system):
+        if not _setup_git_hooks(system, git_hooks, exclude_git_hooks):
             failed = True
 
     if not no_honeytokens:
@@ -174,7 +198,11 @@ def _warm_notifier() -> None:
         pass
 
 
-def _setup_git_hooks(system: bool) -> bool:
+def _setup_git_hooks(
+    system: bool,
+    git_hooks: Tuple[str, ...],
+    exclude_git_hooks: Tuple[str, ...],
+) -> bool:
     """Install the git pre-commit/pre-push hooks, idempotently.
 
     Per-user (``global``) by default. Machine-wide (``system``) when ``--system`` is
@@ -219,7 +247,12 @@ def _setup_git_hooks(system: bool) -> bool:
             ui.display_warning(f"  could not point git at {hook_dir}: {exc}")
             ok = False
 
-    for hook_type in _GIT_HOOK_TYPES:
+    filtered_hooks = [
+        hook
+        for hook in _GIT_HOOK_TYPES
+        if (not git_hooks or hook in git_hooks) and hook not in exclude_git_hooks
+    ]
+    for hook_type in filtered_hooks:
         hook_path = hook_dir / hook_type
         if hook_path.is_file():
             if not hook_invokes_ggshield(hook_path):
