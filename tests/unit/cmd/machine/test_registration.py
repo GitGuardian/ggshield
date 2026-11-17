@@ -27,6 +27,9 @@ CI_VARS = (
     "DRONE",
     "HARNESS_BUILD_ID",
     "BUILD_BUILDID",
+    "CODEBUILD_BUILD_ID",
+    "TEAMCITY_VERSION",
+    "bamboo_buildNumber",
 )
 NO_FEATURES = ["--no-ai-hooks", "--no-git-hooks", "--no-honeytokens"]
 
