@@ -1,4 +1,5 @@
 import sys
+import time
 from typing import List
 from unittest.mock import ANY, Mock, patch
 
@@ -11,6 +12,10 @@ from ggshield.__main__ import cli
 from ggshield.core.client import RetryProfile
 from ggshield.core.config.user_config import SecretConfig
 from ggshield.core.errors import ExitCode
+from ggshield.core.git_hooks.prereceive import (
+    PRERECEIVE_TIMEOUT,
+    get_prereceive_timeout,
+)
 from ggshield.core.scan import StringScannable
 from ggshield.utils.git_shell import EMPTY_SHA, Filemode
 from ggshield.utils.os import cd
@@ -48,6 +53,64 @@ def mock_multiprocessing_process(mock: Mock):
     mock.is_alive.return_value = True
     mock.exitcode = None
     return mock_constructor
+
+
+@pytest.mark.parametrize(
+    ("env_value", "expected"),
+    [
+        (None, PRERECEIVE_TIMEOUT),
+        ("10", 10.0),
+        ("0.5", 0.5),
+        ("0", None),
+        ("-1", PRERECEIVE_TIMEOUT),
+        ("not-a-number", PRERECEIVE_TIMEOUT),
+    ],
+)
+def test_get_prereceive_timeout(monkeypatch, env_value, expected):
+    """
+    GIVEN GITGUARDIAN_TIMEOUT unset, valid, 0, negative or unparsable
+    WHEN the pre-receive timeout is read
+    THEN 0 means no timeout (None) and an unusable value falls back to the default
+    """
+    if env_value is None:
+        monkeypatch.delenv("GITGUARDIAN_TIMEOUT", raising=False)
+    else:
+        monkeypatch.setenv("GITGUARDIAN_TIMEOUT", env_value)
+    assert get_prereceive_timeout() == expected
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="relies on fork")
+@patch("ggshield.cmd.secret.scan.prereceive.setup_truststore")
+@patch("ggshield.cmd.secret.scan.prereceive.scan_commit_range")
+def test_zero_timeout_waits_for_the_scan(
+    scan_commit_range_mock: Mock, _: Mock, tmp_path, cli_fs_runner: CliRunner
+):
+    """
+    GIVEN GITGUARDIAN_TIMEOUT=0 and a scan that takes some time and finds a secret
+    WHEN the pre-receive hook runs the scan in its real child process
+    THEN it waits for the scan and rejects the push, instead of killing the scan
+    right away and accepting the push
+    """
+
+    def slow_scan(**kwargs):
+        time.sleep(0.5)
+        return ExitCode.SCAN_FOUND_PROBLEMS
+
+    scan_commit_range_mock.side_effect = slow_scan
+
+    repo = create_pre_receive_repo(tmp_path)
+    old_sha = repo.get_top_sha()
+    new_sha = repo.create_commit()
+    with cd(repo.path):
+        result = cli_fs_runner.invoke(
+            cli,
+            ["secret", "scan", "pre-receive"],
+            input=f"{old_sha} {new_sha} origin/main\n",
+            env={"GITGUARDIAN_TIMEOUT": "0"},
+        )
+
+    assert "took too long" not in result.output
+    assert_invoke_exited_with(result, ExitCode.SCAN_FOUND_PROBLEMS)
 
 
 class TestPreReceive:

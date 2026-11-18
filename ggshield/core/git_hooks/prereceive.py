@@ -20,12 +20,24 @@ PRERECEIVE_TIMEOUT = 4.5
 BYPASS_MESSAGE = """\n     git push -o breakglass"""
 
 
-def get_prereceive_timeout() -> float:
+def get_prereceive_timeout() -> Optional[float]:
+    """
+    Return how long the pre-receive hook waits for the scan, in seconds, or None to
+    wait for as long as it takes (GITGUARDIAN_TIMEOUT=0).
+    """
     try:
-        return getenv_float("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT)
+        timeout = getenv_float("GITGUARDIAN_TIMEOUT", PRERECEIVE_TIMEOUT)
     except BaseException as e:
         ui.display_error(f"Unable to parse GITGUARDIAN_TIMEOUT: {str(e)}")
         return PRERECEIVE_TIMEOUT
+    if timeout < 0:
+        ui.display_error(
+            f"Invalid GITGUARDIAN_TIMEOUT: {timeout} is negative,"
+            f" using {PRERECEIVE_TIMEOUT} seconds"
+        )
+        return PRERECEIVE_TIMEOUT
+    # Process.join(timeout=0) returns at once: 0 must become "no timeout"
+    return timeout or None
 
 
 def get_breakglass_option() -> bool:
