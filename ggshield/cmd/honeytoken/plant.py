@@ -57,10 +57,6 @@ class _Outcome:
 
 ALL_TYPES = "all"
 
-# A workspace that does not offer a type answers 403 (type not enabled for the
-# account) or, on a backend predating the type, 400.
-_TYPE_UNAVAILABLE_STATUSES = (400, 403)
-
 _AWS_METHODS = (
     DeploymentMethod.AWS_CREDENTIALS,
     DeploymentMethod.AWS_CONFIG_PROFILE,
@@ -280,7 +276,10 @@ def _reconcile_for_user(
                 machine_info_for(target.username)["machine_id"], target.username
             )
         elif token_type == ALL_TYPES:
-            deployments = _reconcile_all_types(client, target, outcome)
+            reconciled = _reconcile_all_types(client, target, outcome)
+            if reconciled is None:
+                return outcome
+            deployments = reconciled
         else:
             deployments = client.reconcile(
                 machine_info_for(target.username),
@@ -410,11 +409,12 @@ def _reconcile_for_user(
 
 def _reconcile_all_types(
     client: EndpointDeploymentsClient, target: Target, outcome: _Outcome
-) -> List[Deployment]:
+) -> Optional[List[Deployment]]:
     """Reconcile each type with its default placement and merge the answers by id, as
     each one already lists the user's live deployments of every type. A type the
     workspace does not offer is skipped rather than failed, so `machine setup` stays
-    green where it is disabled. Raises the first error when no type reconciles."""
+    green where it is disabled. Returns None when no type reconciles: every error is
+    then reported, as a refusal of all types is not a missing type."""
     machine_info = machine_info_for(target.username)
     merged: Dict[str, Deployment] = {}
     errors: List[Tuple[HoneytokenType, EndpointDeploymentsError]] = []
@@ -426,19 +426,26 @@ def _reconcile_all_types(
             continue
         merged.update((item.id, item) for item in deployments)
 
-    if len(errors) == len(HoneytokenType):
-        raise errors[0][1]
+    none_reconciled = len(errors) == len(HoneytokenType)
     for token_type, exc in errors:
-        if exc.status_code in _TYPE_UNAVAILABLE_STATUSES:
+        if not none_reconciled and _is_type_unavailable(exc):
             click.echo(
                 f"[{target.username}] {token_type.value} honeytokens are not "
-                f"available on this workspace (HTTP {exc.status_code}), skipped"
+                f"available on this workspace, skipped ({exc})"
             )
-        else:
-            click.echo(f"[{target.username}] {token_type.value}: {exc}", err=True)
-            outcome.api_failure = True
-            outcome.api_auth_failure |= exc.is_auth
-    return list(merged.values())
+            continue
+        click.echo(f"[{target.username}] {token_type.value}: {exc}", err=True)
+        outcome.api_failure = True
+        outcome.api_auth_failure |= exc.is_auth
+    return None if none_reconciled else list(merged.values())
+
+
+def _is_type_unavailable(exc: EndpointDeploymentsError) -> bool:
+    """A type the account has not enabled answers 403. A backend predating the type
+    answers 400 on the `type` field alone; any other 400 is a real validation error."""
+    if exc.status_code == 403:
+        return True
+    return exc.status_code == 400 and exc.invalid_fields == {"type"}
 
 
 def _confirm(

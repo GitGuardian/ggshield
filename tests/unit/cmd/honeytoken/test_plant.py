@@ -875,10 +875,16 @@ def test_all_reconciles_each_type_and_applies_the_merged_state(
     assert "2 written" in result.output
 
 
-@pytest.mark.parametrize("status", [400, 403])
-def test_all_skips_a_type_the_workspace_does_not_offer(
-    cli_fs_runner: CliRunner, monkeypatch, status: int
-) -> None:
+_TYPE_NOT_ENABLED = (403, {"detail": "You don't have access to this type"})
+_TYPE_UNKNOWN = (
+    400,
+    {"detail": "Invalid payload", "extra": {"type": ["cannot be deployed"]}},
+)
+
+
+def _mock_aws_planted_then_kubeconfig_refused(
+    monkeypatch, status: int, body: Dict[str, Any]
+) -> RequestMock:
     mock = _install_mock(monkeypatch)
     mock.add_POST(
         ENDPOINT,
@@ -886,10 +892,18 @@ def test_all_skips_a_type_the_workspace_does_not_offer(
             {"deployments": [_deployment("write", token=("AKIAEXAMPLE", "s3"))]}
         ),
     )
-    mock.add_POST(ENDPOINT, create_json_response({"detail": "no access"}, status))
+    mock.add_POST(ENDPOINT, create_json_response(body, status))
     mock.add_request(
         ExpectedRequest("PATCH", f"{ENDPOINT}/dep-1", create_json_response({}, 200))
     )
+    return mock
+
+
+@pytest.mark.parametrize(("status", "body"), [_TYPE_NOT_ENABLED, _TYPE_UNKNOWN])
+def test_all_skips_a_type_the_workspace_does_not_offer(
+    cli_fs_runner: CliRunner, monkeypatch, status: int, body: Dict[str, Any]
+) -> None:
+    _mock_aws_planted_then_kubeconfig_refused(monkeypatch, status, body)
 
     result = cli_fs_runner.invoke(
         cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
@@ -899,7 +913,32 @@ def test_all_skips_a_type_the_workspace_does_not_offer(
     assert "kubeconfig honeytokens are not available on this workspace" in (
         result.output
     )
+    assert body["detail"] in result.output
     assert "1 written" in result.output
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"detail": "Invalid payload", "extra": {"machine_info.hostname": ["bad"]}},
+        {"detail": "Invalid payload", "extra": {"type": ["bad"], "custom": ["bad"]}},
+        {"detail": "bad request"},
+    ],
+)
+def test_all_fails_on_a_validation_error_that_is_not_an_unknown_type(
+    cli_fs_runner: CliRunner, monkeypatch, body: Dict[str, Any]
+) -> None:
+    mock = _mock_aws_planted_then_kubeconfig_refused(monkeypatch, 400, body)
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, ExitCode.UNEXPECTED_ERROR)
+    mock.assert_all_requests_happened()
+    assert Path("home/.aws/credentials").exists()
+    assert "kubeconfig: endpoint-deployments API error (400)" in result.output
+    assert body["detail"] in result.output
 
 
 def test_all_still_plants_the_other_types_when_one_fails(
@@ -942,6 +981,40 @@ def test_all_fails_when_no_type_reconciles(
     assert_invoke_exited_with(result, ExitCode.AUTHENTICATION_ERROR)
     mock.assert_all_requests_happened()
     assert not Path("home/.aws/credentials").exists()
+
+
+@pytest.mark.parametrize(
+    ("aws_status", "kubeconfig_status", "exit_code"),
+    [
+        (403, 500, ExitCode.AUTHENTICATION_ERROR),
+        (500, 401, ExitCode.AUTHENTICATION_ERROR),
+        (500, 502, ExitCode.UNEXPECTED_ERROR),
+    ],
+)
+def test_all_reports_every_error_when_no_type_reconciles(
+    cli_fs_runner: CliRunner,
+    monkeypatch,
+    aws_status: int,
+    kubeconfig_status: int,
+    exit_code: ExitCode,
+) -> None:
+    mock = _install_mock(monkeypatch)
+    for status in (aws_status, kubeconfig_status):
+        mock.add_POST(ENDPOINT, create_json_response({"detail": "refused"}, status))
+
+    result = cli_fs_runner.invoke(
+        cli, ["honeytoken", "plant", "--type", "all", "--user-dir", "home"]
+    )
+
+    assert_invoke_exited_with(result, exit_code)
+    mock.assert_all_requests_happened()
+    assert f"aws: endpoint-deployments API error ({aws_status})" in result.output
+    assert (
+        f"kubeconfig: endpoint-deployments API error ({kubeconfig_status})"
+        in result.output
+    )
+    assert "not available on this workspace" not in result.output
+    assert "reconciled" not in result.output
 
 
 @pytest.mark.parametrize(
