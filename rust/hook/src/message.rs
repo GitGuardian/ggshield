@@ -22,6 +22,8 @@ const POST_OTHER_TEMPLATE: &str = include_str!("templates/post_other.in");
 const POST_BASH_REDACTED_TEMPLATE: &str = include_str!("templates/post_bash_redacted.in");
 const POST_READ_REDACTED_TEMPLATE: &str = include_str!("templates/post_read_redacted.in");
 const POST_OTHER_REDACTED_TEMPLATE: &str = include_str!("templates/post_other_redacted.in");
+const POST_FILE_CHANGE_REDACTED_TEMPLATE: &str =
+    include_str!("templates/post_file_change_redacted.in");
 const SECRET_LINE_TEMPLATE: &str = include_str!("templates/secret_line.in");
 const INCIDENT_URL_LINE_TEMPLATE: &str = include_str!("templates/incident_url_line.in");
 const REMEDIATION_STEPS_TEMPLATE: &str = include_str!("templates/remediation_steps.in");
@@ -148,6 +150,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
         // prompt wording would name the wrong content.
         (EventType::UserPrompt, Some(Tool::Read)) => PRE_READ_TEMPLATE,
         (EventType::UserPrompt, _) => USER_PROMPT_TEMPLATE,
+        _ if crate::output::is_claude_file_change(payload) => POST_FILE_CHANGE_REDACTED_TEMPLATE,
         (EventType::PostToolUse, Some(Tool::Bash)) if withheld => POST_BASH_REDACTED_TEMPLATE,
         (EventType::PostToolUse, Some(Tool::Read)) if withheld => POST_READ_REDACTED_TEMPLATE,
         (EventType::PostToolUse, _) if withheld => POST_OTHER_REDACTED_TEMPLATE,
@@ -186,6 +189,10 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
             ),
         ),
         ("identifier", payload.identifier.clone()),
+        (
+            "file_path",
+            crate::output::read_file_path(payload).to_string(),
+        ),
         ("secret_lines", secret_lines(secrets)),
         ("ignore_shas", ignore_shas(secrets)),
     ];
@@ -456,6 +463,30 @@ mod tests {
             // The false-positive escape hatch stays: a withheld output is still
             // a blocked one, and the user may disagree with the finding.
             assert!(msg.contains("ggshield secret ignore --last-found"), "{msg}");
+        }
+    }
+
+    /// GIVEN a secret in the output of a Claude Code Edit or Write
+    /// WHEN the message is built
+    /// THEN it names the file, says the secret was removed from the transcript
+    /// and did not reach the model, and never calls it exposed.
+    #[test]
+    fn a_claude_file_change_says_the_secret_was_removed_from_the_transcript() {
+        for tool_name in ["Edit", "Write"] {
+            let mut p = payload(EventType::PostToolUse, Some(Tool::Other), "sha-of-output");
+            p.raw = serde_json::json!({
+                "tool_name": tool_name,
+                "tool_input": {"file_path": "/repo/lib/linear.ts"},
+                "tool_response": {"filePath": "/repo/lib/linear.ts"},
+            });
+            let msg = from_secrets(&[secret("Linear API Key", "valid", &["lin_api_x"])], &p);
+            let first_line = msg.lines().next().expect("a first line");
+            assert!(first_line.contains("in /repo/lib/linear.ts"), "{msg}");
+            assert!(msg.contains("did not reach the model"), "{msg}");
+            assert!(msg.contains("removed from the transcript"), "{msg}");
+            assert!(!msg.contains("exposed"), "{msg}");
+            assert!(!msg.contains("compromised"), "{msg}");
+            assert!(!msg.contains("revoke"), "{msg}");
         }
     }
 

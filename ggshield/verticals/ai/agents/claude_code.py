@@ -2,7 +2,7 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Optional
+from typing import Any, Dict, Iterator, List, Literal, Optional
 
 import click
 from pygitguardian.models import AIDiscovery, MCPActivityRequest
@@ -79,6 +79,41 @@ class ClaudeSubagentMetaActivitySource(JSONActivitySource):
         )
 
 
+_REDACTED = "[redacted by ggshield]"
+
+
+def redact(value: Any, matches: List[str]) -> Any:
+    """`value` with every match replaced in each of its strings, keys and shape
+    untouched.
+
+    The API matched the serialized output, so a match can still be JSON-escaped,
+    and a diff spreads a multi-line secret over several `structuredPatch` lines,
+    so each line of a match is replaced on its own too.
+    """
+    needles = set()
+    for raw in matches:
+        try:
+            decoded = json.loads(f'"{raw}"')
+        except ValueError:
+            decoded = raw
+        needles.update(line.strip() for line in decoded.split("\n") if line.strip())
+        needles.update((decoded, raw))
+    # Longest first, so a whole match goes before any of its lines.
+    return _redact_strings(value, sorted(needles, key=lambda n: (-len(n), n)))
+
+
+def _redact_strings(value: Any, needles: List[str]) -> Any:
+    if isinstance(value, str):
+        for needle in needles:
+            value = value.replace(needle, _REDACTED)
+        return value
+    if isinstance(value, list):
+        return [_redact_strings(item, needles) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_strings(item, needles) for key, item in value.items()}
+    return value
+
+
 class Claude(Agent):
     """Behavior specific to Claude Code."""
 
@@ -100,9 +135,37 @@ class Claude(Agent):
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".claude"
 
+    def is_file_change(self, payload: HookPayload) -> bool:
+        # The model gets one "updated successfully" line for an Edit or a Write,
+        # while the transcript keeps the whole tool_response, original file and
+        # diff included. Shapes captured on Claude Code 2.1.323 (no MultiEdit).
+        return (
+            payload.event_type == EventType.POST_TOOL_USE
+            and payload.raw.get("tool_name") in ("Edit", "Write")
+            and isinstance(payload.raw.get("tool_response"), dict)
+        )
+
+    def has_secret_already_leaked(self, payload: HookPayload) -> bool:
+        return super().has_secret_already_leaked(payload) and not self.is_file_change(
+            payload
+        )
+
     def output_result(self, result: HookResult) -> int:
-        response = {}
-        if result.block:
+        response: Dict[str, Any] = {}
+        if result.block and self.is_file_change(result.payload):
+            # Nothing of a file change reaches the model, so the agent carries
+            # on and only the user is told.
+            response = {
+                "continue": True,
+                "systemMessage": result.message,
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "updatedToolOutput": redact(
+                        result.payload.raw["tool_response"], result.matches
+                    ),
+                },
+            }
+        elif result.block:
             if result.payload.event_type in [
                 EventType.USER_PROMPT,
                 EventType.POST_TOOL_USE,

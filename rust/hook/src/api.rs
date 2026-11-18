@@ -435,8 +435,17 @@ fn split_result(result: ScanResult, secret_config: &SecretConfig) -> DocumentRes
         .filter(|pb| keep(pb, secret_config))
         .map(|pb| pb.secret)
         .collect();
+    let filtered_out = total - secrets.len();
+    // One document can hold the same value twice (a Claude Code Edit output has
+    // the file and its diff); that is one secret to report, keyed like
+    // `ignored_matches`.
+    let mut seen = std::collections::HashSet::new();
+    let secrets = secrets
+        .into_iter()
+        .filter(|secret| seen.insert(ignore_sha(&secret.matches)))
+        .collect();
     DocumentResult {
-        filtered_out: total - secrets.len(),
+        filtered_out,
         secrets,
     }
 }
@@ -947,6 +956,29 @@ mod tests {
 
         let blocked = &split(AWS, &SecretConfig::default())[0];
         assert_eq!((blocked.secrets.len(), blocked.filtered_out), (1, 0));
+    }
+
+    /// GIVEN one document where the API reports the same secret twice, plus a
+    /// different one
+    /// WHEN it is split into secrets
+    /// THEN the repeat is reported once and is not counted as filtered out.
+    #[test]
+    fn a_secret_reported_twice_in_one_document_counts_once() {
+        let json = r#"[{"policy_breaks": [
+            {"policy": "Secrets detection", "type": "Linear API Key",
+             "matches": [{"match": "lin_api_same", "type": "apikey"}]},
+            {"policy": "Secrets detection", "type": "Linear API Key",
+             "matches": [{"match": "lin_api_same", "type": "apikey"}]},
+            {"policy": "Secrets detection", "type": "Linear API Key",
+             "matches": [{"match": "lin_api_other", "type": "apikey"}]}]}]"#;
+        let result = &split(json, &SecretConfig::default())[0];
+        let values: Vec<&str> = result
+            .secrets
+            .iter()
+            .map(|s| s.matches[0].value.as_str())
+            .collect();
+        assert_eq!(values, ["lin_api_same", "lin_api_other"]);
+        assert_eq!(result.filtered_out, 0);
     }
 }
 
