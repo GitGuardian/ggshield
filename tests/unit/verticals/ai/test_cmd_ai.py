@@ -37,6 +37,11 @@ CLAUDE_PRE_TOOL_USE_PAYLOAD = json.dumps(
 )
 
 
+# An event name no adapter answers to. A bare "PreToolUse" would not do: the
+# Rust hook reads that as Kiro's signature.
+UNKNOWN_AGENT_PAYLOAD = json.dumps({"hook_event_name": "somethingElse", "prompt": "hi"})
+
+
 SOURCE_UUID = "11111111-1111-1111-1111-111111111111"
 
 
@@ -290,25 +295,127 @@ class TestAiHookCmd:
         assert response["continue"] is True
         assert "NOT scanned" in response["systemMessage"]
 
+    @pytest.mark.parametrize(
+        ("env", "config", "exit_code"),
+        [
+            pytest.param(None, None, 0, id="default"),
+            pytest.param("block", None, 2, id="env-block"),
+            pytest.param(None, "block", 2, id="config-block"),
+            pytest.param("allow", "block", 0, id="env-overrides-config"),
+            pytest.param(" BLOCK ", None, 2, id="env-ignores-case-and-spaces"),
+            pytest.param("", "block", 2, id="empty-env-is-unset"),
+        ],
+    )
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_unknown_agent_follows_ai_hook_failure_policy(
+        self,
+        mock_create_client: MagicMock,
+        mock_notify: MagicMock,
+        monkeypatch,
+        tmp_path,
+        env: Optional[str],
+        config: Optional[str],
+        exit_code: int,
+    ):
+        """
+        GIVEN a payload no adapter recognizes, and secret.ai_hook_failure_policy
+              set in the config file, the environment, both or neither
+        WHEN the hook runs
+        THEN it writes nothing on stdout, explains on stderr, raises no desktop
+             notification, and exits 0 to allow or 2 to block
+        """
+        mock_create_client.return_value = _scanning_client()
+        if env is None:
+            monkeypatch.delenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", raising=False)
+        else:
+            monkeypatch.setenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", env)
+        if config is not None:
+            home = tmp_path / "home"
+            home.mkdir(exist_ok=True)
+            (home / ".gitguardian.yaml").write_text(
+                f"version: 2\nsecret:\n  ai_hook_failure_policy: {config}\n"
+            )
+
+        runner = CliRunner()
+        runner.mix_stderr = False
+        result = runner.invoke(
+            cli, ["secret", "scan", "ai-hook"], input=UNKNOWN_AGENT_PAYLOAD
+        )
+
+        assert result.exit_code == exit_code
+        assert result.stdout == ""
+        assert "does not recognize the AI agent" in result.stderr
+        assert "NOT scanned for secrets" in result.stderr
+        mock_notify.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("config", "exit_code"),
+        [pytest.param(None, 0, id="no-config"), pytest.param("block", 2, id="config")],
+    )
+    @patch("ggshield.cmd.secret.scan.ai_hook.create_client_from_config")
+    def test_an_unusable_ai_hook_failure_policy_variable_is_ignored(
+        self,
+        mock_create_client: MagicMock,
+        monkeypatch,
+        tmp_path,
+        config: Optional[str],
+        exit_code: int,
+    ):
+        """
+        GIVEN GITGUARDIAN_AI_HOOK_FAILURE_POLICY set to neither allow nor block,
+              and a payload no adapter recognizes
+        WHEN the hook runs
+        THEN it warns and uses the config file's value, or allow: exiting 2
+             over it would read as a block to agents
+        """
+        mock_create_client.return_value = _scanning_client()
+        monkeypatch.setenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", "maybe")
+        if config is not None:
+            home = tmp_path / "home"
+            home.mkdir(exist_ok=True)
+            (home / ".gitguardian.yaml").write_text(
+                f"version: 2\nsecret:\n  ai_hook_failure_policy: {config}\n"
+            )
+
+        runner = CliRunner()
+        runner.mix_stderr = False
+        result = runner.invoke(
+            cli, ["secret", "scan", "ai-hook"], input=UNKNOWN_AGENT_PAYLOAD
+        )
+
+        assert result.exit_code == exit_code
+        assert result.stdout == ""
+        assert (
+            "Ignoring GITGUARDIAN_AI_HOOK_FAILURE_POLICY='maybe': it must be 'allow' or"
+            " 'block'." in result.stderr
+        )
+        assert "does not recognize the AI agent" in result.stderr
+
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
     @patch(
         "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
         side_effect=MissingTokenError(instance="https://dashboard.gitguardian.com"),
     )
-    def test_auth_failure_with_unknown_agent_returns_error(
-        self, mock_client: MagicMock
+    def test_auth_failure_with_unknown_agent_reports_the_agent(
+        self, mock_client: MagicMock, mock_notify: MagicMock, monkeypatch
     ):
-        """If the agent cannot be identified we cannot emit a well-formed
-        response; exit 1 (a non-blocking error for most agents)."""
+        """
+        GIVEN no token and a payload no adapter recognizes
+        WHEN the hook runs
+        THEN it is handled as an unrecognized agent: even with a token the event
+             could not be scanned
+        """
+        monkeypatch.delenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", raising=False)
         runner = CliRunner()
+        runner.mix_stderr = False
         result = runner.invoke(
-            cli,
-            ["secret", "scan", "ai-hook"],
-            # An event name no adapter answers to. A bare "PreToolUse" would
-            # not do: the Rust hook reads that as Kiro's signature.
-            input='{"hook_event_name": "somethingElse"}',
+            cli, ["secret", "scan", "ai-hook"], input=UNKNOWN_AGENT_PAYLOAD
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert "does not recognize the AI agent" in result.stderr
 
     @pytest.mark.parametrize(
         "extra_args",

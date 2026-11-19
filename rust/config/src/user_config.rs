@@ -41,6 +41,29 @@ pub enum AiHookFailurePolicy {
     Block,
 }
 
+pub const AI_HOOK_FAILURE_POLICY_ENV_VAR: &str = "GITGUARDIAN_AI_HOOK_FAILURE_POLICY";
+
+impl AiHookFailurePolicy {
+    /// `resolve_ai_hook_failure_policy()`: the variable wins over the file. An
+    /// unusable one is ignored, with the warning to print: exiting non-zero
+    /// over it would read as a block to agents.
+    pub fn resolve(from_env: Option<&str>, configured: Self) -> (Self, Option<String>) {
+        let raw = from_env.unwrap_or_default();
+        match raw.trim().to_lowercase().as_str() {
+            "" => (configured, None),
+            "allow" => (AiHookFailurePolicy::Allow, None),
+            "block" => (AiHookFailurePolicy::Block, None),
+            _ => (
+                configured,
+                Some(format!(
+                    "Ignoring {AI_HOOK_FAILURE_POLICY_ENV_VAR}='{raw}': it must be 'allow' \
+                     or 'block'."
+                )),
+            ),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct SecretConfig {
     /// Each entry is either the sha256 "ignore sha" of a policy break or a
@@ -611,6 +634,35 @@ mod tests {
             assert!(
                 matches!(of(&yaml), Err(Error::Fatal(_))),
                 "{bad} must be fatal"
+            );
+        }
+    }
+
+    /// GIVEN `GITGUARDIAN_AI_HOOK_FAILURE_POLICY` unset, empty, `allow` or
+    /// `block` in any case and with surrounding spaces, or something else
+    /// WHEN it is resolved against the file's value
+    /// THEN unset and empty keep the file's value, `allow` and `block` win, and
+    /// anything else keeps the file's value with a warning.
+    #[test]
+    fn the_ai_hook_failure_policy_variable_overrides_the_file() {
+        use AiHookFailurePolicy::{Allow, Block};
+        let resolve = AiHookFailurePolicy::resolve;
+        assert_eq!(resolve(None, Block), (Block, None));
+        assert_eq!(resolve(Some(""), Block), (Block, None));
+        assert_eq!(resolve(Some("  "), Block), (Block, None));
+        assert_eq!(resolve(Some("allow"), Block), (Allow, None));
+        assert_eq!(resolve(Some(" BLOCK "), Allow), (Block, None));
+        for configured in [Allow, Block] {
+            assert_eq!(
+                resolve(Some("deny"), configured),
+                (
+                    configured,
+                    Some(
+                        "Ignoring GITGUARDIAN_AI_HOOK_FAILURE_POLICY='deny': it must be \
+                         'allow' or 'block'."
+                            .to_string()
+                    )
+                )
             );
         }
     }

@@ -1879,8 +1879,9 @@ def extra_cases(tmp):
         mock.kill()
         unreadable.chmod(0o600)
 
-    # 5. A payload from no known agent: no verdict at all, exit 1.
-    print("\nUnrecognized agent (both sides): no stdout, exit 1")
+    # 5. A payload from no known agent: no verdict at all, and the default
+    #    `secret.ai_hook_failure_policy: allow` lets it through.
+    print("\nUnrecognized agent (both sides): no stdout, exit 0")
     for side, cmd in (("python", PY_CMD), ("rust", RS_CMD)):
         workdir = make_workdir(tmp, f"unknown-{side}")
         proc, _ = run(
@@ -1889,7 +1890,7 @@ def extra_cases(tmp):
             dead_port,
             workdir,
         )
-        ok = proc.returncode == 1 and proc.stdout == b""
+        ok = proc.returncode == 0 and proc.stdout == b""
         print(
             f"  [{'OK  ' if ok else 'FAIL'}] {side}: exit={proc.returncode} "
             f"stdout={proc.stdout!r}"
@@ -2099,13 +2100,13 @@ def junie_payloads():
         # The real SessionEnd envelope, captured from Junie 26.8.31: two keys
         # and nothing else, so `buildStdinJson`'s "cwd always" does not hold
         # here. With no `project_path` no adapter answers to it, which is the
-        # unrecognized-agent exit rather than a verdict. Harmless because
-        # ggshield installs no SessionEnd hook: the event carries nothing to
-        # scan, and hooking it would only add an exit ggshield logs a warning for.
+        # unrecognized-agent answer (exit 0 under the default
+        # `ai_hook_failure_policy: allow`) rather than a verdict. Harmless because
+        # ggshield installs no SessionEnd hook: the event carries nothing to scan.
         "session_end": (
             {"hook_event_name": "SessionEnd", "reason": "prompt_input_exit"},
             False,
-            1,
+            0,
         ),
     }
 

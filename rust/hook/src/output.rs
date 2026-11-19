@@ -406,11 +406,6 @@ pub fn emission(result: &HookResult) -> Emission {
     }
 }
 
-/// Prints the verdict and returns the process exit code.
-pub fn output_result(result: &HookResult) -> i32 {
-    emit(emission(result))
-}
-
 /// Prints one emission, whether it was just decided or replayed from the
 /// debounce, and returns the process exit code.
 pub fn emit(emission: Emission) -> i32 {

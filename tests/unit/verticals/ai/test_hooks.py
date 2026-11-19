@@ -41,6 +41,7 @@ from ggshield.verticals.ai.cache import (
 )
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
+    UnrecognizedAgentError,
     _cannot_scan_warning,
     _send_desktop_notification,
     build_agent_headers,
@@ -792,6 +793,41 @@ class TestAIHookScannerScan:
         assert scanner.scan(content) == 0
         assert scanner.scan(content) == 0
         mock_scanner.scan.assert_called_once()
+
+    def test_a_failed_scan_is_not_remembered_as_seen(self):
+        """
+        GIVEN a payload whose scan raises, as when the API is unreachable
+        WHEN the identical payload comes again
+        THEN it is scanned again rather than waved through as a duplicate, so
+             `ai_hook_failure_policy` answers the retry too
+        """
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.side_effect = ConnectionError("server unreachable")
+        scanner = AIHookScanner(mock_scanner)
+        content = json.dumps(
+            {
+                "hook_event_name": "UserPromptSubmit",
+                "prompt": "hello world",
+                "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+                "cursor_version": "1.2.3",
+            }
+        )
+        for _ in range(2):
+            with pytest.raises(ConnectionError):
+                scanner.scan(content)
+        assert mock_scanner.scan.call_count == 2
+
+    def test_an_unrecognized_agent_is_not_remembered_as_seen(self):
+        """
+        GIVEN a payload from no known agent
+        WHEN the identical payload comes again
+        THEN it is rejected again rather than waved through as a duplicate
+        """
+        scanner = AIHookScanner(_mock_scanner([]))
+        content = json.dumps({"hook_event_name": "somethingElse", "prompt": "hi"})
+        for _ in range(2):
+            with pytest.raises(UnrecognizedAgentError):
+                scanner.scan(content)
 
     @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
     def test_scan_post_tool_use_with_secrets_sends_notification(
