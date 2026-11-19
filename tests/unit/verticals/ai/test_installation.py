@@ -908,6 +908,30 @@ class TestBuildHookCommand:
     user's shell and across launch contexts).
     """
 
+    def test_python_dash_m_invocation_runs_the_module(self, tmp_path):
+        """``python -m ggshield install`` leaves argv[0] at the package's
+        ``__main__.py``, which is a module rather than an executable: writing it
+        into the settings produced a hook that could never start. The command
+        has to re-run the module through the interpreter that ran install."""
+        main_py = tmp_path / "site-packages" / "ggshield" / "__main__.py"
+        main_py.parent.mkdir(parents=True)
+        main_py.write_text("")
+
+        with _simulate_platform([str(main_py), "install"], windows=False):
+            command = build_hook_command()
+
+        assert "__main__.py" not in command
+        assert command == f"{sys.executable} -m ggshield secret scan ai-hook"
+
+    def test_foreign_main_module_keeps_the_argv0_behaviour(self, tmp_path):
+        """Some other tool's ``__main__.py`` is not a ggshield module run."""
+        foreign = tmp_path / "pytest" / "__main__.py"
+        foreign.parent.mkdir(parents=True)
+        foreign.write_text("")
+
+        with _simulate_platform([str(foreign), "install"], windows=False):
+            assert build_hook_command() == f"{foreign} secret scan ai-hook"
+
     def test_absolute_argv0_is_used_verbatim(self):
         """An absolute argv[0] is used as-is (symlinks NOT resolved, so the
         stable launcher path survives version upgrades)."""
