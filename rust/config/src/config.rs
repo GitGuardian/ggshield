@@ -48,7 +48,8 @@ pub const KEYRING_SENTINEL: &str = "__KEYRING__";
 const ALLOW_KEYCHAIN_DIALOG_ENV_VAR: &str = "GGSHIELD_ALLOW_KEYCHAIN_DIALOG";
 pub const DEFAULT_INSTANCE_URL: &str = "https://dashboard.gitguardian.com";
 
-const TRACKED_ENV_VARS: [&str; 5] = [
+const TRACKED_ENV_VARS: [&str; 6] = [
+    user_config::AI_HOOK_FAILURE_POLICY_ENV_VAR,
     "GITGUARDIAN_INSTANCE",
     "GITGUARDIAN_API_URL",
     "GITGUARDIAN_API_KEY",
@@ -527,6 +528,12 @@ fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<String, Error> {
         return Ok(url.clone());
     }
     Ok(DEFAULT_INSTANCE_URL.to_string())
+}
+
+/// A tracked variable, `.env` first like everywhere else here. A `.env` that
+/// cannot be read is skipped: this is only consulted once a scan already failed.
+pub fn env_override(key: &str) -> Option<String> {
+    env_var(&dotenv_overrides().unwrap_or_default(), key)
 }
 
 pub fn resolve() -> Result<Config, Error> {
@@ -1073,6 +1080,9 @@ mod tests {
                 | Error::Fatal(message)
                 | Error::Invalid(message)
                 | Error::Unsupported(message) => message,
+                Error::UnrecognizedAgent => {
+                    ggshield_common::error::UNRECOGNIZED_AGENT_WARNING.into()
+                }
             });
         unsafe {
             for (key, _) in vars {

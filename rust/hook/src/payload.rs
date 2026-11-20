@@ -507,7 +507,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
     let data: Value = serde_json::from_str(raw_content)
         .map_err(|e| Error::Invalid(format!("Error: Failed to parse JSON from stdin: {e}")))?;
 
-    let agent = Agent::detect(&data).ok_or_else(|| Error::Invalid("Unrecognized agent".into()))?;
+    let agent = Agent::detect(&data).ok_or(Error::UnrecognizedAgent)?;
 
     let event_name = lookup(&data, &["hook_event_name", "hookEventName"])
         .and_then(Value::as_str)
@@ -1099,14 +1099,11 @@ mod tests {
 
     /// GIVEN a payload whose fields match no agent's signature
     /// WHEN it is parsed
-    /// THEN it is rejected as "Unrecognized agent".
+    /// THEN it is rejected as an unrecognized agent.
     #[test]
     fn rejects_a_payload_from_no_known_agent() {
         let raw = json!({"hook_event_name": "somethingElse", "prompt": "hi"}).to_string();
-        match parse(&raw) {
-            Err(Error::Invalid(msg)) => assert_eq!(msg, "Unrecognized agent"),
-            other => panic!("expected Invalid, got {other:?}"),
-        }
+        assert!(matches!(parse(&raw), Err(Error::UnrecognizedAgent)));
     }
 
     /// GIVEN a Copilot tool call named `<server>-<tool>` and one in snake_case

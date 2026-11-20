@@ -23,8 +23,9 @@ const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The OS credential store may be lock
 /// 1, **nothing** on stdout. Agents treat a non-zero exit with no JSON as a
 /// non-blocking error and surface stderr to the user.
 ///
-/// `Fail` mirrors `except Exception`: fail open, i.e. `{"continue": true}` plus a
-/// `systemMessage` warning and exit 0.
+/// `Fail` mirrors `except Exception`: the event went unscanned, and
+/// `secret.ai_hook_failure_policy` decides whether the agent's allow (with the
+/// warning) or its block (with the warning as the reason) answers it.
 ///
 /// `Fatal` mirrors config loading, which happens in the `cli` group callback in
 /// `__main__.py`, *before* `ai_hook_cmd` runs: a `ParseError` / `UnexpectedError`
@@ -32,6 +33,10 @@ const CREDENTIAL_STORE_DENIED_CAUSE: &str = "The OS credential store may be lock
 /// open — it prints `Error: <message>` on stderr and exits 128.
 ///
 /// `Clone` so `Config::token()` can hand its memoised failure to every caller.
+///
+/// `UnrecognizedAgent` is a payload from no known agent: there is no
+/// agent-shaped answer to give, so `secret.ai_hook_failure_policy` picks the
+/// exit code.
 ///
 /// `Unsupported` is a configuration this binary knowingly cannot handle and
 /// `ggshield-py` can: the dispatcher hands the event over instead of failing
@@ -42,7 +47,13 @@ pub enum Error {
     Fail(String),
     Fatal(String),
     Unsupported(String),
+    UnrecognizedAgent,
 }
+
+/// `_cannot_scan_warning()` for an `UnrecognizedAgentError`.
+pub const UNRECOGNIZED_AGENT_WARNING: &str = "ggshield does not recognize the AI agent that \
+     called it — this action was NOT scanned for secrets. Update ggshield, as this agent may \
+     need a newer version.";
 
 impl Error {
     /// `_cannot_scan_warning()` for an AuthError.

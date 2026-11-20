@@ -25,6 +25,7 @@ mod vibe;
 
 use ggshield_common::{binary_extensions, error};
 use ggshield_config::config;
+use ggshield_config::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
 
 use std::io::Read;
 use std::path::Path;
@@ -114,7 +115,7 @@ pub fn warm_notifier() -> i32 {
     0
 }
 
-/// The three failure modes of `ai_hook_cmd`.
+/// The failure modes of `ai_hook_cmd`.
 fn handle_error(stdin_content: &str, err: Error) -> i32 {
     let warning = match err {
         // `except ValueError`: stderr, exit 1, nothing on stdout.
@@ -131,20 +132,68 @@ fn handle_error(stdin_content: &str, err: Error) -> i32 {
         // Only reached when the dispatcher could not hand this event to
         // `ggshield-py`; it then behaves exactly like any other fail-open.
         Error::Fail(warning) | Error::Unsupported(warning) => warning,
+        Error::UnrecognizedAgent => error::UNRECOGNIZED_AGENT_WARNING.to_string(),
     };
 
-    // `emit_fail_open_response()`: warn, then allow *with* the warning attached
-    // so the user learns the action went unscanned.
-    eprintln!("Warning: {warning}");
+    let fail = ai_hook_failure_policy() == AiHookFailurePolicy::Block;
+    let answer = cannot_scan(stdin_content, warning, fail);
+    eprintln!("Warning: {}", answer.warning);
+    output::emit(answer.emission)
+}
+
+/// `secret.ai_hook_failure_policy`, overridden by
+/// `GITGUARDIAN_AI_HOOK_FAILURE_POLICY`. Read only once a scan has failed, so a
+/// config that cannot be read here falls back to the default rather than failing
+/// twice.
+fn ai_hook_failure_policy() -> AiHookFailurePolicy {
+    let configured = user_config::load()
+        .map(|config| config.secret.ai_hook_failure_policy)
+        .unwrap_or_default();
+    let from_env = config::env_override(AI_HOOK_FAILURE_POLICY_ENV_VAR);
+    let (policy, warning) = AiHookFailurePolicy::resolve(from_env.as_deref(), configured);
+    if let Some(warning) = warning {
+        eprintln!("Warning: {warning}");
+    }
+    policy
+}
+
+/// How an event the hook could not scan is answered.
+struct CannotScan {
+    /// What the user is told on stderr.
+    warning: String,
+    emission: Emission,
+}
+
+/// `emit_cannot_scan_response()`.
+fn cannot_scan(stdin_content: &str, warning: String, fail: bool) -> CannotScan {
     match payload::parse(stdin_content) {
-        // We cannot tell who is calling, so no well-formed response is possible.
-        // Agents treat exit 1 as a non-blocking error.
-        Err(_) => 1,
-        Ok(payloads) => match payloads.last() {
-            None => 1,
-            Some(payload) => {
-                output::output_result(&HookResult::allow_with_warning(payload, warning))
+        // Even with a working token this event could not be scanned. The agent's
+        // response format is unknown: an empty stdout with exit 0 is the most
+        // widely understood "allow", exit 2 the most common "block".
+        Err(Error::UnrecognizedAgent) => CannotScan {
+            warning: error::UNRECOGNIZED_AGENT_WARNING.to_string(),
+            emission: Emission::Silent(if fail { 2 } else { 0 }),
+        },
+        Ok(payloads) if !payloads.is_empty() => {
+            let payload = &payloads[payloads.len() - 1];
+            let result = if fail && payload.event_type == EventType::Other {
+                // Nothing to scan, so the answer a working scan would give:
+                // blocking a lifecycle event can stop the agent's whole session.
+                HookResult::allow(payload)
+            } else if fail {
+                HookResult::block(payload, warning.clone(), 0)
+            } else {
+                HookResult::allow_with_warning(payload, warning.clone())
+            };
+            CannotScan {
+                emission: output::emission(&result),
+                warning,
             }
+        }
+        // Not a hook event at all. Agents treat exit 1 as a non-blocking error.
+        _ => CannotScan {
+            warning,
+            emission: Emission::Silent(1),
         },
     }
 }
@@ -544,6 +593,93 @@ mod tests {
 
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
+
+    const UNKNOWN_AGENT_EVENT: &str = r#"{"hook_event_name": "somethingElse", "prompt": "hi"}"#;
+
+    /// GIVEN a payload from no known agent
+    /// WHEN it cannot be scanned, whatever the reason
+    /// THEN nothing goes to stdout, the warning says the agent is not recognized,
+    /// and `ai_hook_failure_policy` picks exit 0 (allow) or 2 (block).
+    #[test]
+    fn an_unrecognized_agent_follows_ai_hook_failure_policy() {
+        for (fail, code) in [(false, 0), (true, 2)] {
+            for reason in [
+                error::UNRECOGNIZED_AGENT_WARNING.to_string(),
+                "ggshield could not authenticate".to_string(),
+            ] {
+                let answer = cannot_scan(UNKNOWN_AGENT_EVENT, reason, fail);
+                assert_eq!(answer.emission, Emission::Silent(code), "{fail:?}");
+                assert_eq!(answer.warning, error::UNRECOGNIZED_AGENT_WARNING);
+            }
+        }
+    }
+
+    /// GIVEN a Claude Code tool call that could not be scanned
+    /// WHEN `ai_hook_failure_policy` is allow, then block
+    /// THEN allow lets it through with the warning, and block denies it with
+    /// the warning as the reason.
+    #[test]
+    fn a_known_agent_gets_its_own_answer_per_ai_hook_failure_policy() {
+        let event = claude_bash_event("ls");
+        let warning = "ggshield could not scan (boom) — this action was NOT scanned for secrets.";
+
+        let allowed = cannot_scan(&event, warning.into(), false);
+        assert_eq!(
+            allowed.emission,
+            Emission::Stdout(
+                serde_json::json!({"continue": true, "systemMessage": warning}),
+                0
+            )
+        );
+
+        let blocked = cannot_scan(&event, warning.into(), true);
+        assert_eq!(
+            blocked.emission,
+            Emission::Stdout(
+                serde_json::json!({"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": warning,
+                }}),
+                0
+            )
+        );
+    }
+
+    /// GIVEN Claude Code lifecycle events that could not be scanned
+    /// WHEN `ai_hook_failure_policy` is block
+    /// THEN each gets the answer a working scan gives, never a `continue: false`
+    /// that would stop the session, and the warning still goes to stderr.
+    #[test]
+    fn block_lets_a_lifecycle_event_through() {
+        for name in ["SessionStart", "Stop"] {
+            let event = serde_json::json!({
+                "session_id": "abc",
+                "transcript_path": "/Users/x/.claude/projects/p/abc.jsonl",
+                "cwd": "/tmp",
+                "hook_event_name": name,
+            })
+            .to_string();
+            let payloads = payload::parse(&event).expect("parses");
+            let clean = output::emission(&HookResult::allow(&payloads[0]));
+
+            let answer = cannot_scan(&event, "boom".into(), true);
+            assert_eq!(answer.emission, clean, "{name}");
+            assert_eq!(answer.warning, "boom");
+        }
+    }
+
+    /// GIVEN stdin that is not a hook event at all
+    /// WHEN it cannot be scanned
+    /// THEN it stays a non-blocking error, exit 1, whatever
+    /// `ai_hook_failure_policy` says.
+    #[test]
+    fn a_non_event_is_still_exit_1() {
+        for fail in [false, true] {
+            let answer = cannot_scan("{not json", "boom".into(), fail);
+            assert_eq!(answer.emission, Emission::Silent(1));
+        }
+    }
 
     #[test]
     fn decode_payload_survives_a_bom() {
@@ -1003,8 +1139,8 @@ mod tests {
         assert!(resolved.is_ok(), "config resolution failed: {resolved:?}");
         // An `Error::Fail` here would mean the credential store was read.
         match outcome {
-            Ok(Err(Error::Invalid(message))) => assert_eq!(message, "Unrecognized agent"),
-            other => panic!("expected an Invalid rejection, got {other:?}"),
+            Ok(Err(Error::UnrecognizedAgent)) => {}
+            other => panic!("expected an UnrecognizedAgent rejection, got {other:?}"),
         }
     }
 

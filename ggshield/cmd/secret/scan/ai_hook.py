@@ -19,13 +19,20 @@ from ggshield.core.scan import ScanContext, ScanMode
 from ggshield.utils.os import getenv_bool
 from ggshield.verticals.ai.hooks import (
     AIHookScanner,
+    UnrecognizedAgentError,
     build_agent_headers,
-    emit_fail_open_response,
+    emit_cannot_scan_response,
+    resolve_ai_hook_failure_policy,
 )
 from ggshield.verticals.secret import SecretScanner
 
 
 MAX_READ_SIZE = 1024 * 1024 * 10  # We restrict stdin read to 10MB
+
+
+def _fail(ctx_obj: ContextObj) -> bool:
+    policy = ctx_obj.config.user_config.secret.ai_hook_failure_policy
+    return resolve_ai_hook_failure_policy(policy) == "block"
 
 
 def _keychain_dialogs() -> ContextManager[None]:
@@ -86,10 +93,11 @@ def ai_hook_cmd(
             secret_config=replace(config.user_config.secret, source_uuid=None),
         )
         return AIHookScanner(scanner, ctx_obj.exclusion_regexes).scan(stdin_content)
+    except UnrecognizedAgentError as e:
+        return emit_cannot_scan_response(stdin_content, e, _fail(ctx_obj))
     except ValueError as e:
         ui.display_error(str(e.args[0]))
         return 1
     except Exception as e:
-        # Any auth / network / unexpected failure must not crash the hook:
-        # fail open with a warning surfaced through the agent.
-        return emit_fail_open_response(stdin_content, e)
+        # Auth, network or any unexpected failure: the event was not scanned.
+        return emit_cannot_scan_response(stdin_content, e, _fail(ctx_obj))
