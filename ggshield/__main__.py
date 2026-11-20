@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 import click
+from dotenv import dotenv_values
 
 from ggshield import __version__
 from ggshield.cmd.utils.common_options import add_common_options
@@ -17,7 +18,12 @@ from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
 from ggshield.core import check_updates, ui
 from ggshield.core.cache import Cache
 from ggshield.core.config import Config
-from ggshield.core.env_utils import load_dot_env
+from ggshield.core.config.utils import find_global_config_path
+from ggshield.core.env_utils import (
+    TRACKED_ENV_VARS,
+    find_repository_dot_env,
+    load_dot_env,
+)
 from ggshield.core.os_truststore import setup_truststore
 from ggshield.core.ui import ensure_level, log_utils
 from ggshield.utils.click import RealPath
@@ -76,15 +82,19 @@ def cli(
     instance: Optional[str],
     **kwargs: Any,
 ) -> None:
+    # A cloned repository must not choose where machine commands send the machine's data.
+    machine_command = ctx.invoked_subcommand == "machine"
     # Load .env before Config so the config sees the variables it sets.
-    dotenv_vars = load_dot_env()
+    dotenv_vars = load_dot_env(search=not machine_command)
 
     # Create ContextObj, load config
     ctx.obj = ctx_obj = ContextObj()
     ctx_obj.cache = Cache()
-    ctx_obj.config = Config(config_path)
+    ctx_obj.config = Config(config_path, trust_local_config=not machine_command)
     ctx_obj.config._dotenv_vars = dotenv_vars
     user_config = ctx_obj.config.user_config
+    if machine_command:
+        _warn_about_repository_settings(ctx_obj.config)
 
     # If the config wants a higher UI level, set it now
     if user_config.debug and ui.get_level() < ui.Level.DEBUG:
@@ -109,6 +119,29 @@ def cli(
     # PluginAwareLazyGroup each load on demand.
 
     _set_color(ctx)
+
+
+def _warn_about_repository_settings(config: Config) -> None:
+    """Tell the user which repository settings a machine command did not use."""
+    if not getenv_bool("GITGUARDIAN_DONT_LOAD_ENV") and not os.getenv(
+        "GITGUARDIAN_DOTENV_PATH"
+    ):
+        dot_env = find_repository_dot_env()
+        names = (
+            sorted(dotenv_values(dot_env).keys() & TRACKED_ENV_VARS) if dot_env else []
+        )
+        if names:
+            ui.display_warning(
+                f"Machine commands do not load {dot_env}, which sets "
+                f"{', '.join(names)}. To use these values, set them in your environment."
+            )
+    if ignored := config.user_config.ignored_local_keys:
+        options = " or ".join(f"--{key}" for key in ignored)
+        ui.display_warning(
+            f"Machine commands do not use the {' and '.join(ignored)} values of "
+            f"{config.config_path}. Set these values in "
+            f"{find_global_config_path(to_write=True)}, or use {options}."
+        )
 
 
 def _set_color(ctx: click.Context):

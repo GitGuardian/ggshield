@@ -118,6 +118,9 @@ class UserConfig(FilteredConfig):
     # gets displayed.
     deprecation_messages: List[str] = field(default_factory=list)
 
+    # Keys of the local config that `load(trust_local_config=False)` dropped
+    ignored_local_keys: List[str] = field(default_factory=list)
+
     def save(self, config_path: Path) -> None:
         """
         Save config to config_path
@@ -136,11 +139,14 @@ class UserConfig(FilteredConfig):
         return dct
 
     @classmethod
-    def load(cls, config_path: Optional[Path] = None) -> Tuple["UserConfig", Path]:
+    def load(
+        cls, config_path: Optional[Path] = None, *, trust_local_config: bool = True
+    ) -> Tuple["UserConfig", Path]:
         """
         Load the various user configs files to create a UserConfig object:
         - global user configuration file (in the home)
-        - local user configuration file (in the repository)
+        - local user configuration file (in the repository). Unless
+          `trust_local_config`, its settings that choose where data goes are dropped.
 
         Returns a UserConfig instance, and the path where updates should be saved
         """
@@ -161,9 +167,14 @@ class UserConfig(FilteredConfig):
         else:
             logger.debug("No global config")
 
+        ignored_local_keys: List[str] = []
         local_config_path = find_local_config_path()
         if local_config_path:
             dct = _load_config_dict(local_config_path, deprecation_messages)
+            if not trust_local_config:
+                ignored_local_keys = [k for k in _UNTRUSTED_LOCAL_KEYS if k in dct]
+                for key in ignored_local_keys:
+                    del dct[key]
             update_dict_from_other(user_config_dict, dct)
             config_path = local_config_path
             logger.debug("Loaded local config from %s", local_config_path)
@@ -172,6 +183,7 @@ class UserConfig(FilteredConfig):
 
         user_config = UserConfig.from_config_dict(user_config_dict)
         user_config.deprecation_messages = deprecation_messages
+        user_config.ignored_local_keys = ignored_local_keys
 
         if config_path is None:
             config_path = Path(DEFAULT_LOCAL_CONFIG_PATH)
@@ -189,8 +201,13 @@ class UserConfig(FilteredConfig):
 
 
 UserConfig.SCHEMA = marshmallow_dataclass.class_schema(UserConfig)(
-    exclude=("deprecation_messages",)
+    exclude=("deprecation_messages", "ignored_local_keys")
 )
+
+
+# A cloned repository can hold a local config: these keys would let it choose where
+# the user's key and data go.
+_UNTRUSTED_LOCAL_KEYS = ("instance", "insecure")
 
 
 def _load_config_dict(
