@@ -297,6 +297,18 @@ class TestMachineSetupOrchestration:
         m_git.assert_called_once_with(False)
 
 
+@patch("ggshield.cmd.machine.setup._setup_endpoint_registration")
+@patch("ggshield.cmd.machine.setup.plant_cmd", return_value=0)
+def test_setup_plants_every_honeytoken_type(
+    m_plant, _m_registration, cli_fs_runner: CliRunner
+):
+    result = cli_fs_runner.invoke(
+        cli, ["machine", "setup", "--no-ai-hooks", "--no-git-hooks"]
+    )
+    assert_invoke_ok(result)
+    m_plant.assert_called_once_with(token_type="all")
+
+
 class TestSetupGitHooks:
     BASE = "ggshield.cmd.machine.setup"
 

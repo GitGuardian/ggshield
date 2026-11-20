@@ -22,8 +22,9 @@ Authentication uses ``Authorization: Token <key>`` (PAT/SAT).
 from __future__ import annotations
 
 import enum
+import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, FrozenSet, List, Optional, Union
 
 import requests
 from requests import Session
@@ -50,6 +51,13 @@ class DeploymentAction(enum.Enum):
     @classmethod
     def _missing_(cls, value: object) -> "DeploymentAction":
         return cls.UNKNOWN
+
+
+class HoneytokenType(enum.Enum):
+    """Honeytoken types this client can place, as named by the reconcile ``type``."""
+
+    AWS = "aws"
+    KUBECONFIG = "kubeconfig"
 
 
 class DeploymentMethod(enum.Enum):
@@ -165,13 +173,29 @@ class EndpointDeploymentsError(Exception):
     so the caller can pick the right exit code.
     """
 
-    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        body: Optional[str] = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.body = body
 
     @property
     def is_auth(self) -> bool:
         return self.status_code in (401, 403)
+
+    @property
+    def invalid_fields(self) -> FrozenSet[str]:
+        """Request fields a validation answer (400) rejects, from its ``extra`` map."""
+        try:
+            payload = json.loads(self.body or "")
+        except ValueError:
+            return frozenset()
+        extra = payload.get("extra") if isinstance(payload, dict) else None
+        return frozenset(extra) if isinstance(extra, dict) else frozenset()
 
     @property
     def is_server(self) -> bool:
@@ -253,6 +277,7 @@ class EndpointDeploymentsClient:
         raise EndpointDeploymentsError(
             f"endpoint-deployments API error ({response.status_code}): {body}",
             status_code=response.status_code,
+            body=body,
         )
 
     @staticmethod
