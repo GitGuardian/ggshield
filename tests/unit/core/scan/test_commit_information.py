@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -104,3 +105,19 @@ def test_from_staged_without_changes(tmp_path):
 
     info = CommitInformation.from_staged(tmp_path)
     assert info.paths == []
+
+
+def test_from_sha_does_not_interpret_sha_as_option(tmp_path):
+    """
+    GIVEN a sha that looks like a `git show` option writing to a file
+    WHEN calling CommitInformation.from_sha()
+    THEN git fails to resolve the sha and does not write the file
+    """
+    repo = Repository.create(tmp_path / "repo")
+    repo.create_commit()
+    injected = tmp_path / "injected"
+
+    with pytest.raises(subprocess.CalledProcessError):
+        CommitInformation.from_sha(f"--output={injected}", repo.path)
+
+    assert not injected.exists()
