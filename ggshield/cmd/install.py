@@ -36,13 +36,34 @@ if [ -f "$_ggshield_local_hook" ]; then
 fi
 """
 
+# Pre-push variant of the snippet above. git hands the list of pushed refs to the
+# hook on stdin, and a repository hook that reads it (pre-commit's shim, Husky,
+# lefthook, a hand-written script) consumes it: ggshield then reads an empty stdin
+# and reports "nothing to scan", so the push goes through unscanned. Buffering the
+# refs once and replaying them to both hooks fixes that by construction, and it
+# also keeps the refs when several branches are pushed at once.
+LOCAL_HOOK_PUSH_SNIPPET = """
+_ggshield_local_hook=$(git rev-parse --git-common-dir)/hooks/{hook_type}
+if [ -f "$_ggshield_local_hook" ]; then
+    _ggshield_stdin=$(cat; printf x)
+    _ggshield_stdin=${{_ggshield_stdin%x}}
+    if ! printf '%s' "$_ggshield_stdin" | "$_ggshield_local_hook" "$@"; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+    printf '%s' "$_ggshield_stdin" | ggshield secret scan {hook_type} "$@"
+else
+    ggshield secret scan {hook_type} "$@"
+fi
+"""
+
 # The line `create_hook` writes into every ggshield-managed hook script; its presence
 # is how we recognize a hook (or hooks dir) as ggshield's own.
 GGSHIELD_HOOK_MARKER = "ggshield secret scan"
 
 # Bumped whenever the generated hook body changes, so an already-installed hook can be
 # told apart from one rendered by an older ggshield. An unstamped hook is version 0.
-GGSHIELD_HOOK_VERSION = 1
+GGSHIELD_HOOK_VERSION = 2
 _HOOK_STAMP_RE = re.compile(r"^# ggshield-hook-version: *(\d+)", re.MULTILINE)
 
 # Local-hook snippets shipped by earlier ggshield versions, kept byte-exact so a stale
@@ -248,25 +269,35 @@ def _hook_body(hook_type: str, local_hook_support: bool) -> str:
     every legacy body this one replaces started with the same newline, so the
     separator survives a repair.
     """
+    stamp = f"\n# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}\n"
+    if local_hook_support and hook_type == "pre-push":
+        # The push snippet pipes the buffered refs into ggshield itself, so it ends
+        # with the scan command instead of being followed by it.
+        return stamp + LOCAL_HOOK_PUSH_SNIPPET.format(hook_type=hook_type)
     snippet = (
         LOCAL_HOOK_SNIPPET.format(hook_type=hook_type) + "\n"
         if local_hook_support
         else ""
     )
-    return (
-        f"\n# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}\n"
-        f"{snippet}"
-        f'ggshield secret scan {hook_type} "$@"\n'
-    )
+    return stamp + snippet + f'ggshield secret scan {hook_type} "$@"\n'
 
 
 def _legacy_hook_bodies(hook_type: str) -> List[str]:
-    return [
-        snippet.format(hook_type=hook_type)
-        + "\n"
-        + f'ggshield secret scan {hook_type} "$@"\n'
-        for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS
-    ]
+    bodies: List[str] = []
+    previous_version = GGSHIELD_HOOK_VERSION - 1
+    for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS:
+        body = (
+            snippet.format(hook_type=hook_type)
+            + "\n"
+            + f'ggshield secret scan {hook_type} "$@"\n'
+        )
+        # The stamped body contains the unstamped one, so it has to be offered
+        # first: matching the inner body would rewrite it in place and leave the
+        # old stamp above the new one, and a doubly-stamped hook reads as outdated
+        # forever.
+        bodies.append(f"\n# ggshield-hook-version: {previous_version}\n{body}")
+        bodies.append(body)
+    return bodies
 
 
 def hook_is_outdated(hook_path: Path) -> bool:

@@ -1135,3 +1135,184 @@ class TestInstallWithoutGit:
         )
         assert_invoke_ok(result)
         assert Path(".claude/settings.json").is_file()
+
+
+class TestGlobalPrePushStdinReplay:
+    """Behavior of ``LOCAL_HOOK_PUSH_SNIPPET``, the pre-push variant of the global
+    hook body.
+
+    Regression coverage for the unscanned-push bug: git hands the pushed refs to the
+    hook on stdin, and the repository's own pre-push hook (pre-commit's shim, Husky,
+    lefthook, any script reading stdin) consumed them, so the ggshield command that
+    ran afterwards read an empty stdin and reported "Deletion event or nothing to
+    scan" while the push went through unscanned.
+    """
+
+    REFS = (
+        "refs/heads/main 1111111111111111111111111111111111111111 "
+        "refs/heads/main 2222222222222222222222222222222222222222\n"
+    )
+
+    @staticmethod
+    def _fake_ggshield(bin_dir: Path, stdin_path: Path) -> Path:
+        """A stand-in for the ggshield executable that records what it reads."""
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        script = bin_dir / "ggshield"
+        script.write_text(f'#!/bin/sh\ncat > "{stdin_path}"\n')
+        script.chmod(0o755)
+        return script
+
+    @staticmethod
+    def _local_push_hook(repo: Repository, stdin_path: Path) -> None:
+        """A repository pre-push hook that drains its stdin, as real hook managers do."""
+        hook = repo.path / ".git" / "hooks" / "pre-push"
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_text(f'#!/bin/sh\ncat > "{stdin_path}"\n')
+        hook.chmod(0o755)
+
+    @staticmethod
+    def _run_hook(hook: Path, run_dir: Path, stdin: str, bin_dir: Path, **kwargs):
+        env = dict(os.environ)
+        env["PATH"] = f"{bin_dir}:{env['PATH']}"
+        return subprocess.run(
+            [str(hook)],
+            cwd=run_dir,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            env=env,
+            **kwargs,
+        )
+
+    def _install_global_push_hook(self, tmp_path: Path) -> Path:
+        hook_dir = tmp_path / "ggshield-hooks"
+        assert (
+            create_hook(
+                hook_dir,
+                force=True,
+                local_hook_support=True,
+                hook_type="pre-push",
+                append=False,
+            )
+            == 0
+        )
+        return hook_dir / "pre-push"
+
+    def test_ggshield_receives_the_pushed_refs_after_the_local_hook(self, tmp_path):
+        """
+        GIVEN a repository whose own pre-push hook reads stdin
+        WHEN the global ggshield pre-push hook runs
+        THEN both the local hook and ggshield receive the pushed refs
+        """
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        local_stdin = tmp_path / "local-stdin"
+        ggshield_stdin = tmp_path / "ggshield-stdin"
+        self._local_push_hook(repo, local_stdin)
+        self._fake_ggshield(tmp_path / "bin", ggshield_stdin)
+        hook = self._install_global_push_hook(tmp_path)
+
+        result = self._run_hook(hook, repo.path, self.REFS, tmp_path / "bin")
+
+        assert result.returncode == 0, result.stderr
+        assert local_stdin.read_text().strip() == self.REFS.strip()
+        assert ggshield_stdin.read_text().strip() == self.REFS.strip()
+
+    def test_every_pushed_ref_survives_to_ggshield(self, tmp_path):
+        """
+        GIVEN a push of two branches at once
+        WHEN the global ggshield pre-push hook runs
+        THEN both ref lines reach ggshield
+        """
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        ggshield_stdin = tmp_path / "ggshield-stdin"
+        self._fake_ggshield(tmp_path / "bin", ggshield_stdin)
+        hook = self._install_global_push_hook(tmp_path)
+        two_refs = self.REFS + self.REFS.replace("main", "feature")
+
+        result = self._run_hook(hook, repo.path, two_refs, tmp_path / "bin")
+
+        assert result.returncode == 0, result.stderr
+        assert ggshield_stdin.read_text().count("refs/heads/") == 4
+
+    def test_ggshield_receives_the_refs_without_a_local_hook(self, tmp_path):
+        """
+        GIVEN a repository with no pre-push hook of its own
+        WHEN the global ggshield pre-push hook runs
+        THEN ggshield still receives the pushed refs
+        """
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        ggshield_stdin = tmp_path / "ggshield-stdin"
+        self._fake_ggshield(tmp_path / "bin", ggshield_stdin)
+        hook = self._install_global_push_hook(tmp_path)
+
+        result = self._run_hook(hook, repo.path, self.REFS, tmp_path / "bin")
+
+        assert result.returncode == 0, result.stderr
+        assert ggshield_stdin.read_text().strip() == self.REFS.strip()
+
+    def test_pre_commit_body_never_reads_stdin(self, tmp_path):
+        """
+        GIVEN the global pre-commit hook body
+        WHEN it is rendered
+        THEN it does not consume stdin, which git does not provide for pre-commit
+        """
+        hook_dir = tmp_path / "ggshield-hooks"
+        create_hook(
+            hook_dir,
+            force=True,
+            local_hook_support=True,
+            hook_type="pre-commit",
+            append=False,
+        )
+        body = (hook_dir / "pre-commit").read_text()
+
+        assert "_ggshield_stdin" not in body
+
+
+class TestHookUpgradeToVersion2:
+    """A v1 hook must be repaired in place, with a single stamp left behind."""
+
+    def _v1_hook(self, hook_type: str) -> str:
+        return (
+            "#!/bin/sh\n"
+            "\n# ggshield-hook-version: 1\n"
+            + LOCAL_HOOK_SNIPPET.format(hook_type=hook_type)
+            + "\n"
+            + f'ggshield secret scan {hook_type} "$@"\n'
+        )
+
+    def test_upgrades_a_v1_pre_push_hook(self, tmp_path):
+        """
+        GIVEN a stamped v1 pre-push hook
+        WHEN it is upgraded
+        THEN it carries the new body and exactly one stamp
+        """
+        hook = tmp_path / "pre-push"
+        hook.write_text(self._v1_hook("pre-push"))
+
+        assert upgrade_hook(hook, "pre-push") is True
+
+        text = hook.read_text()
+        assert text.count("# ggshield-hook-version:") == 1
+        assert f"# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}" in text
+        assert "_ggshield_stdin" in text
+        assert hook_is_outdated(hook) is False
+
+    def test_upgrades_a_v1_pre_commit_hook(self, tmp_path):
+        """
+        GIVEN a stamped v1 pre-commit hook
+        WHEN it is upgraded
+        THEN it carries the new body and exactly one stamp
+        """
+        hook = tmp_path / "pre-commit"
+        hook.write_text(self._v1_hook("pre-commit"))
+
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        text = hook.read_text()
+        assert text.count("# ggshield-hook-version:") == 1
+        assert f"# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}" in text
+        assert hook_is_outdated(hook) is False
