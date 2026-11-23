@@ -24,6 +24,9 @@ pub struct HookResult<'a> {
     /// Shown to the user on a block, never to the model. Only set for agents
     /// where `has_user_only_channel()` holds.
     pub user_message: String,
+    /// The matched values, for an output that is redacted rather than replaced
+    /// whole (see `Payload::is_file_change`).
+    pub matches: Vec<String>,
 }
 
 impl<'a> HookResult<'a> {
@@ -35,6 +38,7 @@ impl<'a> HookResult<'a> {
             payload,
             warning: String::new(),
             user_message: String::new(),
+            matches: Vec::new(),
         }
     }
 
@@ -53,6 +57,7 @@ impl<'a> HookResult<'a> {
             payload,
             warning: String::new(),
             user_message: String::new(),
+            matches: Vec::new(),
         }
     }
 }
@@ -114,7 +119,9 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // `claude_updated_tool_output` builds exactly those, and
             // `claude_capability_matches_the_shapes_it_can_build` locks the two
             // together.
-            Agent::Claude => matches!(payload.tool, Some(Tool::Bash | Tool::Read)),
+            Agent::Claude => {
+                matches!(payload.tool, Some(Tool::Bash | Tool::Read)) || payload.is_file_change()
+            }
             // Junie raises no PostToolUse event at all, so it never has an
             // output to replace.
             Agent::Junie => false,
@@ -184,10 +191,67 @@ fn with_user_message(mut value: Value, key: &str, user_message: &str) -> Value {
     value
 }
 
+const REDACTED: &str = "[redacted by ggshield]";
+
+/// `value` with every match replaced in each of its strings, keys and shape
+/// untouched. The API matched the serialized output, so a match can still be
+/// JSON-escaped, and a diff spreads a multi-line secret over several
+/// `structuredPatch` lines, so each line of a match is replaced on its own too.
+fn redact(value: &Value, matches: &[String]) -> Value {
+    let mut needles: Vec<String> = Vec::new();
+    for raw in matches {
+        let decoded =
+            serde_json::from_str::<String>(&format!("\"{raw}\"")).unwrap_or_else(|_| raw.clone());
+        needles.extend(
+            decoded
+                .lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(String::from),
+        );
+        needles.push(decoded);
+        needles.push(raw.clone());
+    }
+    // Longest first, so a whole match goes before any of its lines.
+    needles.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+    needles.dedup();
+    redact_strings(value, &needles)
+}
+
+fn redact_strings(value: &Value, needles: &[String]) -> Value {
+    match value {
+        Value::String(text) => Value::String(
+            needles
+                .iter()
+                .fold(text.clone(), |text, needle| text.replace(needle, REDACTED)),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .iter()
+                .map(|item| redact_strings(item, needles))
+                .collect(),
+        ),
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, item)| (key.clone(), redact_strings(item, needles)))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
 /// The output Claude Code hands the model in place of the one that held the
 /// secret, in that tool's own shape. `None` for a tool whose shape we have not
 /// captured, which falls back to warning about a leak that did happen.
-fn claude_updated_tool_output(payload: &Payload, message: &str) -> Option<Value> {
+fn claude_updated_tool_output(result: &HookResult) -> Option<Value> {
+    let payload = result.payload;
+    let message = result.message.as_str();
+    if redacts_file_change(result) {
+        return payload
+            .raw
+            .get("tool_response")
+            .map(|output| redact(output, &result.matches));
+    }
     match payload.tool? {
         Tool::Bash => Some(obj(vec![
             ("stdout", message.into()),
@@ -202,7 +266,7 @@ fn claude_updated_tool_output(payload: &Payload, message: &str) -> Option<Value>
                 (
                     "file",
                     obj(vec![
-                        ("filePath", read_file_path(payload).into()),
+                        ("filePath", tool_file_path(payload).into()),
                         ("content", message.into()),
                         ("numLines", lines.into()),
                         ("startLine", 1.into()),
@@ -215,10 +279,17 @@ fn claude_updated_tool_output(payload: &Payload, message: &str) -> Option<Value>
     }
 }
 
+/// Nothing of a file change reaches the model, so for a secret found in one the
+/// agent carries on and only the user is told. An unscanned one has no secret
+/// and follows `ai_hook_failure_policy` like any other output.
+fn redacts_file_change(result: &HookResult) -> bool {
+    result.nbr_secrets > 0 && result.payload.is_file_change()
+}
+
 /// The path Claude sent in `tool_input`, so the replacement names the file the
 /// agent asked for. Falls back to the payload identifier, which is that path
 /// resolved against the event's cwd.
-fn read_file_path(payload: &Payload) -> &str {
+pub(crate) fn tool_file_path(payload: &Payload) -> &str {
     payload
         .raw
         .get("tool_input")
@@ -232,18 +303,28 @@ fn read_file_path(payload: &Payload) -> &str {
 /// context and the session transcript on disk.
 fn claude_post_tool_use(result: &HookResult) -> Value {
     let message = result.message.as_str();
-    let Some(replacement) = claude_updated_tool_output(result.payload, message) else {
+    let Some(replacement) = claude_updated_tool_output(result) else {
         return decision_block(message);
     };
+    let hook_output = obj(vec![
+        ("hookEventName", "PostToolUse".into()),
+        ("updatedToolOutput", replacement),
+    ]);
+    if redacts_file_change(result) {
+        let for_user = [message, result.user_message.as_str()]
+            .into_iter()
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        return obj(vec![
+            ("continue", true.into()),
+            ("systemMessage", for_user.into()),
+            ("hookSpecificOutput", hook_output),
+        ]);
+    }
     let mut value = decision_block(message);
     if let Value::Object(map) = &mut value {
-        map.insert(
-            "hookSpecificOutput".into(),
-            obj(vec![
-                ("hookEventName", "PostToolUse".into()),
-                ("updatedToolOutput", replacement),
-            ]),
-        );
+        map.insert("hookSpecificOutput".into(), hook_output);
     }
     value
 }
@@ -318,7 +399,12 @@ pub fn emission(result: &HookResult) -> Emission {
                         ("stopReason", message.into()),
                     ]),
                 };
-                with_user_message(value, "systemMessage", &result.user_message)
+                // A redacted file change already shows the hint in its message.
+                if redacts_file_change(result) {
+                    value
+                } else {
+                    with_user_message(value, "systemMessage", &result.user_message)
+                }
             },
             0,
         ),
@@ -883,20 +969,210 @@ mod tests {
     /// redaction we do not send would tell the user a leaked secret was safe.
     #[test]
     fn claude_capability_matches_the_shapes_it_can_build() {
-        for tool in [
+        let mut payloads: Vec<Payload> = [
             Some(Tool::Bash),
             Some(Tool::Read),
             Some(Tool::Mcp),
             Some(Tool::Other),
             None,
-        ] {
-            let p = payload_with_tool(Agent::Claude, EventType::PostToolUse, tool);
+        ]
+        .into_iter()
+        .map(|tool| payload_with_tool(Agent::Claude, EventType::PostToolUse, tool))
+        .collect();
+        payloads.extend([claude_edit_payload(), claude_write_payload()]);
+        // A file tool whose response we have not captured, or that carries none.
+        let mut multi_edit = claude_edit_payload();
+        multi_edit.raw["tool_name"] = "MultiEdit".into();
+        let mut no_response = claude_write_payload();
+        no_response.raw["tool_response"] = Value::Null;
+        payloads.extend([multi_edit, no_response]);
+
+        for p in &payloads {
             assert_eq!(
-                can_redact_tool_output(&p),
-                claude_updated_tool_output(&p, "nope").is_some(),
-                "{tool:?}"
+                can_redact_tool_output(p),
+                claude_updated_tool_output(&HookResult::block(p, "nope".into(), 1)).is_some(),
+                "{:?} {}",
+                p.tool,
+                p.raw["tool_name"]
             );
         }
+    }
+
+    /// A `PostToolUse` payload as Claude Code 2.1.323 sent it for an Edit.
+    fn claude_edit_payload() -> Payload {
+        claude_post_tool_use_payload(serde_json::json!({
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": "/private/tmp/proj/notes.txt",
+                "old_string": "MARKER_EDIT_ME",
+                "new_string": "MARKER_EDITED",
+                "replace_all": false
+            },
+            "tool_response": {
+                "filePath": "/private/tmp/proj/notes.txt",
+                "oldString": "MARKER_EDIT_ME",
+                "newString": "MARKER_EDITED",
+                "originalFile": "line one\nline two MARKER_KEEP_ALPHA\nline three\nline four MARKER_EDIT_ME\nline five\n",
+                "structuredPatch": [{
+                    "oldStart": 1, "oldLines": 5, "newStart": 1, "newLines": 5,
+                    "lines": [
+                        " line one",
+                        " line two MARKER_KEEP_ALPHA",
+                        " line three",
+                        "-line four MARKER_EDIT_ME",
+                        "+line four MARKER_EDITED",
+                        " line five"
+                    ]
+                }],
+                "userModified": false,
+                "replaceAll": false
+            }
+        }))
+    }
+
+    /// A `PostToolUse` payload as Claude Code 2.1.323 sent it for a Write that
+    /// overwrites a file.
+    fn claude_write_payload() -> Payload {
+        claude_post_tool_use_payload(serde_json::json!({
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": "/private/tmp/proj/new.txt",
+                "content": "bye MARKER_WRITE_OVER"
+            },
+            "tool_response": {
+                "type": "update",
+                "filePath": "/private/tmp/proj/new.txt",
+                "content": "bye MARKER_WRITE_OVER",
+                "structuredPatch": [{
+                    "oldStart": 1, "oldLines": 1, "newStart": 1, "newLines": 1,
+                    "lines": [
+                        "-hello MARKER_WRITE_NEW",
+                        "\\ No newline at end of file",
+                        "+bye MARKER_WRITE_OVER",
+                        "\\ No newline at end of file"
+                    ]
+                }],
+                "originalFile": "hello MARKER_WRITE_NEW",
+                "userModified": false
+            }
+        }))
+    }
+
+    fn claude_post_tool_use_payload(raw: Value) -> Payload {
+        Payload {
+            raw,
+            ..payload_with_tool(Agent::Claude, EventType::PostToolUse, Some(Tool::Other))
+        }
+    }
+
+    fn emitted_json(result: &HookResult) -> Value {
+        serde_json::from_str(&emitted(result).expect("claude emits json")).expect("valid json")
+    }
+
+    /// Every string in `value`, keys excluded.
+    fn strings(value: &Value) -> Vec<String> {
+        match value {
+            Value::String(text) => vec![text.clone()],
+            Value::Array(items) => items.iter().flat_map(strings).collect(),
+            Value::Object(map) => map.values().flat_map(strings).collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// GIVEN a secret in a file Claude Code just edited or wrote
+    /// WHEN the verdict is emitted
+    /// THEN the agent is not blocked, the user is told through `systemMessage`,
+    /// and the output stored in the transcript is the real one, same keys and
+    /// values, with the secret replaced everywhere it appears.
+    #[test]
+    fn a_claude_file_change_is_redacted_without_blocking() {
+        for (p, secret) in [
+            (claude_edit_payload(), "MARKER_KEEP_ALPHA"),
+            (claude_write_payload(), "MARKER_WRITE_NEW"),
+        ] {
+            let mut result = HookResult::block(&p, "a secret was removed".into(), 1);
+            result.matches = vec![secret.into()];
+            let value = emitted_json(&result);
+
+            assert_eq!(value["continue"], true);
+            assert_eq!(value["systemMessage"], "a secret was removed");
+            assert!(value.get("decision").is_none(), "{value}");
+            assert!(value.get("reason").is_none(), "{value}");
+            assert_eq!(value["hookSpecificOutput"]["hookEventName"], "PostToolUse");
+
+            let original = &p.raw["tool_response"];
+            let redacted = &value["hookSpecificOutput"]["updatedToolOutput"];
+            let expected: Value =
+                serde_json::from_str(&original.to_string().replace(secret, REDACTED))
+                    .expect("valid json");
+            assert_eq!(redacted, &expected);
+            assert!(!redacted.to_string().contains(secret), "{redacted}");
+
+            // The false-positive hint follows the message in the one
+            // `systemMessage`, never replacing it.
+            result.user_message = "the hint".into();
+            let value = emitted_json(&result);
+            assert_eq!(value["systemMessage"], "a secret was removed\n\nthe hint");
+        }
+    }
+
+    /// GIVEN a multi-line secret, matched JSON-escaped in the serialized output
+    /// and spread over several diff lines
+    /// WHEN the Edit output is redacted
+    /// THEN no line of it survives anywhere, and the lines around it do.
+    #[test]
+    fn a_multi_line_secret_is_redacted_from_the_diff_lines_too() {
+        let key = "-----BEGIN FAKE KEY-----\nAAAAfakefakefakefake\nBBBBfakefakefakefake\n-----END FAKE KEY-----";
+        let mut p = claude_edit_payload();
+        p.raw["tool_response"]["originalFile"] = format!("before\n{key}\nafter\n").into();
+        p.raw["tool_response"]["structuredPatch"][0]["lines"] = key
+            .lines()
+            .map(|line| format!(" {line}"))
+            .chain(["-before".into(), "+after".into()])
+            .collect();
+        let escaped = serde_json::to_string(key).expect("a json string");
+        let mut result = HookResult::block(&p, "nope".into(), 1);
+        result.matches = vec![escaped[1..escaped.len() - 1].to_string()];
+
+        let value = emitted_json(&result);
+        let redacted = strings(&value["hookSpecificOutput"]["updatedToolOutput"]);
+        for line in key.lines() {
+            assert!(
+                redacted.iter().all(|text| !text.contains(line)),
+                "{line} in {redacted:?}"
+            );
+        }
+        assert!(redacted.contains(&"-before".to_string()), "{redacted:?}");
+        assert!(redacted.contains(&"+after".to_string()), "{redacted:?}");
+    }
+
+    /// GIVEN a Claude Code Edit the hook could not scan, under
+    /// `ai_hook_failure_policy: block` (a block with no secret)
+    /// WHEN the verdict is emitted
+    /// THEN it is the plain block, with no output replacement.
+    #[test]
+    fn an_unscanned_claude_file_change_keeps_the_block() {
+        let p = claude_edit_payload();
+        assert_eq!(
+            emitted(&HookResult::block(&p, "not scanned".into(), 0)).as_deref(),
+            Some(r#"{"decision":"block","reason":"not scanned"}"#)
+        );
+    }
+
+    /// GIVEN a secret in a MultiEdit output, a tool Claude Code 2.1.323 does not
+    /// have and whose shape was never captured
+    /// WHEN the verdict is emitted
+    /// THEN it keeps the plain block.
+    #[test]
+    fn an_uncaptured_file_tool_keeps_the_block() {
+        let mut p = claude_edit_payload();
+        p.raw["tool_name"] = "MultiEdit".into();
+        assert_eq!(
+            emitted(&HookResult::block(&p, "nope".into(), 1)).as_deref(),
+            Some(r#"{"decision":"block","reason":"nope"}"#)
+        );
     }
 
     /// GIVEN each agent and each event

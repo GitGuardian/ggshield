@@ -11,6 +11,7 @@ from ggshield.core.config.auth_config import AuthConfig
 from ggshield.core.config.user_config import UserConfig
 from ggshield.core.config.utils import remove_url_trailing_slash
 from ggshield.core.constants import DEFAULT_HMSL_URL, DEFAULT_INSTANCE_URL
+from ggshield.core.errors import UnexpectedError
 from ggshield.core.url_utils import (
     api_to_dashboard_url,
     clean_url,
@@ -48,6 +49,7 @@ class Config:
         "_cmdline_instance_name",
         "_config_path",
         "_dotenv_vars",
+        "_trust_local_config",
     ]
 
     user_config: UserConfig
@@ -63,19 +65,41 @@ class Config:
     # It is used in the `api-status` command to return the API key and instance sources
     _dotenv_vars: Set[str]
 
-    def __init__(self, config_path: Optional[Path] = None):
-        self.user_config, self._config_path = UserConfig.load(config_path=config_path)
+    _trust_local_config: bool
+
+    def __init__(
+        self, config_path: Optional[Path] = None, *, trust_local_config: bool = True
+    ):
+        self.user_config, self._config_path = UserConfig.load(
+            config_path=config_path, trust_local_config=trust_local_config
+        )
         self.auth_config = AuthConfig.load()
         self._cmdline_instance_name = None
         self._dotenv_vars = set()
+        self._trust_local_config = trust_local_config
 
     def save(self) -> None:
+        if ignored := self.user_config.ignored_local_keys:
+            raise UnexpectedError(
+                f"ggshield must not write {self._config_path}. It did not read the "
+                f"{' and '.join(ignored)} values of this file, and would remove them."
+            )
         self.user_config.save(self._config_path)
         self.auth_config.save()
 
     @property
     def config_path(self) -> Path:
         return self._config_path
+
+    @property
+    def trusts_local_config(self) -> bool:
+        """
+        False when ggshield did not load the .env file of the current directory or
+        repository, and did not use the `instance` and `insecure` values of the
+        local config: a cloned repository cannot choose where data goes. Plugins
+        can read it.
+        """
+        return self._trust_local_config
 
     @property
     def instance_name(self) -> str:

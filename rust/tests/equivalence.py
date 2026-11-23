@@ -251,36 +251,81 @@ def agent_payloads():
         return built
 
     return {
-        "claude": shapes(
-            claude,
-            prompt_event="UserPromptSubmit",
-            pre="PreToolUse",
-            post="PostToolUse",
-            bash="Bash",
-            read="Read",
-            output_key="tool_response",
-            output_value={"stdout": CLIENT_ID, "stderr": "", "interrupted": False},
-        ),
-        "codex": shapes(
-            codex,
-            prompt_event="UserPromptSubmit",
-            pre="PreToolUse",
-            post="PostToolUse",
-            bash="Bash",
-            read="Read",
-            output_key="tool_output",
-            output_value={"output": CLIENT_ID, "exit_code": 0},
-        ),
-        "copilot": shapes(
-            copilot,
-            prompt_event="userPromptSubmitted",
-            pre="PreToolUse",
-            post="PostToolUse",
-            bash="bash",
-            read="view",
-            output_key="tool_result",
-            output_value={"output": CLIENT_ID},
-        ),
+        "claude": {
+            **shapes(
+                claude,
+                prompt_event="UserPromptSubmit",
+                pre="PreToolUse",
+                post="PostToolUse",
+                bash="Bash",
+                read="Read",
+                output_key="tool_response",
+                output_value={"stdout": CLIENT_ID, "stderr": "", "interrupted": False},
+            ),
+            # The model only gets "updated successfully" for an Edit, so both
+            # sides redact the stored output instead of blocking.
+            "post_edit": {
+                **claude,
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "/repo/creds.py", "old_string": "a"},
+                "tool_response": {
+                    "filePath": "/repo/creds.py",
+                    "originalFile": f"KEY = '{CLIENT_ID}'\na = 1\n",
+                    "structuredPatch": [
+                        {"lines": [f" KEY = '{CLIENT_ID}'", "-a = 1", "+b = 1"]}
+                    ],
+                },
+            },
+        },
+        "codex": {
+            **shapes(
+                codex,
+                prompt_event="UserPromptSubmit",
+                pre="PreToolUse",
+                post="PostToolUse",
+                bash="Bash",
+                read="Read",
+                output_key="tool_output",
+                output_value={"output": CLIENT_ID, "exit_code": 0},
+            ),
+            # Codex 0.170 hands the hook the status line the model gets, so a
+            # secret in the patched file is not scanned again after the edit.
+            "post_edit": {
+                **codex,
+                "hook_event_name": "PostToolUse",
+                "tool_name": "apply_patch",
+                "tool_input": {
+                    "command": "*** Begin Patch\n*** Update File: /repo/creds.py\n"
+                    f"@@\n KEY = '{CLIENT_ID}'\n-a = 1\n+b = 1\n*** End Patch"
+                },
+                "tool_response": "Exit code: 0\nOutput:\nSuccess. Updated the following files:\nM /repo/creds.py\n",
+            },
+        },
+        "copilot": {
+            **shapes(
+                copilot,
+                prompt_event="userPromptSubmitted",
+                pre="PreToolUse",
+                post="PostToolUse",
+                bash="bash",
+                read="view",
+                output_key="tool_result",
+                output_value={"output": CLIENT_ID},
+            ),
+            # Copilot CLI 1.0.104: the status line the model gets, as for Codex.
+            "post_edit": {
+                **copilot,
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Edit",
+                "tool_input": "*** Begin Patch\n*** Update File: creds.py\n"
+                f"@@\n KEY = '{CLIENT_ID}'\n-a = 1\n+b = 1\n*** End Patch\n",
+                "tool_result": {
+                    "result_type": "success",
+                    "text_result_for_llm": "Modified 1 file(s): /repo/creds.py",
+                },
+            },
+        },
         "cursor": shapes(
             cursor,
             prompt_event="beforeSubmitPrompt",
@@ -334,6 +379,22 @@ def agent_payloads():
             # post_agent is recognised as Vibe but maps to no event type, so it
             # must parse and pass through rather than being refused.
             "post_agent": {**vibe, "hook_event_name": "post_agent"},
+            # Vibe 2.25.1: the edit output is metadata, as for Codex.
+            "post_edit": {
+                **vibe,
+                "hook_event_name": "post_tool",
+                "tool_name": "file_system.search_replace",
+                "tool_input": {
+                    "content": [
+                        {"new_str": "b = 1", "old_str": f"KEY = '{CLIENT_ID}'\na = 1"}
+                    ],
+                    "file_path": "./creds.py",
+                },
+                "tool_status": "success",
+                "tool_output": {"file": "/repo/creds.py", "lines_changed": 1},
+                "tool_output_text": "file: /repo/creds.py\nlines_changed: 1",
+                "tool_error": None,
+            },
         },
         # The Copilot desktop app: PascalCase events, and a `tool_use_id` on
         # tool events that an exact key set once refused.
@@ -2153,7 +2214,7 @@ def on_error_cases():
     # Every agent and event, both modes: each must answer in its own schema.
     for mode, _ in MODES:
         for agent, shapes in agent_payloads().items():
-            for shape in ("user_prompt", "pre_bash", "post_bash"):
+            for shape in ("user_prompt", "pre_bash", "post_bash", "post_edit"):
                 if shape not in shapes:
                     continue
                 cases.append(
@@ -2163,8 +2224,15 @@ def on_error_cases():
                         None,
                         {**NO_TOKEN, POLICY_ENV: mode},
                         0,
-                        # Only a tool call is blockable by every agent.
-                        mode if shape == "pre_bash" else None,
+                        # Only a tool call is blockable by every agent. A Claude
+                        # Edit with no secret found must not take the redacting
+                        # continue a found secret gets.
+                        (
+                            mode
+                            if shape == "pre_bash"
+                            or (agent, shape) == ("claude", "post_edit")
+                            else None
+                        ),
                         NOT_SCANNED,
                     )
                 )
@@ -2734,6 +2802,14 @@ def main():
                 "original prompt, as for a secret. Remove with the Python ai-hook, "
                 "which is being retired; Rust is the reference implementation and "
                 "this change is not back-ported."
+            ),
+            "on_error/no_token/block/claude/post_edit": (
+                "Claude Code reads `additionalContext` only under "
+                "`hookSpecificOutput`, so the top-level copy Python still emits has "
+                "never reached the model. Rust drops it; `reason` already carries "
+                "the same text. Remove with the Python ai-hook, which is being "
+                "retired; Rust is the reference implementation and this change is "
+                "not back-ported."
             ),
             "on_error/no_token/block/claude/post_bash": (
                 "Rust returns `hookSpecificOutput.updatedToolOutput`, so the "

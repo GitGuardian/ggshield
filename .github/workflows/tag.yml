@@ -19,7 +19,6 @@ jobs:
       GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
       GITGUARDIAN_API_URL: ${{ secrets.GITGUARDIAN_API_URL }}
       TEST_KNOWN_SECRET: ${{ secrets.TEST_KNOWN_SECRET }}
-      TEST_UNKNOWN_SECRET: ${{ secrets.TEST_UNKNOWN_SECRET }}
       TEST_GG_VALID_TOKEN: ${{ secrets.TEST_GG_VALID_TOKEN }}
       TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
     with:
@@ -56,7 +55,6 @@ jobs:
           gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
           gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
           test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
-          test-unknown-secret: ${{ secrets.TEST_UNKNOWN_SECRET }}
           test-gg-valid-token: ${{ secrets.TEST_GG_VALID_TOKEN }}
           test-gg-valid-token-ignore-sha: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
 
@@ -169,8 +167,16 @@ jobs:
       - name: Read info
         id: tags
         shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
-          echo "tag=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+          # A ref name may hold shell metacharacters, and the tag reaches the
+          # downstream PRs: accept release versions only.
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(rc[0-9]+)?$ ]]; then
+            echo "::error::Not a release tag: $TAG"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Download OS packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -196,15 +202,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRERELEASE_FLAG: ${{ contains(github.ref_name, 'rc') && '--prerelease' || '' }}
+          TAG: ${{ steps.tags.outputs.tag }}
         run: |
-          gh release create --draft $PRERELEASE_FLAG ${{ steps.tags.outputs.tag }}
+          gh release create --draft $PRERELEASE_FLAG "$TAG"
 
       - name: Upload release assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tags.outputs.tag }}
         run: |
           gh release upload \
-            ${{ steps.tags.outputs.tag }} \
+            "$TAG" \
             dist/ggshield-*.pkg \
             dist/ggshield_*.deb \
             dist/ggshield-*.rpm \

@@ -123,6 +123,9 @@ class HookResult:
     # The false-positive hint for the desktop notification, where
     # Agent.has_user_only_channel() does not hold for the event.
     notification_hint: str = ""
+    # The matched values, for an output that is redacted rather than blocked
+    # (see Agent.is_file_change).
+    matches: List[str] = field(default_factory=list)
 
     @classmethod
     def allow(cls, payload: "HookPayload") -> "HookResult":
@@ -262,6 +265,16 @@ class Agent(ABC):
 
         Only true where the agent's code or a live session shows it: a field that
         also reached the model would hand it the very command we keep from it.
+        """
+        return False
+
+    def is_file_change(self, payload: HookPayload) -> bool:
+        """Whether this PostToolUse is a file write whose output the model never
+        receives, so the hook redacts it instead of blocking the agent.
+
+        The edit tools of Codex 0.170, Copilot CLI 1.0.104 and Vibe 2.25.1 send the
+        hook the status line the model gets, so there is no file content to scan.
+        Cursor and VS Code edit payloads are not captured.
         """
         return False
 

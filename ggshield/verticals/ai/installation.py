@@ -4,6 +4,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass
@@ -551,7 +552,7 @@ def check_ai_hook_authentication(config: Config) -> None:
         )
     else:
         click.echo("ggshield successfully authenticated: the hook is ready to scan.")
-    _warm_hook_credential_store()
+    _warm_hook_credential_store(config)
 
 
 # An event the hook answers by scanning the prompt and nothing else: no file is
@@ -566,7 +567,7 @@ _WARM_UP_EVENT = json.dumps(
 )
 
 
-def _warm_hook_credential_store() -> None:
+def _warm_hook_credential_store(config: Config) -> None:
     """Have the hook binary itself read the token once, with the user present.
 
     Keychain ACLs are per code identity, and in the standalone bundle the hook is
@@ -589,16 +590,25 @@ def _warm_hook_credential_store() -> None:
     if executable == sys.executable:
         return
     try:
-        subprocess.run(
-            [executable, "secret", "scan", "ai-hook"],
-            input=_WARM_UP_EVENT,
-            text=True,
-            capture_output=True,
-            env={**os.environ, ALLOW_KEYCHAIN_DIALOG_ENV_VAR: "1"},
-            # Room to answer a Keychain dialog, and a bound so setup cannot hang
-            # on one nobody answers.
-            timeout=60,
-            check=False,
-        )
+        # Away from the current repository, whose .env and config could choose
+        # where the hook sends the token.
+        with tempfile.TemporaryDirectory() as cwd:
+            subprocess.run(
+                [executable, "secret", "scan", "ai-hook"],
+                input=_WARM_UP_EVENT,
+                text=True,
+                capture_output=True,
+                cwd=cwd,
+                env={
+                    **os.environ,
+                    ALLOW_KEYCHAIN_DIALOG_ENV_VAR: "1",
+                    "GITGUARDIAN_DONT_LOAD_ENV": "1",
+                    "GITGUARDIAN_INSTANCE": config.instance_name,
+                },
+                # Room to answer a Keychain dialog, and a bound so setup cannot
+                # hang on one nobody answers.
+                timeout=60,
+                check=False,
+            )
     except Exception:
         pass

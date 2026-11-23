@@ -21,8 +21,6 @@ on:
         required: false
       TEST_KNOWN_SECRET:
         required: false
-      TEST_UNKNOWN_SECRET:
-        required: false
       TEST_GG_VALID_TOKEN:
         required: false
       TEST_GG_VALID_TOKEN_IGNORE_SHA:
@@ -105,7 +103,6 @@ jobs:
           gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
           gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
           test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
-          test-unknown-secret: ${{ secrets.TEST_UNKNOWN_SECRET }}
           test-gg-valid-token: ${{ secrets.TEST_GG_VALID_TOKEN }}
           test-gg-valid-token-ignore-sha: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
 
@@ -131,7 +128,6 @@ jobs:
           gitguardian-api-key: ${{ secrets.GITGUARDIAN_API_KEY }}
           gitguardian-api-url: ${{ secrets.GITGUARDIAN_API_URL }}
           test-known-secret: ${{ secrets.TEST_KNOWN_SECRET }}
-          test-unknown-secret: ${{ secrets.TEST_UNKNOWN_SECRET }}
           test-gg-valid-token: ${{ secrets.TEST_GG_VALID_TOKEN }}
           test-gg-valid-token-ignore-sha: ${{ secrets.TEST_GG_VALID_TOKEN_IGNORE_SHA }}
 

@@ -1,5 +1,7 @@
 import json
 import os
+import random
+import string
 import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Union
@@ -12,6 +14,16 @@ from tests.functional.conftest import GGSHIELD_PATH
 
 
 PathLike = Union[Path, str]
+
+
+def generate_generic_secret(rng: random.Random) -> str:
+    """
+    A random value that only a generic detector reports. The scan API drops the
+    secrets that a validity check finds invalid, such as a random provider token,
+    and generic detectors have no check.
+    """
+    chars = string.ascii_letters + string.digits
+    return "".join(rng.choice(chars) for _ in range(31)) + rng.choice(string.digits)
 
 
 def run_ggshield(

@@ -250,7 +250,7 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
     let result = if secrets.is_empty() {
         HookResult::allow(payload)
     } else {
-        let result = HookResult {
+        let mut result = HookResult {
             user_message: message::user_message(&secrets, payload, valid_elsewhere),
             ..HookResult::block(
                 payload,
@@ -258,6 +258,10 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
                 secrets.len(),
             )
         };
+        result.matches = secrets
+            .iter()
+            .flat_map(|secret| secret.matches.iter().map(|m| m.value.clone()))
+            .collect();
         // `has_secret_already_leaked()`: on PostToolUse the secret is already in
         // the agent's context, so tell the user out-of-band. An agent that lets
         // us replace the output leaked nothing, so a banner there would report a

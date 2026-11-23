@@ -35,6 +35,7 @@ from ggshield.verticals.ai.agents import (
     Vibe,
     VSCode,
 )
+from ggshield.verticals.ai.agents.claude_code import redact
 from ggshield.verticals.ai.cache import (
     _verdict_cache_path,
     has_clean_verdict,
@@ -196,6 +197,28 @@ class TestAIHookScannerScanContent:
         assert "dummy-detector" in result.message
         assert "secret" in result.message.lower()
         assert "remove the secret from your prompt" in result.message
+
+    def test_a_secret_reported_twice_is_listed_and_counted_once(self):
+        """
+        GIVEN a document where the scan reports the same secret twice, plus another
+        WHEN the event is scanned
+        THEN the repeat is listed once and counted once.
+        """
+        hook_scanner = AIHookScanner(
+            _mock_scanner(["sk-same-value", "sk-same-value", "sk-other-value"])
+        )
+        payload = HookPayload(
+            event_type=EventType.POST_TOOL_USE,
+            tool=Tool.OTHER,
+            content="sk-same-value sk-same-value sk-other-value",
+            identifier="id",
+            agent=Cursor(),
+            raw={},
+        )
+        result = hook_scanner._scan_content(payload)
+        assert result.nbr_secrets == 2
+        assert "Detected 2 secrets" in result.message
+        assert result.message.count("dummy-detector") == 2
 
 
 class TestVerdictCacheShortCircuit:
@@ -881,6 +904,73 @@ class TestAIHookScannerScan:
         assert mock_notify.called is notified
         if notified:
             assert mock_notify.call_args.kwargs == {"leaked": False}
+
+    @pytest.mark.parametrize("tool_name", ["Edit", "Write"])
+    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
+    @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
+    def test_scan_claude_file_change_is_redacted_without_blocking(
+        self, mock_notify: MagicMock, mock_echo: MagicMock, tool_name: str
+    ):
+        """
+        GIVEN a secret in the output of a Claude Code Edit or Write, which the
+        model never receives
+        WHEN scan() runs
+        THEN the agent is not blocked, no desktop notification is raised, the
+        user is told through systemMessage, and the stored output is the real
+        one with the secret replaced everywhere.
+        """
+        tool_response = {
+            "filePath": "/repo/lib/linear.ts",
+            "originalFile": "const KEY = 'sk-xxx';\nlet typo;\n",
+            "structuredPatch": [
+                {"lines": [" const KEY = 'sk-xxx';", "-let typo;", "+let fixed;"]}
+            ],
+            "userModified": False,
+        }
+        data = {
+            "hook_event_name": "PostToolUse",
+            "tool_name": tool_name,
+            "tool_input": {"file_path": "/repo/lib/linear.ts"},
+            "tool_response": tool_response,
+            "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
+            "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
+        }
+        scanner = AIHookScanner(_mock_scanner(["sk-xxx"], validity="unknown"))
+        code = scanner.scan(json.dumps(data))
+
+        assert code == 0
+        mock_notify.assert_not_called()
+        out = json.loads(mock_echo.call_args[0][0])
+        assert out["continue"] is True
+        assert "decision" not in out
+        assert "Detected 1 secret in /repo/lib/linear.ts" in out["systemMessage"]
+        assert "removed from the transcript" in out["systemMessage"]
+        assert "exposed" not in out["systemMessage"]
+        # The message only the user reads ends with the false-positive hint.
+        assert "\n\n> If this is a false positive, run:" in out["systemMessage"]
+        assert "- match:" in out["systemMessage"]
+        redacted = out["hookSpecificOutput"]["updatedToolOutput"]
+        assert redacted == json.loads(
+            json.dumps(tool_response).replace("sk-xxx", "[redacted by ggshield]")
+        )
+
+    def test_claude_redacts_a_multi_line_secret_from_the_diff_lines(self):
+        """
+        GIVEN a multi-line secret, matched JSON-escaped and spread over diff lines
+        WHEN the Edit output is redacted
+        THEN no line of it survives, and the lines around it do.
+        """
+        key = "-----BEGIN FAKE KEY-----\nAAAAfakefake\n-----END FAKE KEY-----"
+        output = {
+            "originalFile": f"before\n{key}\nafter\n",
+            "structuredPatch": [
+                {"lines": [f" {line}" for line in key.split("\n")] + ["+after"]}
+            ],
+        }
+        redacted = json.dumps(redact(output, [json.dumps(key)[1:-1]]))
+        for line in key.split("\n"):
+            assert line not in redacted
+        assert "+after" in redacted
 
     @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
     def test_scan_post_tool_use_notifier_failure_still_emits_block(
@@ -1726,6 +1816,85 @@ class TestAIHookScannerParseInput:
         assert payload.tool is None
         assert payload.identifier != ""
         assert isinstance(payload.agent, Cursor)
+
+    @pytest.mark.parametrize(
+        "data, agent_class, status",
+        [
+            pytest.param(
+                {
+                    "session_id": "s",
+                    "turn_id": "t",
+                    "cwd": "/p",
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "apply_patch",
+                    "tool_input": {
+                        "command": "*** Begin Patch\n*** Update File: /p/creds.py\n"
+                        "@@\n KEY = 'sk-in-file'\n-a = 1\n+a = 2\n*** End Patch"
+                    },
+                    "tool_response": "Exit code: 0\nOutput:\nSuccess. Updated the following files:\nM /p/creds.py\n",
+                },
+                Codex,
+                "Exit code: 0\nOutput:\nSuccess. Updated the following files:\nM /p/creds.py\n",
+                id="codex-apply_patch",
+            ),
+            pytest.param(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "session_id": "s",
+                    "timestamp": "2026-11-23T09:21:03.487Z",
+                    "cwd": "/p",
+                    "tool_name": "Edit",
+                    "tool_input": "*** Begin Patch\n*** Update File: creds.py\n"
+                    "@@\n KEY = 'sk-in-file'\n-a = 1\n+a = 2\n*** End Patch\n",
+                    "tool_result": {
+                        "result_type": "success",
+                        "text_result_for_llm": "Modified 1 file(s): /p/creds.py",
+                    },
+                },
+                Copilot,
+                json.dumps(
+                    {
+                        "result_type": "success",
+                        "text_result_for_llm": "Modified 1 file(s): /p/creds.py",
+                    }
+                ),
+                id="copilot-edit",
+            ),
+            pytest.param(
+                {
+                    "cwd": "/p",
+                    "hook_event_name": "post_tool",
+                    "tool_name": "file_system.search_replace",
+                    "tool_input": {
+                        "content": [{"new_str": "a = 2", "old_str": "a = 1"}],
+                        "file_path": "./creds.py",
+                    },
+                    "tool_status": "success",
+                    "tool_output": {"file": "/p/creds.py", "lines_changed": 1},
+                    "tool_output_text": "file: /p/creds.py\nlines_changed: 1",
+                    "tool_error": None,
+                },
+                Vibe,
+                json.dumps({"file": "/p/creds.py", "lines_changed": 1}),
+                id="vibe-search_replace",
+            ),
+        ],
+    )
+    def test_an_edit_on_the_other_agents_scans_only_its_status_line(
+        self, data: Dict[str, Any], agent_class: type, status: str
+    ):
+        """
+        GIVEN a file edit as Codex 0.170, Copilot CLI 1.0.104 and Vibe 2.25.1 sent
+        it, on a file that holds a secret
+        WHEN it is parsed
+        THEN the scanned content is the status line the model gets, and it is not
+        a file change to redact.
+        """
+        (payload,) = parse_hook_input(json.dumps(data))
+        assert isinstance(payload.agent, agent_class)
+        assert payload.content == status
+        assert "sk-in-file" not in payload.content
+        assert not payload.agent.is_file_change(payload)
 
     def test_cursor_pre_tool_use_shell(self):
         """Test Cursor preToolUse with Shell (bash) parsing."""

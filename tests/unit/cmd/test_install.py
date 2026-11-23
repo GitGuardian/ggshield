@@ -4,9 +4,10 @@ import stat
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
+from click import UsageError
 from click.testing import CliRunner
 from pygitguardian.models import HealthCheckResponse
 
@@ -20,6 +21,7 @@ from ggshield.cmd.install import (
     install_local,
     upgrade_hook,
 )
+from ggshield.core.config import Config
 from ggshield.core.config.token_store import ALLOW_KEYCHAIN_DIALOG_ENV_VAR
 from ggshield.core.errors import ExitCode, MissingTokenError
 from ggshield.verticals.ai.installation import (
@@ -28,6 +30,9 @@ from ggshield.verticals.ai.installation import (
 )
 from tests.repository import Repository
 from tests.unit.conftest import assert_invoke_exited_with, assert_invoke_ok
+
+
+HOME_CONFIG = Mock(spec=Config, instance_name="https://home.example")
 
 
 SAMPLE_PRE_COMMIT = f"""#!/bin/sh
@@ -627,13 +632,32 @@ class TestHookCredentialStoreWarmUp:
         WHEN the warm-up runs
         THEN that binary reads the token, on the hook's own code path
         """
-        _warm_hook_credential_store()
+        _warm_hook_credential_store(HOME_CONFIG)
 
         run_mock.assert_called_once()
         args, kwargs = run_mock.call_args
         assert args[0] == ["/opt/gitguardian/ggshield", "secret", "scan", "ai-hook"]
         assert json.loads(kwargs["input"])["hook_event_name"] == "UserPromptSubmit"
         assert kwargs["timeout"] > 0
+
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_the_warm_up_runs_outside_the_repository(
+        self, run_mock: Mock, bundle, monkeypatch
+    ):
+        """
+        GIVEN setup run from a repository
+        WHEN the warm-up runs the hook
+        THEN the hook runs from another directory, without loading a .env, for the
+             instance setup resolved: the repository cannot choose where the token goes
+        """
+        monkeypatch.delenv("GITGUARDIAN_DONT_LOAD_ENV", raising=False)
+
+        _warm_hook_credential_store(HOME_CONFIG)
+
+        kwargs = run_mock.call_args.kwargs
+        assert Path(kwargs["cwd"]).resolve() != Path.cwd().resolve()
+        assert kwargs["env"]["GITGUARDIAN_DONT_LOAD_ENV"] == "1"
+        assert kwargs["env"]["GITGUARDIAN_INSTANCE"] == "https://home.example"
 
     @patch("ggshield.verticals.ai.installation.subprocess.run")
     def test_the_warm_up_allows_the_keychain_dialog(
@@ -647,7 +671,7 @@ class TestHookCredentialStoreWarmUp:
         """
         monkeypatch.delenv(ALLOW_KEYCHAIN_DIALOG_ENV_VAR, raising=False)
 
-        _warm_hook_credential_store()
+        _warm_hook_credential_store(HOME_CONFIG)
 
         kwargs = run_mock.call_args.kwargs
         assert kwargs["env"][ALLOW_KEYCHAIN_DIALOG_ENV_VAR] == "1"
@@ -666,7 +690,7 @@ class TestHookCredentialStoreWarmUp:
         """
         monkeypatch.setattr(sys, "platform", platform)
 
-        _warm_hook_credential_store()
+        _warm_hook_credential_store(HOME_CONFIG)
 
         run_mock.assert_not_called()
 
@@ -682,7 +706,7 @@ class TestHookCredentialStoreWarmUp:
         monkeypatch.setattr(sys, "platform", "darwin")
         monkeypatch.delattr(sys, "frozen", raising=False)
 
-        _warm_hook_credential_store()
+        _warm_hook_credential_store(HOME_CONFIG)
 
         run_mock.assert_not_called()
 
@@ -704,7 +728,21 @@ class TestHookCredentialStoreWarmUp:
         """
         run_mock.side_effect = failure
 
-        _warm_hook_credential_store()
+        _warm_hook_credential_store(HOME_CONFIG)
+
+    @patch("ggshield.verticals.ai.installation.subprocess.run")
+    def test_an_invalid_instance_does_not_stop_setup(self, run_mock: Mock, bundle):
+        """
+        GIVEN an instance URL that ggshield rejects
+        WHEN the warm-up runs
+        THEN it is skipped: the health check has already warned about the URL
+        """
+        config = Mock(spec=Config)
+        type(config).instance_name = PropertyMock(side_effect=UsageError("bad URL"))
+
+        _warm_hook_credential_store(config)
+
+        run_mock.assert_not_called()
 
 
 @pytest.fixture()

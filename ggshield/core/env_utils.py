@@ -20,8 +20,11 @@ TRACKED_ENV_VARS = {
 logger = logging.getLogger(__name__)
 
 
-def _find_dot_env() -> Optional[Path]:
-    """Look for a .env to load, returns its path if found"""
+def _find_dot_env(*, search: bool = True) -> Optional[Path]:
+    """Look for a .env to load, returns its path if found.
+
+    Without `search`, only the file named by GITGUARDIAN_DOTENV_PATH is returned.
+    """
     if env_var := os.getenv("GITGUARDIAN_DOTENV_PATH"):
         path = Path(env_var)
         if not path.is_file():
@@ -32,7 +35,11 @@ def _find_dot_env() -> Optional[Path]:
 
         return path
 
-    # Look for a .env in the current directory
+    return find_repository_dot_env() if search else None
+
+
+def find_repository_dot_env() -> Optional[Path]:
+    """The .env of the current directory, or else of the git checkout root"""
     env = Path(".env")
     if env.is_file():
         return env
@@ -46,9 +53,10 @@ def _find_dot_env() -> Optional[Path]:
     return None
 
 
-def load_dot_env() -> Set[str]:
+def load_dot_env(*, search: bool = True) -> Set[str]:
     """
     Loads .env file into os.environ.
+    Without `search`, only the file named by GITGUARDIAN_DOTENV_PATH is loaded.
     Return the list of env vars that were set by the dotenv file
     among env vars in TRACKED_ENV_VARS
     """
@@ -57,7 +65,7 @@ def load_dot_env() -> Set[str]:
         logger.debug("Not loading .env, GITGUARDIAN_DONT_LOAD_ENV is set")
         return set()
 
-    dot_env_path = _find_dot_env()
+    dot_env_path = _find_dot_env(search=search)
     if dot_env_path is None:
         # dotenv_values(None) would run its own discovery, which follows FIFOs and
         # can block forever on one with no writer (1Password Environments mounts).
