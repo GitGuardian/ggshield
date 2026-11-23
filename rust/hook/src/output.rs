@@ -21,6 +21,9 @@ pub struct HookResult<'a> {
     /// Set when the action is allowed but the user must be warned, typically
     /// because the scan could not run at all.
     pub warning: String,
+    /// Shown to the user on a block, never to the model. Only set for agents
+    /// where `has_user_only_channel()` holds.
+    pub user_message: String,
     /// The matched values, for an output that is redacted rather than replaced
     /// whole (see `Payload::is_file_change`).
     pub matches: Vec<String>,
@@ -34,6 +37,7 @@ impl<'a> HookResult<'a> {
             nbr_secrets: 0,
             payload,
             warning: String::new(),
+            user_message: String::new(),
             matches: Vec::new(),
         }
     }
@@ -52,6 +56,7 @@ impl<'a> HookResult<'a> {
             nbr_secrets,
             payload,
             warning: String::new(),
+            user_message: String::new(),
             matches: Vec::new(),
         }
     }
@@ -142,6 +147,48 @@ pub fn can_redact_tool_output(payload: &Payload) -> bool {
             // is a breach.
             Agent::Cursor | Agent::Kiro | Agent::VsCode => false,
         }
+}
+
+/// `Agent.has_user_only_channel()`: whether a block on this event can carry text
+/// the user sees and the model never reads, so the false-positive hint can go
+/// there. A field that also reached the model would hand it the very command we
+/// keep from it, so each arm rests on the agent's code or a live session.
+pub fn has_user_only_channel(payload: &Payload) -> bool {
+    let event = payload.event_type;
+    match payload.agent {
+        // `systemMessage`, checked against the request bodies sent to the model.
+        Agent::Claude => true,
+        // `systemMessage` becomes a UI warning; only `additionalContext` reaches
+        // the model (codex-rs/hooks/src/events/*.rs). Other events use stderr.
+        Agent::Codex => matches!(
+            event,
+            EventType::UserPrompt | EventType::PreToolUse | EventType::PostToolUse
+        ),
+        // `systemMessage` is shown as hook progress, which no prompt reads; on
+        // any other block VS Code aborts before showing it.
+        Agent::VsCode => matches!(event, EventType::PreToolUse | EventType::PostToolUse),
+        // Cursor's hook docs: `user_message` is shown in the client, only
+        // `agent_message` goes to the agent, and a blocked prompt never reaches it.
+        Agent::Cursor => matches!(event, EventType::UserPrompt | EventType::PreToolUse),
+        // A post_tool deny shows `system_message` as a UI notice; a pre_tool deny
+        // drops it (vibe/core/hooks/_pre_tool.py, _post_tool.py).
+        Agent::Vibe => event == EventType::PostToolUse,
+        // Copilot CLI parses hook output in its native runtime, so where it sends
+        // `systemMessage` is unknown; Junie reads it only on session events; Kiro
+        // has no JSON protocol.
+        Agent::Copilot | Agent::Junie | Agent::Kiro => false,
+    }
+}
+
+/// `user_message` added to a block under the agent's user-only key. A no-op when
+/// empty, which is every event `has_user_only_channel()` rules out.
+fn with_user_message(mut value: Value, key: &str, user_message: &str) -> Value {
+    if let Value::Object(map) = &mut value
+        && !user_message.is_empty()
+    {
+        map.insert(key.into(), user_message.into());
+    }
+    value
 }
 
 const REDACTED: &str = "[redacted by ggshield]";
@@ -264,9 +311,14 @@ fn claude_post_tool_use(result: &HookResult) -> Value {
         ("updatedToolOutput", replacement),
     ]);
     if redacts_file_change(result) {
+        let for_user = [message, result.user_message.as_str()]
+            .into_iter()
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
         return obj(vec![
             ("continue", true.into()),
-            ("systemMessage", message.into()),
+            ("systemMessage", for_user.into()),
             ("hookSpecificOutput", hook_output),
         ]);
     }
@@ -312,10 +364,14 @@ pub fn emission(result: &HookResult) -> Emission {
         Agent::Vibe => {
             if result.block {
                 Emission::Stdout(
-                    obj(vec![
-                        ("decision", "deny".into()),
-                        ("reason", Value::from(message)),
-                    ]),
+                    with_user_message(
+                        obj(vec![
+                            ("decision", "deny".into()),
+                            ("reason", Value::from(message)),
+                        ]),
+                        "system_message",
+                        &result.user_message,
+                    ),
                     0,
                 )
             } else if !result.warning.is_empty() {
@@ -333,7 +389,7 @@ pub fn emission(result: &HookResult) -> Emission {
             if !result.block {
                 allow_with_optional_warning(&result.warning)
             } else {
-                match event {
+                let value = match event {
                     EventType::PostToolUse => claude_post_tool_use(result),
                     EventType::UserPrompt => claude_user_prompt_block(message),
                     EventType::PreToolUse => deny_pre_tool_use(message),
@@ -342,6 +398,12 @@ pub fn emission(result: &HookResult) -> Emission {
                         ("continue", false.into()),
                         ("stopReason", message.into()),
                     ]),
+                };
+                // A redacted file change already shows the hint in its message.
+                if redacts_file_change(result) {
+                    value
+                } else {
+                    with_user_message(value, "systemMessage", &result.user_message)
                 }
             },
             0,
@@ -378,13 +440,15 @@ pub fn emission(result: &HookResult) -> Emission {
         ),
 
         // codex.py. No `additionalContext` (Codex shows the decision reason in
-        // the transcript), and the unknown-event branch goes to stderr with exit 2.
+        // the transcript), `systemMessage` carries only the user-only hint, and
+        // the unknown-event branch goes to stderr with exit 2.
         Agent::Codex => {
             if result.block {
+                let user = |value| with_user_message(value, "systemMessage", &result.user_message);
                 match event {
-                    EventType::PreToolUse => Emission::Stdout(deny_pre_tool_use(message), 0),
+                    EventType::PreToolUse => Emission::Stdout(user(deny_pre_tool_use(message)), 0),
                     EventType::UserPrompt | EventType::PostToolUse => {
-                        Emission::Stdout(decision_block(message), 0)
+                        Emission::Stdout(user(decision_block(message)), 0)
                     }
                     EventType::Other => Emission::Stderr(message.to_string(), 2),
                 }
@@ -399,18 +463,24 @@ pub fn emission(result: &HookResult) -> Emission {
         }
 
         // cursor.py. It folds the fail-open warning into the same `user_message`
-        // field as a block reason, and PostToolUse cannot block at all.
+        // field as a block reason, appends the user-only hint there and never to
+        // `agent_message`, and PostToolUse cannot block at all.
         Agent::Cursor => {
             let message = if result.message.is_empty() {
                 result.warning.as_str()
             } else {
                 message
             };
+            let for_user = [message, result.user_message.as_str()]
+                .into_iter()
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join("\n\n");
             match event {
                 EventType::UserPrompt => Emission::Stdout(
                     obj(vec![
                         ("continue", (!result.block).into()),
-                        ("user_message", message.into()),
+                        ("user_message", for_user.into()),
                     ]),
                     0,
                 ),
@@ -420,7 +490,7 @@ pub fn emission(result: &HookResult) -> Emission {
                             "permission",
                             if result.block { "deny" } else { "allow" }.into(),
                         ),
-                        ("user_message", message.into()),
+                        ("user_message", for_user.into()),
                         ("agent_message", message.into()),
                     ]),
                     0,
@@ -439,9 +509,10 @@ pub fn emission(result: &HookResult) -> Emission {
             if !result.block {
                 allow_with_optional_warning(&result.warning)
             } else {
+                let user = |value| with_user_message(value, "systemMessage", &result.user_message);
                 match event {
-                    EventType::PreToolUse => deny_pre_tool_use(message),
-                    EventType::PostToolUse => decision_block(message),
+                    EventType::PreToolUse => user(deny_pre_tool_use(message)),
+                    EventType::PostToolUse => user(decision_block(message)),
                     EventType::UserPrompt if result.payload.agent == Agent::Copilot => {
                         decision_block(message)
                     }
@@ -622,6 +693,75 @@ mod tests {
             blocked(Agent::Claude, EventType::Other).as_deref(),
             Some(r#"{"continue":false,"stopReason":"nope"}"#)
         );
+    }
+
+    /// GIVEN a block carrying a message for the user, on every agent and event
+    /// with a user-only field
+    /// WHEN it is emitted
+    /// THEN it rides once in that agent's user-only field and never in a field
+    /// the model reads.
+    #[test]
+    fn the_user_message_rides_in_the_user_only_field_of_each_agent() {
+        let mut covered = Vec::new();
+        for agent in crate::payload::AGENTS {
+            for event in [
+                EventType::UserPrompt,
+                EventType::PreToolUse,
+                EventType::PostToolUse,
+                EventType::Other,
+            ] {
+                let p = payload(agent, event);
+                if !has_user_only_channel(&p) {
+                    continue;
+                }
+                covered.push((agent, event));
+                let result = HookResult {
+                    user_message: "for the user".into(),
+                    ..HookResult::block(&p, "nope".into(), 1)
+                };
+                let out = emitted(&result).expect("a user-only field is json");
+                let value: Value = serde_json::from_str(&out).expect("valid json");
+                assert_eq!(
+                    out.matches("for the user").count(),
+                    1,
+                    "{agent:?}/{event:?}: {out}"
+                );
+                match agent {
+                    Agent::Cursor => {
+                        assert_eq!(value["user_message"], "nope\n\nfor the user", "{event:?}");
+                        if event == EventType::PreToolUse {
+                            assert_eq!(value["agent_message"], "nope");
+                        }
+                    }
+                    Agent::Vibe => assert_eq!(value["system_message"], "for the user"),
+                    _ => assert_eq!(
+                        value["systemMessage"], "for the user",
+                        "{agent:?}/{event:?}"
+                    ),
+                }
+            }
+        }
+        // Codex's stderr branch, VS Code's aborted prompt, Vibe's pre_tool and
+        // Cursor's unblockable PostToolUse have no such field.
+        use EventType::*;
+        let expected = [
+            (Agent::Claude, UserPrompt),
+            (Agent::Claude, PreToolUse),
+            (Agent::Claude, PostToolUse),
+            (Agent::Claude, Other),
+            (Agent::Codex, UserPrompt),
+            (Agent::Codex, PreToolUse),
+            (Agent::Codex, PostToolUse),
+            (Agent::Cursor, UserPrompt),
+            (Agent::Cursor, PreToolUse),
+            (Agent::VsCode, PreToolUse),
+            (Agent::VsCode, PostToolUse),
+            (Agent::Vibe, PostToolUse),
+        ];
+        for pair in &expected {
+            assert!(covered.contains(pair), "{pair:?} not covered: {covered:?}");
+        }
+        assert_eq!(covered.len(), expected.len(), "{covered:?}");
     }
 
     /// GIVEN an allow, a warning and a block on each Codex event
@@ -969,6 +1109,12 @@ mod tests {
                     .expect("valid json");
             assert_eq!(redacted, &expected);
             assert!(!redacted.to_string().contains(secret), "{redacted}");
+
+            // The false-positive hint follows the message in the one
+            // `systemMessage`, never replacing it.
+            result.user_message = "the hint".into();
+            let value = emitted_json(&result);
+            assert_eq!(value["systemMessage"], "a secret was removed\n\nthe hint");
         }
     }
 

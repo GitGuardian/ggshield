@@ -117,6 +117,12 @@ class HookResult:
     # Set when the action is allowed but the user must be warned,
     # typically because the scan could not run at all.
     warning: str = ""
+    # Shown to the user on a block, never to the model. Only set where
+    # Agent.has_user_only_channel() holds for the event.
+    user_message: str = ""
+    # The false-positive hint for the desktop notification, where
+    # Agent.has_user_only_channel() does not hold for the event.
+    notification_hint: str = ""
     # The matched values, for an output that is redacted rather than blocked
     # (see Agent.is_file_change).
     matches: List[str] = field(default_factory=list)
@@ -252,6 +258,15 @@ class Agent(ABC):
         By default, this is in PostToolUse hooks, but it can depend on the agent.
         """
         return payload.event_type == EventType.POST_TOOL_USE
+
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        """Whether a block on this event can carry text the user sees and the
+        model never reads.
+
+        Only true where the agent's code or a live session shows it: a field that
+        also reached the model would hand it the very command we keep from it.
+        """
+        return False
 
     def is_file_change(self, payload: HookPayload) -> bool:
         """Whether this PostToolUse is a file write whose output the model never

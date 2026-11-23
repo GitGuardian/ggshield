@@ -10,6 +10,7 @@ from ggshield.core.dirs import get_user_home_dir
 
 from ..models import (
     Agent,
+    EventType,
     HookPayload,
     HookResult,
     MCPConfiguration,
@@ -36,11 +37,19 @@ class Vibe(Agent):
             return Path(custom_home).expanduser()
         return get_user_home_dir() / ".vibe"
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # A post_tool deny shows system_message as a UI notice and hands the
+        # model only `reason`. A pre_tool deny drops system_message
+        # (vibe/core/hooks/_pre_tool.py, _post_tool.py).
+        return event_type == EventType.POST_TOOL_USE
+
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}
         if result.block:
             response["decision"] = "deny"
             response["reason"] = result.message
+            if result.user_message:
+                response["system_message"] = result.user_message
         elif result.warning:
             response["system_message"] = result.warning
 

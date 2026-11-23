@@ -135,6 +135,11 @@ class Claude(Agent):
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".claude"
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # systemMessage: shown in the UI, not added to the model's context
+        # (checked against the request bodies sent to the model).
+        return True
+
     def is_file_change(self, payload: HookPayload) -> bool:
         # The model gets one "updated successfully" line for an Edit or a Write,
         # while the transcript keeps the whole tool_response, original file and
@@ -154,11 +159,14 @@ class Claude(Agent):
         response: Dict[str, Any] = {}
         if result.nbr_secrets and self.is_file_change(result.payload):
             # Nothing of a file change reaches the model, so the agent carries
-            # on and only the user is told. An unscanned one has no secret and
-            # follows `ai_hook_failure_policy` like any other output.
+            # on and only the user is told, false-positive hint included. An
+            # unscanned one has no secret and follows `ai_hook_failure_policy`
+            # like any other output.
             response = {
                 "continue": True,
-                "systemMessage": result.message,
+                "systemMessage": "\n\n".join(
+                    text for text in (result.message, result.user_message) if text
+                ),
                 "hookSpecificOutput": {
                     "hookEventName": "PostToolUse",
                     "updatedToolOutput": redact(
@@ -193,6 +201,8 @@ class Claude(Agent):
                     "continue": False,
                     "stopReason": result.message,
                 }
+            if result.user_message:
+                response["systemMessage"] = result.user_message
         else:
             response["continue"] = True
             if result.warning:

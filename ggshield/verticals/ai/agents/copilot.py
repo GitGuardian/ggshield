@@ -70,6 +70,11 @@ class Copilot(VSCode):
     def user_mcp_file(self) -> Path:
         return self.config_folder / "mcp-config.json"
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # Copilot CLI parses hook output in its native runtime, so where it sends
+        # systemMessage is unknown.
+        return False
+
     def _get_user_mcp_configurations(self) -> Iterator[MCPConfiguration]:
         # Standard user-level MCP servers
         yield from super()._get_user_mcp_configurations()

@@ -26,6 +26,7 @@ from ggshield.core.filter import init_exclusion_regexes
 from ggshield.core.scan import File, ScanContext, ScanMode, StringScannable
 from ggshield.utils.git_shell import Filemode
 from ggshield.verticals.ai.agents import (
+    AGENTS,
     Agent,
     Claude,
     Codex,
@@ -44,6 +45,7 @@ from ggshield.verticals.ai.hooks import (
     AIHookScanner,
     UnrecognizedAgentError,
     _cannot_scan_warning,
+    _false_positive_block,
     _send_desktop_notification,
     build_agent_headers,
     find_filepaths,
@@ -86,6 +88,7 @@ def _mock_scanner(
     matches: List[str],
     secret_config: Optional[SecretConfig] = None,
     ignored_secrets_count_by_kind: Optional[Counter] = None,
+    validity: str = "valid",
 ) -> MagicMock:
     """Create a mock SecretScanner that returns the given Results from scan()."""
     mock = MagicMock(spec=SecretScanner)
@@ -108,7 +111,9 @@ def _mock_scanner(
                     filemode=Filemode.FILE,
                     path=Path("."),
                     url=first.url,
-                    secrets=[_make_secret(match) for match in matches],
+                    secrets=[
+                        _make_secret(match, validity=validity) for match in matches
+                    ],
                     ignored_secrets_count_by_kind=(
                         ignored_secrets_count_by_kind or Counter()
                     ),
@@ -125,6 +130,7 @@ def _make_secret(
     match_str: str = "***",
     known_secret: bool = False,
     incident_url: Optional[str] = None,
+    validity: str = "valid",
 ):
     """Minimal Secret for tests; _message_from_secrets only uses
     detector_display_name, validity, matches[].match, matches[].match_type,
@@ -139,7 +145,7 @@ def _make_secret(
         detector_name="dummy-detector",
         detector_group_name=None,
         documentation_url=None,
-        validity="valid",
+        validity=validity,
         known_secret=known_secret,
         incident_url=incident_url,
         matches=[mock_match],
@@ -873,6 +879,32 @@ class TestAIHookScannerScan:
         assert result.nbr_secrets == 1  # nbr_secrets
         assert result.payload.tool == Tool.BASH  # tool
 
+    @pytest.mark.parametrize(
+        "validity, notified", [("unknown", True), ("valid", False)]
+    )
+    @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
+    def test_scan_blocked_prompt_notifies_only_when_there_is_a_hint(
+        self, mock_notify: MagicMock, validity: str, notified: bool
+    ):
+        """On an event without a user-only field (VS Code drops systemMessage on
+        a blocked prompt), a block that leaked nothing raises a banner for the
+        false-positive hint, and none for a valid secret."""
+        scanner = AIHookScanner(_mock_scanner(["sk-xxx"], validity=validity))
+        data = {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "transcript_path": (
+                "/home/user1/.config/Code/User/workspaceStorage/"
+                "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
+            ),
+            "prompt": "my key is sk-xxx",
+            "cwd": "/home/user1/foo",
+        }
+        scanner.scan(json.dumps(data))
+        assert mock_notify.called is notified
+        if notified:
+            assert mock_notify.call_args.kwargs == {"leaked": False}
+
     @pytest.mark.parametrize("tool_name", ["Edit", "Write"])
     @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
     @patch("ggshield.verticals.ai.hooks.AIHookScanner._send_secret_notification")
@@ -903,7 +935,8 @@ class TestAIHookScannerScan:
             "transcript_path": "/home/user/.claude/projects/foo/session.jsonl",
             "session_id": "427ae0c5-0862-4e14-aa2c-12fad909c323",
         }
-        code = AIHookScanner(_mock_scanner(["sk-xxx"])).scan(json.dumps(data))
+        scanner = AIHookScanner(_mock_scanner(["sk-xxx"], validity="unknown"))
+        code = scanner.scan(json.dumps(data))
 
         assert code == 0
         mock_notify.assert_not_called()
@@ -913,6 +946,9 @@ class TestAIHookScannerScan:
         assert "Detected 1 secret in /repo/lib/linear.ts" in out["systemMessage"]
         assert "removed from the transcript" in out["systemMessage"]
         assert "exposed" not in out["systemMessage"]
+        # The message only the user reads ends with the false-positive hint.
+        assert "\n\n> If this is a false positive, run:" in out["systemMessage"]
+        assert "- match:" in out["systemMessage"]
         redacted = out["hookSpecificOutput"]["updatedToolOutput"]
         assert redacted == json.loads(
             json.dumps(tool_response).replace("sk-xxx", "[redacted by ggshield]")
@@ -1424,26 +1460,204 @@ class TestMessageFromSecrets:
             (EventType.OTHER, None),
         ],
     )
-    def test_message_always_ends_with_false_positive_block(
+    def test_message_always_ends_with_agent_instructions(
         self, event_type: EventType, tool: Optional[Tool]
     ):
-        """Every message ends with the false positive escape hatch, and with the
-        `ignored_matches` entry it would write."""
+        """Every message ends with the instructions to the agent, and a valid
+        secret comes with no false-positive hint at all."""
         payload = self._payload(event_type=event_type, tool=tool)
-        secret = _make_secret("sk-xxx")
-        message = AIHookScanner._message_from_secrets([secret], payload)
-        assert "    ggshield secret ignore --last-found" in message
-        assert "> If this is a false positive, run:" in message
-        assert message.endswith(f"    - match: {secret.get_ignore_sha()}")
-
-    def test_false_positive_block_is_plural_for_several_secrets(self):
-        """The false positive block says "these are false positives" when
-        several secrets were detected."""
-        payload = self._payload(event_type=EventType.USER_PROMPT, tool=None)
-        message = AIHookScanner._message_from_secrets(
-            [_make_secret("sk-xxx"), _make_secret("sk-yyy")], payload
+        message = AIHookScanner._message_from_secrets([_make_secret("sk-xxx")], payload)
+        assert "false positive" not in message
+        assert "secret ignore" not in message
+        assert message.endswith(
+            "do not suggest disabling or uninstalling the GitGuardian hook."
         )
-        assert "> If these are false positives, run:" in message
+
+    @pytest.mark.parametrize("agent", [Claude(), Copilot()], ids=["claude", "copilot"])
+    def test_a_valid_secret_in_another_document_withholds_last_found(
+        self, agent: Agent
+    ):
+        """A prompt with an unchecked secret that mentions a file holding a valid
+        one: `--last-found` would ignore both, so neither hint offers it, while
+        the unchecked secret's entry is still given."""
+        payloads = [
+            HookPayload(
+                event_type=EventType.PRE_TOOL_USE,
+                tool=Tool.BASH,
+                content=content,
+                identifier=content,
+                agent=agent,
+                raw={},
+            )
+            for content in ("echo first", "echo second")
+        ]
+        unchecked = _make_secret("sk-unknown", validity="unknown")
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.side_effect = None
+        mock_scanner.scan.return_value = Results(
+            results=[
+                ScanResult(
+                    filename=payload.scannable.filename,
+                    filemode=Filemode.FILE,
+                    path=Path("."),
+                    url=payload.scannable.url,
+                    secrets=[secret],
+                    ignored_secrets_count_by_kind=Counter(),
+                )
+                for payload, secret in zip(
+                    payloads, [unchecked, _make_secret("sk-valid", validity="valid")]
+                )
+            ],
+            errors=[],
+        )
+        first, _ = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert first.block
+        hint = first.user_message or first.notification_hint
+        assert "do not run" in hint or "--last-found" not in hint
+        if isinstance(agent, Claude):
+            assert first.user_message.endswith(
+                f"    - match: {unchecked.get_ignore_sha()}"
+            )
+        else:
+            assert first.notification_hint.startswith(
+                "If this is a false positive, do not run ggshield secret ignore "
+                "--last-found"
+            )
+
+    @pytest.mark.parametrize("agent", list(AGENTS.values()), ids=list(AGENTS))
+    @pytest.mark.parametrize(
+        "event_type",
+        [EventType.USER_PROMPT, EventType.PRE_TOOL_USE, EventType.POST_TOOL_USE],
+    )
+    @pytest.mark.parametrize(
+        "validities, notification",
+        [
+            (["valid"], ""),
+            (
+                ["unknown"],
+                "If this is a false positive, run: ggshield secret ignore --last-found",
+            ),
+            (
+                ["valid", "no_checker"],
+                "If the secret not marked valid is a false positive, do not run "
+                "ggshield secret ignore --last-found: it would also ignore any "
+                "secret marked valid.",
+            ),
+        ],
+    )
+    def test_every_agent_keeps_the_hint_from_the_model_and_gives_it_to_the_user(
+        self,
+        agent: Agent,
+        event_type: EventType,
+        validities: List[str],
+        notification: str,
+    ):
+        """The model text carries the instructions and no false-positive hint;
+        the user gets the hint in the user-only field where the event has one,
+        in the notification otherwise, and nowhere for a valid secret."""
+        payload = HookPayload(
+            event_type=event_type,
+            tool=Tool.BASH,
+            content="content",
+            identifier="echo x",
+            agent=agent,
+            raw={},
+        )
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.side_effect = None
+        mock_scanner.scan.return_value = Results(
+            results=[
+                ScanResult(
+                    filename=payload.scannable.filename,
+                    filemode=Filemode.FILE,
+                    path=Path("."),
+                    url=payload.scannable.url,
+                    secrets=[_make_secret(f"sk-{v}", validity=v) for v in validities],
+                    ignored_secrets_count_by_kind=Counter(),
+                )
+            ],
+            errors=[],
+        )
+        (result,) = AIHookScanner(mock_scanner)._scan_contents([payload])
+
+        assert result.block
+        for leak in ("false positive", "secret ignore", "ignored_matches", "- match:"):
+            assert leak not in result.message
+        assert "> Instructions for the AI agent" in result.message
+        assert result.message.endswith(
+            "do not suggest disabling or uninstalling the GitGuardian hook."
+        )
+        if agent.has_user_only_channel(event_type):
+            assert result.notification_hint == ""
+            assert bool(result.user_message) == bool(notification)
+        else:
+            assert result.user_message == ""
+            assert result.notification_hint.startswith(notification)
+            assert bool(result.notification_hint) == bool(notification)
+
+    @patch("ggshield.verticals.ai.hooks._send_desktop_notification")
+    def test_a_blocked_tool_call_raises_the_hint_in_a_notification(
+        self, mock_send: MagicMock
+    ):
+        """On an agent without a user-only field, a block that leaked nothing
+        still raises a banner, because it is the only way to reach the user."""
+        result = HookResult(
+            block=True,
+            message="",
+            nbr_secrets=1,
+            payload=self._payload(),
+            notification_hint="If this is a false positive, run: x",
+        )
+        AIHookScanner._send_secret_notification(result, leaked=False)
+        assert mock_send.call_args.args == (
+            "ggshield blocked 1 secret in Cursor",
+            "If this is a false positive, run: x",
+        )
+
+    def test_claude_sends_the_false_positive_hint_to_the_user_only(self):
+        """On Claude Code the hint goes to systemMessage, for the unchecked
+        secrets only, and the model text carries no way to ignore them."""
+        valid = _make_secret("sk-valid")
+        unchecked = _make_secret("sk-unchecked", validity="unknown")
+        payload = HookPayload(
+            event_type=EventType.PRE_TOOL_USE,
+            tool=Tool.BASH,
+            content="content",
+            identifier="id",
+            agent=Claude(),
+            raw={},
+        )
+        cases = [
+            ([valid], ""),
+            (
+                [unchecked],
+                "> If this is a false positive, run:\n\n"
+                "    ggshield secret ignore --last-found",
+            ),
+            (
+                [valid, unchecked],
+                "> If the secret not marked valid is a false positive, "
+                "add to secret.ignored_matches",
+            ),
+        ]
+        for secrets, hint in cases:
+            message = AIHookScanner._message_from_secrets(
+                secrets, payload, escape_markdown=True
+            )
+            for leak in ("secret ignore", "ignored_matches", "- match:", "handling"):
+                assert leak not in message
+            assert "> Instructions for the AI agent" in message
+
+            user_message = _false_positive_block(secrets)
+            assert user_message.startswith(hint)
+            if hint:
+                assert user_message.endswith(
+                    f"    - match: {unchecked.get_ignore_sha()}"
+                )
+                assert user_message.count("- match:") == 1
+            else:
+                assert user_message == ""
 
 
 class TestSendSecretNotification:
@@ -2641,6 +2855,58 @@ class TestFlavorOutputResult:
         assert (
             out["hookSpecificOutput"]["permissionDecisionReason"] == "Secrets in file"
         )
+
+    def test_user_only_channels_match_each_agent(self):
+        """The agents and events whose block has a field the model never reads:
+        Codex answers Other on stderr, VS Code aborts a blocked prompt before
+        showing systemMessage, Vibe drops system_message on pre_tool and Cursor
+        cannot block a PostToolUse."""
+        channels = {
+            (name, event_type)
+            for name, agent in AGENTS.items()
+            for event_type in EventType
+            if agent.has_user_only_channel(event_type)
+        }
+        claude = {("claude-code", event_type) for event_type in EventType}
+        assert channels == claude | {
+            ("codex", EventType.USER_PROMPT),
+            ("codex", EventType.PRE_TOOL_USE),
+            ("codex", EventType.POST_TOOL_USE),
+            ("cursor", EventType.USER_PROMPT),
+            ("cursor", EventType.PRE_TOOL_USE),
+            ("vscode", EventType.PRE_TOOL_USE),
+            ("vscode", EventType.POST_TOOL_USE),
+            ("vibe", EventType.POST_TOOL_USE),
+        }
+
+    @pytest.mark.parametrize("event_type", list(EventType))
+    @pytest.mark.parametrize("agent", list(AGENTS.values()), ids=list(AGENTS))
+    @patch("click.echo")
+    def test_output_result_block_sends_user_message_to_the_user_only(
+        self, mock_echo: MagicMock, agent: Agent, event_type: EventType
+    ):
+        """A block's user_message rides once in the agent's user-only field and
+        never in a field the model reads."""
+        if not agent.has_user_only_channel(event_type):
+            pytest.skip("no user-only field for this event")
+        result = HookResult(
+            block=True,
+            message="Secret",
+            nbr_secrets=1,
+            payload=_dummy_payload(event_type),
+            user_message="for the user",
+        )
+        agent.output_result(result)
+        args, _ = mock_echo.call_args
+        assert args[0].count("for the user") == 1
+        out = json.loads(args[0])
+        if isinstance(agent, Cursor):
+            assert out["user_message"] == "Secret\n\nfor the user"
+            assert out.get("agent_message", "Secret") == "Secret"
+        elif isinstance(agent, Vibe):
+            assert out["system_message"] == "for the user"
+        else:
+            assert out["systemMessage"] == "for the user"
 
     @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
     def test_claude_output_result_user_prompt_block(self, mock_echo: MagicMock):

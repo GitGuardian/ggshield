@@ -1,0 +1,1 @@
+If {this_is}, do not run ggshield secret ignore --last-found: it would also ignore any secret marked valid.

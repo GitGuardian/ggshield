@@ -1046,6 +1046,50 @@ def compare_mentions(tmp):
     return failures
 
 
+def compare_valid_elsewhere(tmp):
+    """A prompt with a valid secret mentioning a file with an unchecked one.
+
+    The file blocks first, and `--last-found` would ignore both, so neither
+    side may offer it. Only the user-only fields are compared: the rest of a
+    Claude prompt block is a known divergence.
+    """
+    failures = []
+    print("\nValid secret in another document: no --last-found")
+    log = tmp / "requests-valid-elsewhere.jsonl"
+    mock, port = start_mock("secret", log, validity="unknown")
+    payload = {
+        **agent_bases()["claude"],
+        "cwd": CONTENT_DIR,
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": f"my key is {CLIENT_ID} checked-valid, see @{CONTENT_FILE}",
+    }
+
+    def setup():
+        Path(CONTENT_FILE).write_text(f"AWS_KEY={CLIENT_SECRET}\n")
+
+    try:
+        _, _, py, rs, _ = compare_one(
+            tmp, log, port, "valid-elsewhere", payload, setup=setup
+        )
+        hints = {
+            side: user_only_fields(out) for side, out in (("python", py), ("rust", rs))
+        }
+        if hints["python"] != hints["rust"]:
+            failures.append("valid_elsewhere (user-only fields differ)")
+            print(f"  [DIFF ] valid_elsewhere: {hints}")
+        for side, fields in hints.items():
+            hint = fields.get("systemMessage", "")
+            if "- match:" not in hint or "--last-found" in hint:
+                failures.append(f"valid_elsewhere ({side} hint: {hint!r})")
+                print(f"        ^ {side} offered --last-found or no entry")
+        if not failures:
+            print("  [OK  ] valid_elsewhere")
+    finally:
+        mock.kill()
+        Path(CONTENT_FILE).unlink(missing_ok=True)
+    return failures
+
+
 # One more file than `maximum_documents_per_scan` (20 in mock_api), so the batch
 # has to be split -- and one chunk failing must not discard the others.
 MENTIONED_FILES = 21
@@ -1284,9 +1328,14 @@ def free_port():
         return s.getsockname()[1]
 
 
-def start_mock(mode, request_log):
+def start_mock(mode, request_log, validity="valid"):
     port = free_port()
-    env = {**os.environ, "MODE": mode, "REQUEST_LOG": str(request_log)}
+    env = {
+        **os.environ,
+        "MODE": mode,
+        "REQUEST_LOG": str(request_log),
+        "VALIDITY": validity,
+    }
     proc = subprocess.Popen(
         [sys.executable, str(ROOT / "tests" / "mock_api.py"), str(port)],
         env=env,
@@ -1536,20 +1585,64 @@ def report(failures, label, verdict_ok, request_ok, py, rs):
         print(f"          rust stderr={rs.stderr.decode()[:200]!r}")
 
 
+# The keys an agent shows the user and never hands the model. The false-positive
+# hint may appear there and nowhere else.
+USER_ONLY_KEYS = ("systemMessage", "system_message", "user_message")
+
+
+def _verdict(out):
+    try:
+        return json.loads(out.stdout)
+    except ValueError:
+        return out.stdout.decode(errors="replace")
+
+
+def user_only_fields(out):
+    verdict = _verdict(out)
+    if not isinstance(verdict, dict):
+        return {}
+    return {k: v for k, v in verdict.items() if k in USER_ONLY_KEYS}
+
+
+def hint_reaches_the_model(out):
+    """Whether a verdict hands the model a way to ignore the secret."""
+    verdict = _verdict(out)
+    if isinstance(verdict, dict):
+        verdict = {k: v for k, v in verdict.items() if k not in USER_ONLY_KEYS}
+    seen = json.dumps(verdict) + out.stderr.decode(errors="replace")
+    return any(leak in seen for leak in ("secret ignore", "- match:"))
+
+
 def compare_agents(tmp):
     failures = []
     print("Agents: 6 assistants x their own payload shapes x {clean, secret}")
-    for mode in ("clean", "secret"):
-        log = tmp / f"requests-agents-{mode}.jsonl"
-        mock, port = start_mock(mode, log)
+    # A valid secret gets no false-positive hint; an unchecked one does, which
+    # exercises every agent's user-only field.
+    for mode, validity in (
+        ("clean", "valid"),
+        ("secret", "valid"),
+        ("secret", "unknown"),
+    ):
+        label = mode if validity == "valid" else f"{mode}-{validity}"
+        log = tmp / f"requests-agents-{label}.jsonl"
+        mock, port = start_mock(mode, log, validity=validity)
         try:
             for agent, shapes in agent_payloads().items():
                 for shape, payload in shapes.items():
-                    name = f"{mode}/{agent}/{shape}"
+                    name = f"{label}/{agent}/{shape}"
                     verdict_ok, request_ok, py, rs, _ = compare_one(
                         tmp, log, port, name.replace("/", "-"), payload
                     )
                     report(failures, name, verdict_ok, request_ok, py, rs)
+                    for side, out in (("python", py), ("rust", rs)):
+                        if hint_reaches_the_model(out):
+                            failures.append(f"{name} ({side} shows the model the hint)")
+                            print(f"        ^ {side} handed the model the hint")
+                    # Checked on its own: a known divergence elsewhere in the
+                    # verdict must not hide a different hint for the user.
+                    if user_only_fields(py) != user_only_fields(rs):
+                        failures.append(f"{name} (user-only fields differ)")
+                        print("        ^ the user-only fields differ")
         finally:
             mock.kill()
     return failures
@@ -1559,7 +1652,9 @@ def compare_configs(tmp, ignore_sha):
     failures = []
     print("\n.gitguardian.yaml: every key that reaches this path")
     log = tmp / "requests-config.jsonl"
-    mock, port = start_mock("secret", log)
+    # Unchecked, unlike the agents matrix: a valid secret gets no false-positive
+    # hint, and the guard below needs one.
+    mock, port = start_mock("secret", log, validity="unknown")
     # One payload shape is enough here: the variable under test is the config.
     payload = agent_payloads()["claude"]["pre_read"]
     requests_by_case = {}
@@ -1586,13 +1681,21 @@ def compare_configs(tmp, ignore_sha):
                 print(f"        ^ expected the config to {expected}, but it did not")
 
             # A block must carry the `ignored_matches` entry that would silence
-            # it: both sides agreeing on a message that dropped it would still
-            # read as equivalent.
+            # it, in the user-only `systemMessage` and never in what the model
+            # reads: both sides agreeing on a message that misplaced it would
+            # still read as equivalent.
             if actual == "block":
+                entry = f"- match: {ignore_sha}"
                 for side, out in (("python", py), ("rust", rs)):
-                    if f"- match: {ignore_sha}".encode() not in out.stdout:
+                    verdict = json.loads(out.stdout)
+                    if entry not in verdict.get("systemMessage", ""):
                         failures.append(f"config/{case} ({side} has no ignore sha)")
                         print(f"        ^ {side} blocked without the ignore sha")
+                    if entry in json.dumps(verdict["hookSpecificOutput"]):
+                        failures.append(
+                            f"config/{case} ({side} shows the model the sha)"
+                        )
+                        print(f"        ^ {side} shows the model the ignore sha")
     finally:
         mock.kill()
 
@@ -2557,6 +2660,7 @@ def main():
         failures += compare_read_ranges(tmp)
         failures += compare_content(tmp)
         failures += compare_mentions(tmp)
+        failures += compare_valid_elsewhere(tmp)
         failures += compare_batches(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)
@@ -2730,11 +2834,18 @@ def main():
                 "Remove once the Python hook resolves the path too."
             ),
         }
-        known = [f for f in failures if f in known_divergences]
-        unexpected = [f for f in failures if f not in known_divergences]
+
+        # The unchecked-secret pass of the agents matrix diverges for the same
+        # reasons as its valid-secret twin.
+        def known_reason(name):
+            twin = name.replace("secret-unknown/", "secret/", 1)
+            return known_divergences.get(name) or known_divergences.get(twin)
+
+        known = [f for f in failures if known_reason(f)]
+        unexpected = [f for f in failures if not known_reason(f)]
         for name in known:
             print(f"\nKNOWN DIVERGENCE (expected, tracked): {name}")
-            print(f"  reason: {known_divergences[name]}")
+            print(f"  reason: {known_reason(name)}")
         if unexpected:
             print(f"\nRESULT: {len(unexpected)} UNEXPECTED DIFFERENCES")
             for name in unexpected:

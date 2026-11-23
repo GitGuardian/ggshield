@@ -244,29 +244,37 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
     }
 
     let mut payloads = payload::parse(stdin_content)?;
-    let (index, secrets) = scan_payloads(config, &mut payloads)?;
+    let (index, secrets, valid_elsewhere) = scan_payloads(config, &mut payloads)?;
     let payload = &payloads[index];
 
     let result = if secrets.is_empty() {
         HookResult::allow(payload)
     } else {
-        let mut result = HookResult::block(
-            payload,
-            message::from_secrets(&secrets, payload),
-            secrets.len(),
-        );
+        let mut result = HookResult {
+            user_message: message::user_message(&secrets, payload, valid_elsewhere),
+            ..HookResult::block(
+                payload,
+                message::from_secrets(&secrets, payload),
+                secrets.len(),
+            )
+        };
         result.matches = secrets
             .iter()
             .flat_map(|secret| secret.matches.iter().map(|m| m.value.clone()))
             .collect();
         // `has_secret_already_leaked()`: on PostToolUse the secret is already in
-        // the agent's context, so tell the user out-of-band. Best effort, and
-        // only for the invocation that scanned: one event, one banner. An agent
-        // that lets us replace the output leaked nothing, so a banner there
-        // would report a non-event.
-        if payload.event_type == EventType::PostToolUse && !output::can_redact_tool_output(payload)
-        {
-            notify(&result);
+        // the agent's context, so tell the user out-of-band. An agent that lets
+        // us replace the output leaked nothing, so a banner there would report a
+        // non-event. The banner also carries the false-positive hint where the
+        // agent has no user-only field for the event.
+        // Best effort, and only for the invocation that scanned: one event, one
+        // banner.
+        let leaked = payload.event_type == EventType::PostToolUse
+            && !output::can_redact_tool_output(payload);
+        let hint = message::notification_hint(&secrets, payload, valid_elsewhere);
+        if leaked || !hint.is_empty() {
+            let (title, body) = notification(&result, leaked, &hint);
+            notify::send(&title, &body);
         }
         result
     };
@@ -295,9 +303,9 @@ struct Pending {
 /// `_scan_payloads()` plus `_scan_contents()`: scan everything the event still
 /// needs scanned, in as few requests as possible.
 ///
-/// Returns the secrets found and the index of the first payload holding them, or
-/// index 0 with no secrets — the caller only reads that payload for its output
-/// contract.
+/// Returns the index of the first payload holding secrets (0 when none does, as
+/// the caller only reads that payload for its output contract), its secrets, and
+/// whether another payload holds a valid secret.
 ///
 /// KNOWN LIMITATION — `send_mcp_activity()` is not implemented, so Python can
 /// block an MCP tool call on policy grounds with no secret involved and the native
@@ -306,7 +314,7 @@ struct Pending {
 fn scan_payloads(
     config: &config::Config,
     payloads: &mut [Payload],
-) -> Result<(usize, Vec<api::Secret>), Error> {
+) -> Result<(usize, Vec<api::Secret>, bool), Error> {
     if payloads.is_empty() {
         return Err(Error::Invalid("Error: no payloads to scan".into()));
     }
@@ -373,10 +381,11 @@ fn scan_payloads(
         });
     }
     if pending.is_empty() {
-        return Ok((0, Vec::new()));
+        return Ok((0, Vec::new(), false));
     }
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
+    let mut valid_elsewhere = false;
     let mut failure: Option<Error> = None;
     let max_documents = api::max_documents_per_scan(config);
     for chunk in chunks(&pending, max_documents, max_payload_size) {
@@ -405,17 +414,22 @@ fn scan_payloads(
             {
                 verdict_cache::store_clean_verdict(key);
             }
-            if !result.secrets.is_empty() && found.is_none() {
+            if result.secrets.is_empty() {
+                continue;
+            }
+            if found.is_none() {
                 found = Some((item.index, result.secrets));
+            } else if result.secrets.iter().any(message::is_valid) {
+                valid_elsewhere = true;
             }
         }
     }
     match (found, failure) {
         // A secret beats a partial failure: blocking on what was found is never
         // worse than failing the whole event open.
-        (Some(found), _) => Ok(found),
+        (Some((index, secrets)), _) => Ok((index, secrets, valid_elsewhere)),
         (None, Some(failure)) => Err(failure),
-        (None, None) => Ok((0, Vec::new())),
+        (None, None) => Ok((0, Vec::new(), false)),
     }
 }
 
@@ -555,12 +569,37 @@ fn is_path_binary(path: &Path) -> bool {
         .is_some_and(|ext| binary_extensions::BINARY_EXTENSIONS.contains(&ext))
 }
 
-/// `_send_secret_notification()`. Best effort; every failure is swallowed so the
-/// block decision still gets emitted.
-///
-/// Only the wording lives here; `notify` owns the per-OS delivery.
-fn notify(result: &HookResult) {
-    let source = match result.payload.tool {
+/// The banner of `_send_secret_notification()`, as (title, body): what reached
+/// the agent when the secret leaked, otherwise what was blocked, in the title so
+/// the body is the hint alone. Banners truncate long bodies. `notify` owns the
+/// per-OS delivery.
+fn notification(result: &HookResult, leaked: bool, hint: &str) -> (String, String) {
+    let agent = result.payload.agent.display_name();
+    let secrets = message::pluralize("secret", result.nbr_secrets, None);
+    if !leaked {
+        return (
+            format!(
+                "ggshield blocked {} {secrets} in {agent}",
+                result.nbr_secrets
+            ),
+            hint.to_string(),
+        );
+    }
+    let what = format!(
+        "{agent} got access to {} {secrets} by {}",
+        result.nbr_secrets,
+        notification_source(result)
+    );
+    let body = if hint.is_empty() {
+        what
+    } else {
+        format!("{what}. {hint}")
+    };
+    ("ggshield - Secrets Detected".to_string(), body)
+}
+
+fn notification_source(result: &HookResult) -> String {
+    match result.payload.tool {
         Some(Tool::Read) => "reading a file".to_string(),
         Some(Tool::Bash) => {
             let command = result
@@ -577,14 +616,7 @@ fn notify(result: &HookResult) {
             }
         }
         _ => "using a tool".to_string(),
-    };
-    let body = format!(
-        "{} got access to {} {} by {source}",
-        result.payload.agent.display_name(),
-        result.nbr_secrets,
-        message::pluralize("secret", result.nbr_secrets, None)
-    );
-    notify::send("ggshield - Secrets Detected", &body);
+    }
 }
 
 #[cfg(test)]
@@ -597,6 +629,8 @@ mod tests {
 
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
+    /// Like `SECRET`, but the mock reports it as checked valid.
+    const VALID_SECRET: &str = "AKIAvalidone";
 
     const UNKNOWN_AGENT_EVENT: &str = r#"{"hook_event_name": "somethingElse", "prompt": "hi"}"#;
 
@@ -792,7 +826,12 @@ mod tests {
             let results: Vec<&str> = documents
                 .iter()
                 .map(|d| {
-                    if d["document"].as_str().unwrap_or_default().contains(SECRET) {
+                    let document = d["document"].as_str().unwrap_or_default();
+                    if document.contains(VALID_SECRET) {
+                        r#"{"policy_breaks": [{"policy": "Secrets detection", "type": "AWS Keys",
+                            "validity": "valid",
+                            "matches": [{"match": "AKIAvalidone", "type": "apikey"}]}]}"#
+                    } else if document.contains(SECRET) {
                         r#"{"policy_breaks": [{"policy": "Secrets detection", "type": "AWS Keys",
                             "matches": [{"match": "AKIAsomething", "type": "apikey"}]}]}"#
                     } else {
@@ -832,6 +871,41 @@ mod tests {
         }
     }
 
+    /// GIVEN a block on an agent, with and without a leak and a hint
+    /// WHEN the banner is built
+    /// THEN a block that leaked nothing puts what happened in the title and the
+    /// hint alone in the body; a leak keeps its sentence and appends the hint.
+    #[test]
+    fn the_notification_body_carries_the_false_positive_hint() {
+        let mut p = text_payload("id", "");
+        p.agent = payload::Agent::Codex;
+        p.tool = Some(Tool::Read);
+        let result = HookResult::block(&p, "nope".into(), 1);
+        let hint = "If this is a false positive, run: ggshield secret ignore --last-found";
+        let leak_title = "ggshield - Secrets Detected".to_string();
+        assert_eq!(
+            notification(&result, false, hint),
+            (
+                "ggshield blocked 1 secret in Codex".to_string(),
+                hint.to_string()
+            )
+        );
+        assert_eq!(
+            notification(&result, true, hint),
+            (
+                leak_title.clone(),
+                format!("Codex got access to 1 secret by reading a file. {hint}")
+            )
+        );
+        assert_eq!(
+            notification(&result, true, ""),
+            (
+                leak_title,
+                "Codex got access to 1 secret by reading a file".to_string()
+            )
+        );
+    }
+
     /// GIVEN one event carrying an empty, a clean, a leaky and another clean payload
     /// WHEN it is scanned
     /// THEN it costs one multiscan request, and the secret is attributed to the
@@ -847,7 +921,7 @@ mod tests {
             text_payload("also-clean.txt", "nothing here either"),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 2);
         assert_eq!(secrets.len(), 1);
@@ -855,6 +929,31 @@ mod tests {
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0], ["clean.txt", "leaky.txt", "also-clean.txt"]);
         assert_eq!(recorded.metadata_hits.load(Ordering::SeqCst), 1);
+    }
+
+    /// GIVEN one event whose first document holds an unchecked secret and a later
+    /// one a valid secret
+    /// WHEN it is scanned
+    /// THEN the block lands on the first, and the valid secret elsewhere is
+    /// reported, since `--last-found` would ignore it too.
+    #[test]
+    fn a_valid_secret_in_another_document_is_reported() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, _) = mock_api(MockLimits::default());
+        let mut payloads = [
+            text_payload("prompt.txt", &format!("key = {SECRET}")),
+            text_payload("mentioned.txt", &format!("key = {VALID_SECRET}")),
+        ];
+
+        let (index, secrets, valid_elsewhere) =
+            scan_payloads(&test_config(url.clone()), &mut payloads).expect("scan");
+        assert_eq!(index, 0);
+        assert_eq!(secrets.len(), 1);
+        assert!(valid_elsewhere);
+
+        let mut alone = [text_payload("prompt.txt", &format!("key = {SECRET}"))];
+        let (_, _, valid_elsewhere) = scan_payloads(&test_config(url), &mut alone).expect("scan");
+        assert!(!valid_elsewhere);
     }
 
     /// GIVEN an instance reporting a raised `maximum_documents_per_scan`
@@ -871,7 +970,7 @@ mod tests {
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -893,7 +992,7 @@ mod tests {
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -919,7 +1018,7 @@ mod tests {
         assert!(big.len() > config::MAXIMUM_DOCUMENT_SIZE);
         let mut payloads = [text_payload("big.txt", &big)];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 0);
         assert_eq!(secrets.len(), 1);
@@ -947,7 +1046,7 @@ mod tests {
             text_payload("small.txt", &format!("aws_key = {SECRET}")),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         // The oversized document never reached the API.
         assert_eq!(index, 1);
@@ -983,7 +1082,7 @@ mod tests {
                 })
                 .collect();
 
-            let (index, secrets) = scan_payloads(&test_config(url), &mut payloads)
+            let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads)
                 .unwrap_or_else(|e| panic!("fail_scan={fail_scan}: {e:?}"));
 
             assert_eq!(index, leaky_at, "fail_scan={fail_scan}");
@@ -1013,7 +1112,7 @@ mod tests {
         assert!(
             matches!(&outcome, Err(Error::Fail(m)) if m.contains("(refused)")),
             "{:?}",
-            outcome.map(|(index, secrets)| (index, secrets.len()))
+            outcome.map(|(index, secrets, _)| (index, secrets.len()))
         );
     }
 
@@ -1090,7 +1189,7 @@ mod tests {
             text_payload("quotes.txt", &quotes),
         ];
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         assert_eq!(

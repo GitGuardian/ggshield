@@ -8,5 +8,3 @@ The {secrets} {were} removed from the transcript stored on disk.
 
   Since the {secrets} {were} found in a file the agent changed:  
   1. consider moving the {secrets} to a secrets manager.
-
-{false_positive_instructions}

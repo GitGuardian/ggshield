@@ -8,4 +8,4 @@ The tool call ran, but its output was withheld from the agent, so the {secrets} 
   Since the {secrets} {were} caught before the output reached the agent:  
   1. consider moving the {secrets} to a secrets manager.
 
-{false_positive_instructions}
+{agent_instructions}

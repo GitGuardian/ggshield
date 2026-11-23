@@ -9,4 +9,4 @@ The command ran, but its output was withheld from the agent, so the {secrets} {w
   1. avoid printing the {secrets}: filter the sensitive lines, or redirect the output to a file.
   2. consider moving the {secrets} to a secrets manager.
 
-{false_positive_instructions}
+{agent_instructions}
