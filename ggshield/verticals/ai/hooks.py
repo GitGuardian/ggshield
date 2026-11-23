@@ -692,13 +692,16 @@ def _this_is_a_false_positive(secrets: Sequence[Secret]) -> str:
     )
 
 
-def _false_positive_block(secrets: Sequence[Secret]) -> str:
+def _false_positive_block(
+    secrets: Sequence[Secret], valid_elsewhere: bool = False
+) -> str:
     """The false-positive hint for the user's eyes only, with the entries it adds.
 
     Empty when every secret is valid. `--last-found` ignores every secret of the
-    scan, so it is offered only when none is valid. The shas are spelled out
-    because the message censors every match, so a hand-written entry otherwise
-    never matches. The sha is a digest, not the secret.
+    scan, other documents of the event included, so it is offered only when none
+    is valid (`valid_elsewhere` covers the other documents). The shas are spelled
+    out because the message censors every match, so a hand-written entry
+    otherwise never matches. The sha is a digest, not the secret.
     """
     unchecked = _unchecked_secrets(secrets)
     if not unchecked:
@@ -707,7 +710,7 @@ def _false_positive_block(secrets: Sequence[Secret]) -> str:
     # dict, not set: one entry per sha, in the order the secrets are reported.
     shas = dict.fromkeys(secret.get_ignore_sha() for secret in unchecked)
     entries = "\n".join(f"    - match: {sha}" for sha in shas)
-    if len(unchecked) < len(secrets):
+    if len(unchecked) < len(secrets) or valid_elsewhere:
         return f"""\
 > If {this_is_a_false_positive}, add to secret.ignored_matches in .gitguardian.yaml:
 
@@ -722,7 +725,7 @@ def _false_positive_block(secrets: Sequence[Secret]) -> str:
 {entries}"""
 
 
-def _notification_hint(secrets: Sequence[Secret]) -> str:
+def _notification_hint(secrets: Sequence[Secret], valid_elsewhere: bool = False) -> str:
     """The one-line false-positive hint for the desktop notification.
 
     One line: a notification is neither copyable nor long enough for the
@@ -732,7 +735,7 @@ def _notification_hint(secrets: Sequence[Secret]) -> str:
     if not unchecked:
         return ""
     this_is_a_false_positive = _this_is_a_false_positive(secrets)
-    if len(unchecked) < len(secrets):
+    if len(unchecked) < len(secrets) or valid_elsewhere:
         return (
             f"If {this_is_a_false_positive}, do not run ggshield secret ignore "
             "--last-found: it would also ignore any secret marked valid."
@@ -863,6 +866,8 @@ class AIHookScanner:
         HookResult per payload, in order.
         """
         results = [HookResult.allow(payload) for payload in payloads]
+        # The secrets of each blocking payload, by index in `payloads`.
+        found: Dict[int, List[Secret]] = {}
 
         # (index in `payloads`, document to scan, verdict cache key).
         to_scan: List[Tuple[int, Scannable, Optional[str]]] = []
@@ -960,22 +965,36 @@ class AIHookScanner:
                     if key and not result.ignored_secrets_count_by_kind:
                         store_clean_verdict(key)
                     continue
-                payload = payloads[index]
-                user_only = payload.agent.has_user_only_channel(payload.event_type)
-                results[index] = HookResult(
-                    block=True,
-                    message=self._message_from_secrets(
-                        secrets,
-                        payload,
-                        escape_markdown=True,
-                    ),
-                    nbr_secrets=len(secrets),
-                    payload=payload,
-                    user_message=_false_positive_block(secrets) if user_only else "",
-                    notification_hint="" if user_only else _notification_hint(secrets),
-                )
+                found[index] = secrets
 
             remaining = leftover
+
+        for index, secrets in found.items():
+            # `--last-found` would also ignore a valid secret of another document.
+            valid_elsewhere = any(
+                secret.validity == "valid"
+                for other, others in found.items()
+                if other != index
+                for secret in others
+            )
+            payload = payloads[index]
+            user_only = payload.agent.has_user_only_channel(payload.event_type)
+            results[index] = HookResult(
+                block=True,
+                message=self._message_from_secrets(
+                    secrets,
+                    payload,
+                    escape_markdown=True,
+                ),
+                nbr_secrets=len(secrets),
+                payload=payload,
+                user_message=(
+                    _false_positive_block(secrets, valid_elsewhere) if user_only else ""
+                ),
+                notification_hint=(
+                    "" if user_only else _notification_hint(secrets, valid_elsewhere)
+                ),
+            )
 
         return results
 

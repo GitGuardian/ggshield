@@ -1383,6 +1383,58 @@ class TestMessageFromSecrets:
             "do not suggest disabling or uninstalling the GitGuardian hook."
         )
 
+    @pytest.mark.parametrize("agent", [Claude(), Copilot()], ids=["claude", "copilot"])
+    def test_a_valid_secret_in_another_document_withholds_last_found(
+        self, agent: Agent
+    ):
+        """A prompt with an unchecked secret that mentions a file holding a valid
+        one: `--last-found` would ignore both, so neither hint offers it, while
+        the unchecked secret's entry is still given."""
+        payloads = [
+            HookPayload(
+                event_type=EventType.PRE_TOOL_USE,
+                tool=Tool.BASH,
+                content=content,
+                identifier=content,
+                agent=agent,
+                raw={},
+            )
+            for content in ("echo first", "echo second")
+        ]
+        unchecked = _make_secret("sk-unknown", validity="unknown")
+        mock_scanner = _mock_scanner([])
+        mock_scanner.scan.side_effect = None
+        mock_scanner.scan.return_value = Results(
+            results=[
+                ScanResult(
+                    filename=payload.scannable.filename,
+                    filemode=Filemode.FILE,
+                    path=Path("."),
+                    url=payload.scannable.url,
+                    secrets=[secret],
+                    ignored_secrets_count_by_kind=Counter(),
+                )
+                for payload, secret in zip(
+                    payloads, [unchecked, _make_secret("sk-valid", validity="valid")]
+                )
+            ],
+            errors=[],
+        )
+        first, _ = AIHookScanner(mock_scanner)._scan_contents(payloads)
+
+        assert first.block
+        hint = first.user_message or first.notification_hint
+        assert "do not run" in hint or "--last-found" not in hint
+        if isinstance(agent, Claude):
+            assert first.user_message.endswith(
+                f"    - match: {unchecked.get_ignore_sha()}"
+            )
+        else:
+            assert first.notification_hint.startswith(
+                "If this is a false positive, do not run ggshield secret ignore "
+                "--last-found"
+            )
+
     @pytest.mark.parametrize("agent", list(AGENTS.values()), ids=list(AGENTS))
     @pytest.mark.parametrize(
         "event_type",

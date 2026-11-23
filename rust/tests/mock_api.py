@@ -6,7 +6,8 @@ full scan without a single byte leaving the machine.
   MODE=clean   -> no policy breaks
   MODE=secret  -> one "AWS Keys" policy break, with matches located in the
                   document that was actually submitted
-  VALIDITY     -> that break's validity, "valid" by default
+  VALIDITY     -> that break's validity, "valid" by default, except in a
+                  document holding VALID_MARKER, where it is always "valid"
 
 The indices matter: the Python side maps every match back onto the document's
 lines and errors out if a match falls outside them, so the mock cannot return
@@ -26,6 +27,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 MODE = os.environ.get("MODE", "clean")
 VALIDITY = os.environ.get("VALIDITY", "valid")
+VALID_MARKER = "checked-valid"
 REQUEST_LOG = os.environ.get("REQUEST_LOG")
 
 # Fake credentials, shaped like AWS keys. Never valid anywhere.
@@ -122,7 +124,7 @@ def scan(document):
                 "detector_name": "aws_iam",
                 "detector_group_name": "aws_iam",
                 "documentation_url": None,
-                "validity": VALIDITY,
+                "validity": "valid" if VALID_MARKER in document else VALIDITY,
                 "known_secret": True,
                 "incident_url": "https://dashboard.gitguardian.com/workspace/1/incidents/9",
                 "is_excluded": False,

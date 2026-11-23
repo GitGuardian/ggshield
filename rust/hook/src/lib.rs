@@ -244,14 +244,14 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
     }
 
     let mut payloads = payload::parse(stdin_content)?;
-    let (index, secrets) = scan_payloads(config, &mut payloads)?;
+    let (index, secrets, valid_elsewhere) = scan_payloads(config, &mut payloads)?;
     let payload = &payloads[index];
 
     let result = if secrets.is_empty() {
         HookResult::allow(payload)
     } else {
         let result = HookResult {
-            user_message: message::user_message(&secrets, payload),
+            user_message: message::user_message(&secrets, payload, valid_elsewhere),
             ..HookResult::block(
                 payload,
                 message::from_secrets(&secrets, payload),
@@ -267,7 +267,7 @@ fn scan(config: &config::Config, stdin_content: &str) -> Result<Emission, Error>
         // banner.
         let leaked = payload.event_type == EventType::PostToolUse
             && !output::can_redact_tool_output(payload);
-        let hint = message::notification_hint(&secrets, payload);
+        let hint = message::notification_hint(&secrets, payload, valid_elsewhere);
         if leaked || !hint.is_empty() {
             let (title, body) = notification(&result, leaked, &hint);
             notify::send(&title, &body);
@@ -299,9 +299,9 @@ struct Pending {
 /// `_scan_payloads()` plus `_scan_contents()`: scan everything the event still
 /// needs scanned, in as few requests as possible.
 ///
-/// Returns the secrets found and the index of the first payload holding them, or
-/// index 0 with no secrets — the caller only reads that payload for its output
-/// contract.
+/// Returns the index of the first payload holding secrets (0 when none does, as
+/// the caller only reads that payload for its output contract), its secrets, and
+/// whether another payload holds a valid secret.
 ///
 /// KNOWN LIMITATION — `send_mcp_activity()` is not implemented, so Python can
 /// block an MCP tool call on policy grounds with no secret involved and the native
@@ -310,7 +310,7 @@ struct Pending {
 fn scan_payloads(
     config: &config::Config,
     payloads: &mut [Payload],
-) -> Result<(usize, Vec<api::Secret>), Error> {
+) -> Result<(usize, Vec<api::Secret>, bool), Error> {
     if payloads.is_empty() {
         return Err(Error::Invalid("Error: no payloads to scan".into()));
     }
@@ -377,10 +377,11 @@ fn scan_payloads(
         });
     }
     if pending.is_empty() {
-        return Ok((0, Vec::new()));
+        return Ok((0, Vec::new(), false));
     }
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
+    let mut valid_elsewhere = false;
     let mut failure: Option<Error> = None;
     let max_documents = api::max_documents_per_scan(config);
     for chunk in chunks(&pending, max_documents, max_payload_size) {
@@ -409,17 +410,22 @@ fn scan_payloads(
             {
                 verdict_cache::store_clean_verdict(key);
             }
-            if !result.secrets.is_empty() && found.is_none() {
+            if result.secrets.is_empty() {
+                continue;
+            }
+            if found.is_none() {
                 found = Some((item.index, result.secrets));
+            } else if result.secrets.iter().any(message::is_valid) {
+                valid_elsewhere = true;
             }
         }
     }
     match (found, failure) {
         // A secret beats a partial failure: blocking on what was found is never
         // worse than failing the whole event open.
-        (Some(found), _) => Ok(found),
+        (Some((index, secrets)), _) => Ok((index, secrets, valid_elsewhere)),
         (None, Some(failure)) => Err(failure),
-        (None, None) => Ok((0, Vec::new())),
+        (None, None) => Ok((0, Vec::new(), false)),
     }
 }
 
@@ -619,6 +625,8 @@ mod tests {
 
     /// Recognised by the mock below as "this document holds a secret".
     const SECRET: &str = "AKIAsomething";
+    /// Like `SECRET`, but the mock reports it as checked valid.
+    const VALID_SECRET: &str = "AKIAvalidone";
 
     const UNKNOWN_AGENT_EVENT: &str = r#"{"hook_event_name": "somethingElse", "prompt": "hi"}"#;
 
@@ -814,7 +822,12 @@ mod tests {
             let results: Vec<&str> = documents
                 .iter()
                 .map(|d| {
-                    if d["document"].as_str().unwrap_or_default().contains(SECRET) {
+                    let document = d["document"].as_str().unwrap_or_default();
+                    if document.contains(VALID_SECRET) {
+                        r#"{"policy_breaks": [{"policy": "Secrets detection", "type": "AWS Keys",
+                            "validity": "valid",
+                            "matches": [{"match": "AKIAvalidone", "type": "apikey"}]}]}"#
+                    } else if document.contains(SECRET) {
                         r#"{"policy_breaks": [{"policy": "Secrets detection", "type": "AWS Keys",
                             "matches": [{"match": "AKIAsomething", "type": "apikey"}]}]}"#
                     } else {
@@ -904,7 +917,7 @@ mod tests {
             text_payload("also-clean.txt", "nothing here either"),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 2);
         assert_eq!(secrets.len(), 1);
@@ -912,6 +925,31 @@ mod tests {
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0], ["clean.txt", "leaky.txt", "also-clean.txt"]);
         assert_eq!(recorded.metadata_hits.load(Ordering::SeqCst), 1);
+    }
+
+    /// GIVEN one event whose first document holds an unchecked secret and a later
+    /// one a valid secret
+    /// WHEN it is scanned
+    /// THEN the block lands on the first, and the valid secret elsewhere is
+    /// reported, since `--last-found` would ignore it too.
+    #[test]
+    fn a_valid_secret_in_another_document_is_reported() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, _) = mock_api(MockLimits::default());
+        let mut payloads = [
+            text_payload("prompt.txt", &format!("key = {SECRET}")),
+            text_payload("mentioned.txt", &format!("key = {VALID_SECRET}")),
+        ];
+
+        let (index, secrets, valid_elsewhere) =
+            scan_payloads(&test_config(url.clone()), &mut payloads).expect("scan");
+        assert_eq!(index, 0);
+        assert_eq!(secrets.len(), 1);
+        assert!(valid_elsewhere);
+
+        let mut alone = [text_payload("prompt.txt", &format!("key = {SECRET}"))];
+        let (_, _, valid_elsewhere) = scan_payloads(&test_config(url), &mut alone).expect("scan");
+        assert!(!valid_elsewhere);
     }
 
     /// GIVEN an instance reporting a raised `maximum_documents_per_scan`
@@ -928,7 +966,7 @@ mod tests {
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -950,7 +988,7 @@ mod tests {
             .map(|i| text_payload(&format!("file{i}.txt"), &format!("content {i}")))
             .collect();
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         let batches = recorded.batches.lock().expect("lock");
@@ -976,7 +1014,7 @@ mod tests {
         assert!(big.len() > config::MAXIMUM_DOCUMENT_SIZE);
         let mut payloads = [text_payload("big.txt", &big)];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert_eq!(index, 0);
         assert_eq!(secrets.len(), 1);
@@ -1004,7 +1042,7 @@ mod tests {
             text_payload("small.txt", &format!("aws_key = {SECRET}")),
         ];
 
-        let (index, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         // The oversized document never reached the API.
         assert_eq!(index, 1);
@@ -1040,7 +1078,7 @@ mod tests {
                 })
                 .collect();
 
-            let (index, secrets) = scan_payloads(&test_config(url), &mut payloads)
+            let (index, secrets, _) = scan_payloads(&test_config(url), &mut payloads)
                 .unwrap_or_else(|e| panic!("fail_scan={fail_scan}: {e:?}"));
 
             assert_eq!(index, leaky_at, "fail_scan={fail_scan}");
@@ -1070,7 +1108,7 @@ mod tests {
         assert!(
             matches!(&outcome, Err(Error::Fail(m)) if m.contains("(refused)")),
             "{:?}",
-            outcome.map(|(index, secrets)| (index, secrets.len()))
+            outcome.map(|(index, secrets, _)| (index, secrets.len()))
         );
     }
 
@@ -1147,7 +1185,7 @@ mod tests {
             text_payload("quotes.txt", &quotes),
         ];
 
-        let (_, secrets) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
+        let (_, secrets, _) = scan_payloads(&test_config(url), &mut payloads).expect("scan");
 
         assert!(secrets.is_empty());
         assert_eq!(

@@ -985,6 +985,50 @@ def compare_mentions(tmp):
     return failures
 
 
+def compare_valid_elsewhere(tmp):
+    """A prompt with a valid secret mentioning a file with an unchecked one.
+
+    The file blocks first, and `--last-found` would ignore both, so neither
+    side may offer it. Only the user-only fields are compared: the rest of a
+    Claude prompt block is a known divergence.
+    """
+    failures = []
+    print("\nValid secret in another document: no --last-found")
+    log = tmp / "requests-valid-elsewhere.jsonl"
+    mock, port = start_mock("secret", log, validity="unknown")
+    payload = {
+        **agent_bases()["claude"],
+        "cwd": CONTENT_DIR,
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": f"my key is {CLIENT_ID} checked-valid, see @{CONTENT_FILE}",
+    }
+
+    def setup():
+        Path(CONTENT_FILE).write_text(f"AWS_KEY={CLIENT_SECRET}\n")
+
+    try:
+        _, _, py, rs, _ = compare_one(
+            tmp, log, port, "valid-elsewhere", payload, setup=setup
+        )
+        hints = {
+            side: user_only_fields(out) for side, out in (("python", py), ("rust", rs))
+        }
+        if hints["python"] != hints["rust"]:
+            failures.append("valid_elsewhere (user-only fields differ)")
+            print(f"  [DIFF ] valid_elsewhere: {hints}")
+        for side, fields in hints.items():
+            hint = fields.get("systemMessage", "")
+            if "- match:" not in hint or "--last-found" in hint:
+                failures.append(f"valid_elsewhere ({side} hint: {hint!r})")
+                print(f"        ^ {side} offered --last-found or no entry")
+        if not failures:
+            print("  [OK  ] valid_elsewhere")
+    finally:
+        mock.kill()
+        Path(CONTENT_FILE).unlink(missing_ok=True)
+    return failures
+
+
 # One more file than `maximum_documents_per_scan` (20 in mock_api), so the batch
 # has to be split -- and one chunk failing must not discard the others.
 MENTIONED_FILES = 21
@@ -2548,6 +2592,7 @@ def main():
         failures += compare_read_ranges(tmp)
         failures += compare_content(tmp)
         failures += compare_mentions(tmp)
+        failures += compare_valid_elsewhere(tmp)
         failures += compare_batches(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)

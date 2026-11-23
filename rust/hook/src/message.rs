@@ -203,13 +203,15 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
 }
 
 /// The false-positive hint for the agent's user-only field, or an empty string
-/// when the event has no such field or every secret is valid.
-pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
+/// when the event has no such field or every secret is valid. `valid_elsewhere`:
+/// another document of the event holds a valid secret.
+pub fn user_message(secrets: &[Secret], payload: &Payload, valid_elsewhere: bool) -> String {
     if !crate::output::has_user_only_channel(payload) {
         return String::new();
     }
     false_positive_hint_for(
         secrets,
+        valid_elsewhere,
         FALSE_POSITIVE_TEMPLATE,
         FALSE_POSITIVE_PARTIAL_TEMPLATE,
     )
@@ -218,19 +220,27 @@ pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
 /// The one-line false-positive hint for the desktop notification, the user's
 /// only channel on an event without a user-only field. Empty when the event has
 /// one, or when every secret is valid.
-pub fn notification_hint(secrets: &[Secret], payload: &Payload) -> String {
+pub fn notification_hint(secrets: &[Secret], payload: &Payload, valid_elsewhere: bool) -> String {
     if crate::output::has_user_only_channel(payload) {
         return String::new();
     }
     false_positive_hint_for(
         secrets,
+        valid_elsewhere,
         FALSE_POSITIVE_NOTIFICATION_TEMPLATE,
         FALSE_POSITIVE_NOTIFICATION_PARTIAL_TEMPLATE,
     )
 }
 
-fn false_positive_hint_for(secrets: &[Secret], all_unchecked: &str, mixed: &str) -> String {
-    let template = if secrets.iter().any(is_valid) {
+/// `--last-found` ignores every secret of the scan, other documents of the event
+/// included, so it is offered only when none of them is valid.
+fn false_positive_hint_for(
+    secrets: &[Secret],
+    valid_elsewhere: bool,
+    all_unchecked: &str,
+    mixed: &str,
+) -> String {
+    let template = if valid_elsewhere || secrets.iter().any(is_valid) {
         mixed
     } else {
         all_unchecked
@@ -238,7 +248,7 @@ fn false_positive_hint_for(secrets: &[Secret], all_unchecked: &str, mixed: &str)
     false_positive_hint(secrets, template).unwrap_or_default()
 }
 
-fn is_valid(secret: &Secret) -> bool {
+pub fn is_valid(secret: &Secret) -> bool {
     matches!(secret.validity, Some(Validity::Valid))
 }
 
@@ -523,6 +533,35 @@ mod tests {
         }
     }
 
+    /// GIVEN an unchecked secret, and a valid one in another document of the event
+    /// WHEN the hints are built
+    /// THEN neither offers `--last-found`, which would ignore the valid one too,
+    /// while the unchecked secret's entry is still given.
+    #[test]
+    fn a_valid_secret_elsewhere_withholds_last_found() {
+        let unchecked = secret("Generic Password", "unknown", &["hunter2hunter2"]);
+        let secrets = [unchecked];
+        let sha = crate::api::ignore_sha(&secrets[0].matches);
+        let claude = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
+        let copilot = payload_for(
+            crate::payload::Agent::Copilot,
+            EventType::PreToolUse,
+            Some(Tool::Bash),
+            "echo x",
+        );
+
+        let user = user_message(&secrets, &claude, true);
+        assert!(!user.contains("--last-found"), "{user}");
+        assert!(user.ends_with(&format!("    - match: {sha}")), "{user}");
+        let banner = notification_hint(&secrets, &copilot, true);
+        assert!(
+            banner.contains("do not run ggshield secret ignore --last-found"),
+            "{banner}"
+        );
+
+        assert!(user_message(&secrets, &claude, false).contains("--last-found"));
+    }
+
     /// GIVEN Claude Code, which has a channel only the user reads
     /// WHEN secrets of each validity mix are blocked
     /// THEN the model text never carries a way to ignore them, and the user gets
@@ -556,7 +595,7 @@ mod tests {
             }
             assert!(msg.contains("> Instructions for the AI agent"), "{msg}");
 
-            let user = user_message(secrets, &p);
+            let user = user_message(secrets, &p, false);
             assert!(user.starts_with(hint), "{user}");
             if hint.is_empty() {
                 assert_eq!(user, "");
@@ -621,8 +660,8 @@ mod tests {
                         "{agent:?}/{event:?}: {msg}"
                     );
 
-                    let user = user_message(secrets, &p);
-                    let banner = notification_hint(secrets, &p);
+                    let user = user_message(secrets, &p, false);
+                    let banner = notification_hint(secrets, &p, false);
                     if crate::output::has_user_only_channel(&p) {
                         assert_eq!(banner, "", "{agent:?}/{event:?}");
                         assert_eq!(
