@@ -1480,20 +1480,64 @@ def report(failures, label, verdict_ok, request_ok, py, rs):
         print(f"          rust stderr={rs.stderr.decode()[:200]!r}")
 
 
+# The keys an agent shows the user and never hands the model. The false-positive
+# hint may appear there and nowhere else.
+USER_ONLY_KEYS = ("systemMessage", "system_message", "user_message")
+
+
+def _verdict(out):
+    try:
+        return json.loads(out.stdout)
+    except ValueError:
+        return out.stdout.decode(errors="replace")
+
+
+def user_only_fields(out):
+    verdict = _verdict(out)
+    if not isinstance(verdict, dict):
+        return {}
+    return {k: v for k, v in verdict.items() if k in USER_ONLY_KEYS}
+
+
+def hint_reaches_the_model(out):
+    """Whether a verdict hands the model a way to ignore the secret."""
+    verdict = _verdict(out)
+    if isinstance(verdict, dict):
+        verdict = {k: v for k, v in verdict.items() if k not in USER_ONLY_KEYS}
+    seen = json.dumps(verdict) + out.stderr.decode(errors="replace")
+    return any(leak in seen for leak in ("secret ignore", "- match:"))
+
+
 def compare_agents(tmp):
     failures = []
     print("Agents: 6 assistants x their own payload shapes x {clean, secret}")
-    for mode in ("clean", "secret"):
-        log = tmp / f"requests-agents-{mode}.jsonl"
-        mock, port = start_mock(mode, log)
+    # A valid secret gets no false-positive hint; an unchecked one does, which
+    # exercises every agent's user-only field.
+    for mode, validity in (
+        ("clean", "valid"),
+        ("secret", "valid"),
+        ("secret", "unknown"),
+    ):
+        label = mode if validity == "valid" else f"{mode}-{validity}"
+        log = tmp / f"requests-agents-{label}.jsonl"
+        mock, port = start_mock(mode, log, validity=validity)
         try:
             for agent, shapes in agent_payloads().items():
                 for shape, payload in shapes.items():
-                    name = f"{mode}/{agent}/{shape}"
+                    name = f"{label}/{agent}/{shape}"
                     verdict_ok, request_ok, py, rs, _ = compare_one(
                         tmp, log, port, name.replace("/", "-"), payload
                     )
                     report(failures, name, verdict_ok, request_ok, py, rs)
+                    for side, out in (("python", py), ("rust", rs)):
+                        if hint_reaches_the_model(out):
+                            failures.append(f"{name} ({side} shows the model the hint)")
+                            print(f"        ^ {side} handed the model the hint")
+                    # Checked on its own: a known divergence elsewhere in the
+                    # verdict must not hide a different hint for the user.
+                    if user_only_fields(py) != user_only_fields(rs):
+                        failures.append(f"{name} (user-only fields differ)")
+                        print("        ^ the user-only fields differ")
         finally:
             mock.kill()
     return failures
@@ -2668,11 +2712,18 @@ def main():
                 "Remove once the Python hook resolves the path too."
             ),
         }
-        known = [f for f in failures if f in known_divergences]
-        unexpected = [f for f in failures if f not in known_divergences]
+
+        # The unchecked-secret pass of the agents matrix diverges for the same
+        # reasons as its valid-secret twin.
+        def known_reason(name):
+            twin = name.replace("secret-unknown/", "secret/", 1)
+            return known_divergences.get(name) or known_divergences.get(twin)
+
+        known = [f for f in failures if known_reason(f)]
+        unexpected = [f for f in failures if not known_reason(f)]
         for name in known:
             print(f"\nKNOWN DIVERGENCE (expected, tracked): {name}")
-            print(f"  reason: {known_divergences[name]}")
+            print(f"  reason: {known_reason(name)}")
         if unexpected:
             print(f"\nRESULT: {len(unexpected)} UNEXPECTED DIFFERENCES")
             for name in unexpected:

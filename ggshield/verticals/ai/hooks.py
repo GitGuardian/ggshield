@@ -787,8 +787,8 @@ class AIHookScanner:
         payload = result.payload
 
         # Sometimes the secret has already leaked to the agent. Notify the user.
-        # The banner is also the only way to hand the false-positive hint to the
-        # user on an agent whose every field reaches the model.
+        # The banner also carries the false-positive hint where the agent has no
+        # user-only field for the event.
         leaked = result.block and payload.agent.has_secret_already_leaked(payload)
         if leaked or (result.block and result.notification_hint):
             self._send_secret_notification(result, leaked=leaked)
@@ -961,6 +961,7 @@ class AIHookScanner:
                         store_clean_verdict(key)
                     continue
                 payload = payloads[index]
+                user_only = payload.agent.has_user_only_channel(payload.event_type)
                 results[index] = HookResult(
                     block=True,
                     message=self._message_from_secrets(
@@ -970,16 +971,8 @@ class AIHookScanner:
                     ),
                     nbr_secrets=len(secrets),
                     payload=payload,
-                    user_message=(
-                        _false_positive_block(secrets)
-                        if payload.agent.has_user_only_channel
-                        else ""
-                    ),
-                    notification_hint=(
-                        ""
-                        if payload.agent.has_user_only_channel
-                        else _notification_hint(secrets)
-                    ),
+                    user_message=_false_positive_block(secrets) if user_only else "",
+                    notification_hint="" if user_only else _notification_hint(secrets),
                 )
 
             remaining = leftover

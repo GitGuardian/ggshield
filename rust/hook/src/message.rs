@@ -203,7 +203,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
 }
 
 /// The false-positive hint for the agent's user-only field, or an empty string
-/// when the agent has no such field or every secret is valid.
+/// when the event has no such field or every secret is valid.
 pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
     if !crate::output::has_user_only_channel(payload) {
         return String::new();
@@ -216,7 +216,7 @@ pub fn user_message(secrets: &[Secret], payload: &Payload) -> String {
 }
 
 /// The one-line false-positive hint for the desktop notification, the user's
-/// only channel on an agent without a user-only field. Empty when the agent has
+/// only channel on an event without a user-only field. Empty when the event has
 /// one, or when every secret is valid.
 pub fn notification_hint(secrets: &[Secret], payload: &Payload) -> String {
     if crate::output::has_user_only_channel(payload) {
@@ -623,12 +623,12 @@ mod tests {
 
                     let user = user_message(secrets, &p);
                     let banner = notification_hint(secrets, &p);
-                    if agent == crate::payload::Agent::Claude {
-                        assert_eq!(banner, "", "{event:?}");
+                    if crate::output::has_user_only_channel(&p) {
+                        assert_eq!(banner, "", "{agent:?}/{event:?}");
                         assert_eq!(
                             user.is_empty(),
                             notification.is_empty(),
-                            "{event:?}: {user}"
+                            "{agent:?}/{event:?}: {user}"
                         );
                     } else {
                         assert_eq!(user, "", "{agent:?}/{event:?}");

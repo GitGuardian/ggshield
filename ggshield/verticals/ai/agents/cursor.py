@@ -126,15 +126,21 @@ class Cursor(Agent):
         # Some ItemTable values are bare strings, others JSON-quoted.
         return value.strip('"') or None
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # Cursor's hook docs: `user_message` is shown in the client and only
+        # `agent_message` goes to the agent. A blocked prompt never reaches it.
+        return event_type in (EventType.USER_PROMPT, EventType.PRE_TOOL_USE)
+
     def output_result(self, result: HookResult) -> int:
         message = result.message or result.warning
+        for_user = "\n\n".join(text for text in (message, result.user_message) if text)
         response = {}
         if result.payload.event_type == EventType.USER_PROMPT:
             response["continue"] = not result.block
-            response["user_message"] = message
+            response["user_message"] = for_user
         elif result.payload.event_type == EventType.PRE_TOOL_USE:
             response["permission"] = "deny" if result.block else "allow"
-            response["user_message"] = message
+            response["user_message"] = for_user
             response["agent_message"] = message
         elif result.payload.event_type == EventType.POST_TOOL_USE:
             pass  # Nothing to do here

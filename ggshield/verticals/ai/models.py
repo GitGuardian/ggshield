@@ -117,11 +117,11 @@ class HookResult:
     # Set when the action is allowed but the user must be warned,
     # typically because the scan could not run at all.
     warning: str = ""
-    # Shown to the user on a block, never to the model. Only set for agents
-    # where Agent.has_user_only_channel holds.
+    # Shown to the user on a block, never to the model. Only set where
+    # Agent.has_user_only_channel() holds for the event.
     user_message: str = ""
-    # The false-positive hint for the desktop notification, on agents where
-    # Agent.has_user_only_channel does not hold.
+    # The false-positive hint for the desktop notification, where
+    # Agent.has_user_only_channel() does not hold for the event.
     notification_hint: str = ""
 
     @classmethod
@@ -256,11 +256,11 @@ class Agent(ABC):
         """
         return payload.event_type == EventType.POST_TOOL_USE
 
-    @property
-    def has_user_only_channel(self) -> bool:
-        """Whether a block can carry text the user sees and the model never reads.
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        """Whether a block on this event can carry text the user sees and the
+        model never reads.
 
-        Only true where that is established against a live session: a field that
+        Only true where the agent's code or a live session shows it: a field that
         also reached the model would hand it the very command we keep from it.
         """
         return False

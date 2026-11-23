@@ -863,13 +863,19 @@ class TestAIHookScannerScan:
     def test_scan_blocked_prompt_notifies_only_when_there_is_a_hint(
         self, mock_notify: MagicMock, validity: str, notified: bool
     ):
-        """On an agent without a user-only field, a block that leaked nothing
-        raises a banner for the false-positive hint, and none for a valid secret."""
+        """On an event without a user-only field (VS Code drops systemMessage on
+        a blocked prompt), a block that leaked nothing raises a banner for the
+        false-positive hint, and none for a valid secret."""
         scanner = AIHookScanner(_mock_scanner(["sk-xxx"], validity=validity))
         data = {
-            "hook_event_name": "beforeSubmitPrompt",
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+            "transcript_path": (
+                "/home/user1/.config/Code/User/workspaceStorage/"
+                "abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl"
+            ),
             "prompt": "my key is sk-xxx",
-            "cursor_version": "1.2.3",
+            "cwd": "/home/user1/foo",
         }
         scanner.scan(json.dumps(data))
         assert mock_notify.called is notified
@@ -1379,6 +1385,10 @@ class TestMessageFromSecrets:
 
     @pytest.mark.parametrize("agent", list(AGENTS.values()), ids=list(AGENTS))
     @pytest.mark.parametrize(
+        "event_type",
+        [EventType.USER_PROMPT, EventType.PRE_TOOL_USE, EventType.POST_TOOL_USE],
+    )
+    @pytest.mark.parametrize(
         "validities, notification",
         [
             (["valid"], ""),
@@ -1394,13 +1404,17 @@ class TestMessageFromSecrets:
         ],
     )
     def test_every_agent_keeps_the_hint_from_the_model_and_gives_it_to_the_user(
-        self, agent: Agent, validities: List[str], notification: str
+        self,
+        agent: Agent,
+        event_type: EventType,
+        validities: List[str],
+        notification: str,
     ):
         """The model text carries the instructions and no false-positive hint;
-        the user gets the hint in the user-only field where the agent has one,
+        the user gets the hint in the user-only field where the event has one,
         in the notification otherwise, and nowhere for a valid secret."""
         payload = HookPayload(
-            event_type=EventType.PRE_TOOL_USE,
+            event_type=event_type,
             tool=Tool.BASH,
             content="content",
             identifier="echo x",
@@ -1431,7 +1445,7 @@ class TestMessageFromSecrets:
         assert result.message.endswith(
             "do not suggest disabling or uninstalling the GitGuardian hook."
         )
-        if isinstance(agent, Claude):
+        if agent.has_user_only_channel(event_type):
             assert result.notification_hint == ""
             assert bool(result.user_message) == bool(notification)
         else:
@@ -2620,21 +2634,39 @@ class TestFlavorOutputResult:
             out["hookSpecificOutput"]["permissionDecisionReason"] == "Secrets in file"
         )
 
-    @pytest.mark.parametrize(
-        "event_type",
-        [
-            EventType.PRE_TOOL_USE,
-            EventType.POST_TOOL_USE,
-            EventType.USER_PROMPT,
-            EventType.OTHER,
-        ],
-    )
-    @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
-    def test_claude_output_result_block_sends_user_message_in_system_message(
-        self, mock_echo: MagicMock, event_type: EventType
+    def test_user_only_channels_match_each_agent(self):
+        """The agents and events whose block has a field the model never reads:
+        Codex answers Other on stderr, VS Code aborts a blocked prompt before
+        showing systemMessage, Vibe drops system_message on pre_tool and Cursor
+        cannot block a PostToolUse."""
+        channels = {
+            (name, event_type)
+            for name, agent in AGENTS.items()
+            for event_type in EventType
+            if agent.has_user_only_channel(event_type)
+        }
+        claude = {("claude-code", event_type) for event_type in EventType}
+        assert channels == claude | {
+            ("codex", EventType.USER_PROMPT),
+            ("codex", EventType.PRE_TOOL_USE),
+            ("codex", EventType.POST_TOOL_USE),
+            ("cursor", EventType.USER_PROMPT),
+            ("cursor", EventType.PRE_TOOL_USE),
+            ("vscode", EventType.PRE_TOOL_USE),
+            ("vscode", EventType.POST_TOOL_USE),
+            ("vibe", EventType.POST_TOOL_USE),
+        }
+
+    @pytest.mark.parametrize("event_type", list(EventType))
+    @pytest.mark.parametrize("agent", list(AGENTS.values()), ids=list(AGENTS))
+    @patch("click.echo")
+    def test_output_result_block_sends_user_message_to_the_user_only(
+        self, mock_echo: MagicMock, agent: Agent, event_type: EventType
     ):
-        """A block's user_message rides in systemMessage, which Claude Code shows
-        the user without adding it to the model's context, and nowhere else."""
+        """A block's user_message rides once in the agent's user-only field and
+        never in a field the model reads."""
+        if not agent.has_user_only_channel(event_type):
+            pytest.skip("no user-only field for this event")
         result = HookResult(
             block=True,
             message="Secret",
@@ -2642,10 +2674,17 @@ class TestFlavorOutputResult:
             payload=_dummy_payload(event_type),
             user_message="for the user",
         )
-        Claude().output_result(result)
+        agent.output_result(result)
         args, _ = mock_echo.call_args
-        assert json.loads(args[0])["systemMessage"] == "for the user"
         assert args[0].count("for the user") == 1
+        out = json.loads(args[0])
+        if isinstance(agent, Cursor):
+            assert out["user_message"] == "Secret\n\nfor the user"
+            assert out.get("agent_message", "Secret") == "Secret"
+        elif isinstance(agent, Vibe):
+            assert out["system_message"] == "for the user"
+        else:
+            assert out["systemMessage"] == "for the user"
 
     @patch("ggshield.verticals.ai.agents.claude_code.click.echo")
     def test_claude_output_result_user_prompt_block(self, mock_echo: MagicMock):

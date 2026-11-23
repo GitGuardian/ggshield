@@ -99,11 +99,23 @@ class Codex(Agent):
             return None
         return _id_token_email(tokens.get("id_token"))
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # Codex turns systemMessage into a UI warning and sends only
+        # additionalContext to the model (codex-rs/hooks/src/events/*.rs).
+        # Other events answer on stderr, with no JSON field.
+        return event_type in (
+            EventType.USER_PROMPT,
+            EventType.PRE_TOOL_USE,
+            EventType.POST_TOOL_USE,
+        )
+
     def output_result(self, result: HookResult) -> int:
         response: Dict[str, Any] = {}
         if result.block:
-            # Do NOT also set "systemMessage" here: Codex shows the decision
-            # reason in the transcript, so the message would appear twice.
+            # systemMessage carries the user-only hint, never the message: Codex
+            # already shows the decision reason in the transcript.
+            if result.user_message:
+                response["systemMessage"] = result.user_message
             if result.payload.event_type == EventType.PRE_TOOL_USE:
                 response["hookSpecificOutput"] = {
                     "hookEventName": "PreToolUse",

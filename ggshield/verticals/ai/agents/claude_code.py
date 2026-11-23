@@ -100,9 +100,9 @@ class Claude(Agent):
     def config_folder(self) -> Path:
         return get_user_home_dir() / ".claude"
 
-    @property
-    def has_user_only_channel(self) -> bool:
-        # systemMessage: shown in the UI, not added to the model's context.
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # systemMessage: shown in the UI, not added to the model's context
+        # (checked against the request bodies sent to the model).
         return True
 
     def output_result(self, result: HookResult) -> int:

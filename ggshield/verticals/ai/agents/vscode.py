@@ -77,6 +77,12 @@ class VSCode(Agent):
     def config_folder(self) -> Path:
         return get_editor_user_data_dir("Code")
 
+    def has_user_only_channel(self, event_type: EventType) -> bool:
+        # VS Code shows systemMessage as hook progress, which no prompt reads.
+        # On any other block it aborts the request before showing it
+        # (extensions/copilot/.../hookResultProcessor.ts).
+        return event_type in (EventType.PRE_TOOL_USE, EventType.POST_TOOL_USE)
+
     def output_result(self, result: HookResult) -> int:
         response = {}
         if result.block:
@@ -86,9 +92,13 @@ class VSCode(Agent):
                     "permissionDecision": "deny",
                     "permissionDecisionReason": result.message,
                 }
+                if result.user_message:
+                    response["systemMessage"] = result.user_message
             elif result.payload.event_type == EventType.POST_TOOL_USE:
                 response["decision"] = "block"
                 response["reason"] = result.message
+                if result.user_message:
+                    response["systemMessage"] = result.user_message
             else:
                 response["continue"] = False
                 response["stopReason"] = result.message
