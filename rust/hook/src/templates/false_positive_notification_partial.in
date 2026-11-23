@@ -1,1 +1,1 @@
-If {this_is}, see "Handling false positives" in the ggshield AI hook docs.
+If {this_is}, do not run ggshield secret ignore --last-found: it would also ignore any secret marked valid.

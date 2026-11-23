@@ -1398,8 +1398,9 @@ class TestMessageFromSecrets:
             ),
             (
                 ["valid", "no_checker"],
-                "If the secret not marked valid is a false positive, see "
-                '"Handling false positives"',
+                "If the secret not marked valid is a false positive, do not run "
+                "ggshield secret ignore --last-found: it would also ignore any "
+                "secret marked valid.",
             ),
         ],
     )

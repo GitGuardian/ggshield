@@ -1585,11 +1585,12 @@ def compare_configs(tmp, ignore_sha):
                     verdict = json.loads(out.stdout)
                     if entry not in verdict.get("systemMessage", ""):
                         failures.append(f"config/{case} ({side} has no ignore sha)")
+                        print(f"        ^ {side} blocked without the ignore sha")
                     if entry in json.dumps(verdict["hookSpecificOutput"]):
                         failures.append(
                             f"config/{case} ({side} shows the model the sha)"
                         )
-                        print(f"        ^ {side} blocked without the ignore sha")
+                        print(f"        ^ {side} shows the model the ignore sha")
     finally:
         mock.kill()
 

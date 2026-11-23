@@ -734,8 +734,8 @@ def _notification_hint(secrets: Sequence[Secret]) -> str:
     this_is_a_false_positive = _this_is_a_false_positive(secrets)
     if len(unchecked) < len(secrets):
         return (
-            f"If {this_is_a_false_positive}, see "
-            '"Handling false positives" in the ggshield AI hook docs.'
+            f"If {this_is_a_false_positive}, do not run ggshield secret ignore "
+            "--last-found: it would also ignore any secret marked valid."
         )
     return f"If {this_is_a_false_positive}, run: ggshield secret ignore --last-found"
 

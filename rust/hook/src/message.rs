@@ -589,7 +589,7 @@ mod tests {
             ),
             (
                 &[valid(), unchecked()],
-                "If the secret not marked valid is a false positive, see \"Handling false positives\"",
+                "If the secret not marked valid is a false positive, do not run ggshield secret ignore --last-found: it would also ignore any secret marked valid.",
             ),
         ];
         for agent in crate::payload::AGENTS {
