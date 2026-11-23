@@ -12,16 +12,9 @@ from tests.functional.utils_create_merge_repo import (
 pytestmark = pytest.mark.uses_gitguardian_api
 
 
-EXPECTED_CONFLICT_DETECTORS = {
-    "GitLab Token",
-    "Generic High Entropy Secret",
-}
-
-
 def assert_conflict_secret_detected(stderr: str) -> None:
     assert "1 secret detected" in stderr
-    assert "glpat-" in stderr
-    assert any(detector in stderr for detector in EXPECTED_CONFLICT_DETECTORS)
+    assert "Generic High Entropy Secret" in stderr
 
 
 @pytest.mark.parametrize(

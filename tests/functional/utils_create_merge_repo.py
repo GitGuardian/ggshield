@@ -32,7 +32,7 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
-from tests.functional.utils import run_ggshield
+from tests.functional.utils import generate_generic_secret, run_ggshield
 from tests.repository import Repository
 
 
@@ -42,8 +42,6 @@ DEFAULT_FILE_SIZE = 200 * 1024
 
 AVERAGE_LINE_LENGTH = 80
 LINE_VARIATION = 20
-
-SECRET_SUFFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 # Dedicated RNG so generating a repo never mutates the global random state
 # (which would leak into other tests). Seeded per call for reproducibility.
@@ -71,9 +69,8 @@ def generate_file(size):
 
 
 def generate_secret():
-    var = _rng.choice(["key", "token", "password"])
-    suffix = "".join(_rng.choice(SECRET_SUFFIX_CHARS) for _ in range(20))
-    return f"{var} = 'glpat-{suffix}'"
+    var = _rng.choice(["api_key", "token", "secret"])
+    return f"{var} = '{generate_generic_secret(_rng)}'"
 
 
 def plant_secret(path, secret):
