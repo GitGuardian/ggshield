@@ -7,8 +7,7 @@ use std::path::Path;
 fn main() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .and_then(Path::parent)
-        .expect("rust/hook has a grandparent directory");
+        .expect("rust has a parent directory");
     let init = root.join("ggshield").join("__init__.py");
 
     // Fail the build rather than ship the wrong version: every build of this

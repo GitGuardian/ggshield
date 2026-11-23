@@ -4,7 +4,16 @@
 //! `dispatch` breaks every ggshield command, not just the hook. See
 //! `doc/dev/os-packages.md`.
 
+mod binary_extensions;
+mod config;
 mod dispatch;
+mod error;
+mod hash;
+mod hook;
+mod secure_file;
+#[cfg(test)]
+mod test_support;
+mod user_config;
 
 fn main() {
     // Dispatch before touching stdin: `exec()` hands the untouched descriptor to
@@ -14,7 +23,7 @@ fn main() {
         std::process::exit(run_native_hook());
     }
     if dispatch::is_warm_notifier(&args) {
-        std::process::exit(ggshield_hook::warm_notifier());
+        std::process::exit(hook::warm_notifier());
     }
     dispatch::delegate(&args);
 }
@@ -23,14 +32,14 @@ fn main() {
 /// not implement rather than failing open on them. Failing open is kept only for
 /// a bundle whose launcher is missing or unrunnable.
 fn run_native_hook() -> i32 {
-    match ggshield_hook::run_hook() {
-        ggshield_hook::Outcome::Done(code) => code,
-        ggshield_hook::Outcome::Delegate {
+    match hook::run_hook() {
+        hook::Outcome::Done(code) => code,
+        hook::Outcome::Delegate {
             stdin,
             fallback_warning,
         } => match dispatch::delegate_hook(&stdin) {
             Some(code) => code,
-            None => ggshield_hook::fail_open(&stdin, fallback_warning),
+            None => hook::fail_open(&stdin, fallback_warning),
         },
     }
 }

@@ -129,8 +129,7 @@ def cargo_metadata() -> Dict:
 
     registry = "registry+https://github.com/rust-lang/crates.io-index"
     packages = [
-        pkg("ggshield-dispatcher", "0.1.0"),
-        pkg("ggshield-hook", "0.1.0"),
+        pkg("ggshield", "0.1.0"),
         pkg("ureq", "3.4.2", registry, "MIT OR Apache-2.0"),
         pkg("rustls", "0.23.0", registry, "Apache-2.0 OR ISC OR MIT"),
         pkg("serde_derive", "1.0.0", registry, "MIT OR Apache-2.0", "proc-macro"),
@@ -144,12 +143,12 @@ def cargo_metadata() -> Dict:
 
     nodes = [
         {
-            "id": "ggshield-dispatcher 0.1.0",
-            "deps": [dep("ggshield-hook 0.1.0"), dep("tempfile 3.0.0", "dev")],
-        },
-        {
-            "id": "ggshield-hook 0.1.0",
-            "deps": [dep("ureq 3.4.2"), dep("cc 1.0.0", "build")],
+            "id": "ggshield 0.1.0",
+            "deps": [
+                dep("ureq 3.4.2"),
+                dep("cc 1.0.0", "build"),
+                dep("tempfile 3.0.0", "dev"),
+            ],
         },
         {
             "id": "ureq 3.4.2",
@@ -161,7 +160,7 @@ def cargo_metadata() -> Dict:
         {"id": "cc 1.0.0", "deps": []},
         {"id": "tempfile 3.0.0", "deps": []},
     ]
-    return {"packages": packages, "resolve": {"nodes": nodes}}
+    return {"packages": packages, "resolve": {"nodes": nodes, "root": "ggshield 0.1.0"}}
 
 
 def run_main(monkeypatch, args: List[str]) -> int:
@@ -293,7 +292,7 @@ def test_rust_crates(sbom):
     """
     GIVEN the dispatcher's cargo metadata
     WHEN generating the SBOM
-    THEN external crates linked into it are listed, workspace crates are
+    THEN external crates linked into it are listed, the root crate is
     walked through, and build and dev dependencies and proc-macros are left out
     """
     components = components_by_ref(sbom)

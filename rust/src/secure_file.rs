@@ -59,7 +59,7 @@ pub fn read_if_trusted(path: &Path) -> Option<String> {
 /// The boundary is other local users, for a tree we hand to the OS to *execute*.
 /// The cache dir is configurable and its mode drifts, so it is the holding
 /// directory that decides: whoever can write it can replace whatever is inside.
-#[cfg(unix)]
+#[cfg(target_os = "macos")]
 pub fn is_private_dir(path: &Path) -> bool {
     use std::os::unix::fs::MetadataExt;
 
@@ -70,11 +70,6 @@ pub fn is_private_dir(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|meta| {
         !meta.is_symlink() && meta.is_dir() && meta.uid() == uid && meta.mode() & 0o022 == 0
     })
-}
-
-#[cfg(not(unix))]
-pub fn is_private_dir(_path: &Path) -> bool {
-    true
 }
 
 /// Write `contents` to `path`, readable and writable by us alone. Truncates in

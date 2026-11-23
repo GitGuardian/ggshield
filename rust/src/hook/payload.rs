@@ -8,9 +8,9 @@ use std::sync::OnceLock;
 use regex::Regex;
 use serde_json::Value;
 
-use ggshield_common::error::Error;
+use crate::error::Error;
 
-pub use ggshield_common::hash::sha256_hex;
+pub use crate::hash::sha256_hex;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EventType {
@@ -661,7 +661,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         // can distinguish. See `vibe::post_process`.
         Agent::Vibe => {
             for payload in &mut payloads {
-                crate::vibe::post_process(payload);
+                crate::hook::vibe::post_process(payload);
             }
         }
         _ => {}

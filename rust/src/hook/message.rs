@@ -5,8 +5,8 @@
 //! renders: no trailing newline, and the two spaces some lines end with are
 //! markdown hard breaks (see [`HARD_BREAK`]) that an editor must not strip.
 
-use crate::api::{Secret, Validity};
-use crate::payload::{EventType, Payload, Tool};
+use crate::hook::api::{Secret, Validity};
+use crate::hook::payload::{EventType, Payload, Tool};
 
 const MAXIMUM_CENSOR_LENGTH: usize = 60;
 
@@ -91,7 +91,7 @@ pub fn censor_string(text: &str) -> String {
 fn ignore_shas(secrets: &[&Secret]) -> String {
     let mut seen: Vec<String> = Vec::new();
     for secret in secrets {
-        let sha = crate::api::ignore_sha(&secret.matches);
+        let sha = crate::hook::api::ignore_sha(&secret.matches);
         if !seen.contains(&sha) {
             seen.push(sha);
         }
@@ -152,7 +152,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
     // Whether the output was withheld from the model decides the whole second
     // half of the message: what happened, and whether there is anything to
     // revoke. See `output::can_redact_tool_output`.
-    let withheld = crate::output::can_redact_tool_output(payload);
+    let withheld = crate::hook::output::can_redact_tool_output(payload);
     let template = match (payload.event_type, payload.tool) {
         // A UserPrompt event also carries a Tool::Read payload per file mentioned
         // in the prompt: the secret is in that file, not in the prompt, so the
@@ -192,7 +192,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
         ("identifier", payload.identifier.clone()),
         (
             "file_path",
-            crate::output::tool_file_path(payload).to_string(),
+            crate::hook::output::tool_file_path(payload).to_string(),
         ),
         ("secret_lines", secret_lines(secrets)),
     ];
@@ -213,7 +213,7 @@ pub fn from_secrets(secrets: &[Secret], payload: &Payload) -> String {
 /// when the event has no such field or every secret is valid. `valid_elsewhere`:
 /// another document of the event holds a valid secret.
 pub fn user_message(secrets: &[Secret], payload: &Payload, valid_elsewhere: bool) -> String {
-    if !crate::output::has_user_only_channel(payload) {
+    if !crate::hook::output::has_user_only_channel(payload) {
         return String::new();
     }
     false_positive_hint_for(
@@ -228,7 +228,7 @@ pub fn user_message(secrets: &[Secret], payload: &Payload, valid_elsewhere: bool
 /// only channel on an event without a user-only field. Empty when the event has
 /// one, or when every secret is valid.
 pub fn notification_hint(secrets: &[Secret], payload: &Payload, valid_elsewhere: bool) -> String {
-    if crate::output::has_user_only_channel(payload) {
+    if crate::hook::output::has_user_only_channel(payload) {
         return String::new();
     }
     false_positive_hint_for(
@@ -325,7 +325,7 @@ fn render(template: &str, fields: &[(&str, String)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::Match;
+    use crate::hook::api::Match;
     use serde_json::Value;
 
     fn secret(detector: &str, validity: &str, matches: &[&str]) -> Secret {
@@ -345,13 +345,18 @@ mod tests {
     }
 
     fn payload(event_type: EventType, tool: Option<Tool>, identifier: &str) -> Payload {
-        payload_for(crate::payload::Agent::Claude, event_type, tool, identifier)
+        payload_for(
+            crate::hook::payload::Agent::Claude,
+            event_type,
+            tool,
+            identifier,
+        )
     }
 
     /// The agent decides whether a PostToolUse output was withheld from the
     /// model, and so which half of the message the templates render.
     fn payload_for(
-        agent: crate::payload::Agent,
+        agent: crate::hook::payload::Agent,
         event_type: EventType,
         tool: Option<Tool>,
         identifier: &str,
@@ -399,7 +404,7 @@ mod tests {
     /// that escapes that rule.
     #[test]
     fn templates_are_free_of_carriage_returns() {
-        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/templates");
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/hook/templates");
         for entry in std::fs::read_dir(dir).expect("the templates directory") {
             let path = entry.expect("a directory entry").path();
             let body = std::fs::read_to_string(&path).expect("a readable template");
@@ -462,7 +467,7 @@ mod tests {
         // VS Code cannot replace a tool output, so the secret really did reach
         // the model and this is the wording that must survive.
         let p = payload_for(
-            crate::payload::Agent::VsCode,
+            crate::hook::payload::Agent::VsCode,
             EventType::PostToolUse,
             Some(Tool::Read),
             "/tmp/creds.env",
@@ -487,7 +492,7 @@ mod tests {
         s.known_secret = true;
         s.incident_url = Some("https://dashboard.gitguardian.com/incidents/9".into());
         let p = payload_for(
-            crate::payload::Agent::VsCode,
+            crate::hook::payload::Agent::VsCode,
             EventType::PostToolUse,
             Some(Tool::Bash),
             "id",
@@ -548,10 +553,10 @@ mod tests {
     fn a_valid_secret_elsewhere_withholds_last_found() {
         let unchecked = secret("Generic Password", "unknown", &["hunter2hunter2"]);
         let secrets = [unchecked];
-        let sha = crate::api::ignore_sha(&secrets[0].matches);
+        let sha = crate::hook::api::ignore_sha(&secrets[0].matches);
         let claude = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
         let copilot = payload_for(
-            crate::payload::Agent::Copilot,
+            crate::hook::payload::Agent::Copilot,
             EventType::PreToolUse,
             Some(Tool::Bash),
             "echo x",
@@ -577,7 +582,7 @@ mod tests {
     fn claude_sends_the_false_positive_hint_to_the_user_only() {
         let valid = || secret("AWS Keys", "valid", &["AKIAsomething"]);
         let unchecked = || secret("Generic Password", "unknown", &["hunter2hunter2"]);
-        let unchecked_sha = crate::api::ignore_sha(&unchecked().matches);
+        let unchecked_sha = crate::hook::api::ignore_sha(&unchecked().matches);
         let p = payload(EventType::PreToolUse, Some(Tool::Bash), "echo x");
         let cases: [(&[Secret], &str); 3] = [
             (&[valid()], ""),
@@ -638,7 +643,7 @@ mod tests {
                 "If the secret not marked valid is a false positive, do not run ggshield secret ignore --last-found: it would also ignore any secret marked valid.",
             ),
         ];
-        for agent in crate::payload::AGENTS {
+        for agent in crate::hook::payload::AGENTS {
             for event in [
                 EventType::UserPrompt,
                 EventType::PreToolUse,
@@ -669,7 +674,7 @@ mod tests {
 
                     let user = user_message(secrets, &p, false);
                     let banner = notification_hint(secrets, &p, false);
-                    if crate::output::has_user_only_channel(&p) {
+                    if crate::hook::output::has_user_only_channel(&p) {
                         assert_eq!(banner, "", "{agent:?}/{event:?}");
                         assert_eq!(
                             user.is_empty(),
@@ -716,7 +721,7 @@ mod tests {
     /// THEN only the agent that cannot is told the secret was compromised.
     #[test]
     fn the_wording_follows_the_agent_not_the_event() {
-        use crate::payload::Agent;
+        use crate::hook::payload::Agent;
         let secrets = [secret("AWS Keys", "valid", &["AKIAsomething"])];
         // Codex on an MCP tool: a tool Claude could not redact, on an agent
         // that replaces every tool result. The wording tracks the agent.

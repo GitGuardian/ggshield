@@ -1,9 +1,8 @@
-//! The hook: `ggshield secret scan ai-hook`, as a library.
+//! The hook: `ggshield secret scan ai-hook`.
 //!
-//! The dispatcher binary (`../dispatcher`) is the `ggshield` the standalone
-//! bundle puts on the PATH. It calls [`run_hook`] for the exact
-//! `secret scan ai-hook` argv and hands everything else to `ggshield-py`, so
-//! stdin is still untouched when we get here.
+//! `main` calls [`run_hook`] for the exact `secret scan ai-hook` argv and hands
+//! everything else to `ggshield-py`, so stdin is still untouched when we get
+//! here.
 //!
 //! Same job as the Python command: read a hook event on stdin, decide what to
 //! scan, ask GitGuardian, print the agent's verdict JSON, exit 0. Detection is
@@ -23,9 +22,9 @@ mod tls;
 mod verdict_cache;
 mod vibe;
 
-use ggshield_common::{binary_extensions, error};
-use ggshield_config::config;
-use ggshield_config::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
+use crate::config;
+use crate::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
+use crate::{binary_extensions, error};
 
 use std::io::Read;
 use std::path::Path;

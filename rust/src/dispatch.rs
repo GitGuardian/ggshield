@@ -200,19 +200,10 @@ fn broken_install(launcher: &Path, err: &std::io::Error) -> ! {
 mod tests {
     use super::*;
 
-    use std::sync::{Mutex, MutexGuard};
-
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
-    /// `python_launcher()` looks next to the *running* executable, so a stub has to
-    /// be the real neighbour of this test binary. That path is shared, and `cargo
-    /// test` runs tests in parallel threads, so the tests that plant one take this.
-    static NEIGHBOUR: Mutex<()> = Mutex::new(());
-
-    fn exclusive() -> MutexGuard<'static, ()> {
-        NEIGHBOUR.lock().unwrap_or_else(|e| e.into_inner())
-    }
+    use crate::test_support::exclusive;
 
     /// The canonical path of this test binary, and where it will look for the
     /// launcher.

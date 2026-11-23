@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use regex::{Regex, RegexSet};
 
-use ggshield_config::user_config::SecretConfig;
+use crate::user_config::SecretConfig;
 
 /// `IGNORED_DEFAULT_WILDCARDS`, in `cmd/secret/scan/secret_scan_common_options.py`.
 const IGNORED_DEFAULT_WILDCARDS: [&str; 13] = [

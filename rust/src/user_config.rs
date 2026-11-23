@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use ggshield_common::error::Error;
+use crate::error::Error;
 
 pub const USER_CONFIG_FILENAMES: [&str; 3] =
     [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"];
@@ -70,7 +70,7 @@ pub struct SecretConfig {
     /// literal secret value; `is_in_ignored_matches` accepts both.
     pub ignored_matches: Vec<String>,
     pub ignored_detectors: BTreeSet<String>,
-    /// Globs, as written in the file. Compiled by `ggshield_hook::exclusion`,
+    /// Globs, as written in the file. Compiled by `hook::exclusion`,
     /// which also adds the default wildcards.
     pub ignored_paths: Vec<String>,
     pub ignore_known_secrets: bool,

@@ -78,7 +78,7 @@ updates:
       # some valid UTF-8 content, which would degrade secret scanning
       - dependency-name: 'charset-normalizer'
 
-  # The Rust workspace backing the native pre-commit hook.
+  # The Rust crate backing the native pre-commit hook.
   - package-ecosystem: 'cargo'
     directory: '/rust'
     schedule:

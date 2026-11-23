@@ -11,10 +11,10 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::error::Error;
+use crate::hash::sha256_hex;
+use crate::secure_file;
 use crate::user_config::{self, UserConfig};
-use ggshield_common::error::Error;
-use ggshield_common::hash::sha256_hex;
-use ggshield_common::secure_file;
 
 #[cfg(target_os = "linux")]
 use secret_service::{EncryptionType, blocking::SecretService};
@@ -927,18 +927,9 @@ fn read_credential_store(_instance_url: &str) -> Result<String, Error> {
 mod tests {
     use super::*;
 
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::Mutex;
 
-    /// The environment and the cwd are per-process, so tests touching them must
-    /// not overlap — *reading* counts. `instance_name` consults
-    /// `GITGUARDIAN_INSTANCE` before it falls back to the user config, so a test
-    /// that only asserts on it still has to hold this lock or it races the
-    /// tests that export that variable.
-    static PROCESS_STATE: Mutex<()> = Mutex::new(());
-
-    fn exclusive() -> MutexGuard<'static, ()> {
-        PROCESS_STATE.lock().unwrap_or_else(|e| e.into_inner())
-    }
+    use crate::test_support::exclusive;
 
     /// GIVEN a SaaS dashboard URL, with or without a trailing slash
     /// WHEN its API URL is derived
@@ -1080,9 +1071,7 @@ mod tests {
                 | Error::Fatal(message)
                 | Error::Invalid(message)
                 | Error::Unsupported(message) => message,
-                Error::UnrecognizedAgent => {
-                    ggshield_common::error::UNRECOGNIZED_AGENT_WARNING.into()
-                }
+                Error::UnrecognizedAgent => crate::error::UNRECOGNIZED_AGENT_WARNING.into(),
             });
         unsafe {
             for (key, _) in vars {

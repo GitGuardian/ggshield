@@ -7,23 +7,23 @@
 //!
 //! `is_mcp_activity_payload()` gates MCP activity on this classification, and
 //! that call is itself unported (see the KNOWN LIMITATION on `scan_payloads` in
-//! lib.rs), so nothing observable depends on it yet.
+//! hook.rs), so nothing observable depends on it yet.
 
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::payload::{Payload, Tool};
+use crate::hook::payload::{Payload, Tool};
 
 /// `Vibe.config_folder`: `$VIBE_HOME`, else `~/.vibe`.
 fn config_folder() -> Option<PathBuf> {
     if let Ok(home) = std::env::var("VIBE_HOME")
         && !home.is_empty()
     {
-        return Some(expand_user(&home, ggshield_config::user_config::home_dir()));
+        return Some(expand_user(&home, crate::user_config::home_dir()));
     }
     // `get_user_home_dir()`, GG_USER_HOME_DIR included.
-    ggshield_config::user_config::home_dir().map(|home| home.join(".vibe"))
+    crate::user_config::home_dir().map(|home| home.join(".vibe"))
 }
 
 /// `Path.expanduser()` for a leading `~`, which `std::path` leaves alone.
@@ -222,11 +222,11 @@ mod tests {
 
     fn payload_named(tool_name: &str, tool: Tool, cwd: &str) -> Payload {
         Payload {
-            event_type: crate::payload::EventType::PreToolUse,
+            event_type: crate::hook::payload::EventType::PreToolUse,
             tool: Some(tool),
             content: String::new(),
             identifier: "id".into(),
-            agent: crate::payload::Agent::Vibe,
+            agent: crate::hook::payload::Agent::Vibe,
             raw: json!({"tool_name": tool_name, "cwd": cwd}),
             read_range: None,
             cwd: cwd.into(),

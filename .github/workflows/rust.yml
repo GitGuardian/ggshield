@@ -28,7 +28,7 @@ jobs:
     # The AI hook equivalence job in ci.yml only runs cargo on ubuntu, so the
     # platform-specific code -- the three keychain readers and the Windows
     # config dir -- is never clippy'd or tested. This job builds and tests the
-    # workspace on each OS so that code cannot rot silently.
+    # crate on each OS so that code cannot rot silently.
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -52,7 +52,7 @@ jobs:
           key: cargo-rustjob|${{ runner.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
 
       - name: Lint
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Test
-        run: cargo test --workspace
+        run: cargo test

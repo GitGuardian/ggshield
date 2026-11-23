@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::payload::sha256_hex;
-use ggshield_common::secure_file;
-use ggshield_config::config;
-use ggshield_config::user_config::SecretConfig;
+use crate::config;
+use crate::hook::payload::sha256_hex;
+use crate::secure_file;
+use crate::user_config::SecretConfig;
 
 const FILENAME: &str = "ai_hook_verdicts.json";
 /// The key covers everything the verdict depends on (see `key`), so an entry can
@@ -122,14 +122,9 @@ pub fn store_clean_verdict(key: &str) {
     }
 }
 
-/// `GG_CACHE_DIR` is process-wide, so every test touching the cache — here and in
-/// main.rs — takes this one lock.
-#[cfg(test)]
-static CACHE_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 #[cfg(test)]
 pub fn with_cache_dir() -> (std::sync::MutexGuard<'static, ()>, tempfile::TempDir) {
-    let guard = CACHE_ENV.lock().unwrap_or_else(|e| e.into_inner());
+    let guard = crate::test_support::exclusive();
     let dir = tempfile::tempdir().expect("tempdir");
     // SAFETY: serialised by the mutex above.
     unsafe { std::env::set_var("GG_CACHE_DIR", dir.path()) };
