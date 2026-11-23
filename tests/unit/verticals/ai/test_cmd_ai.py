@@ -342,6 +342,41 @@ class TestAiHookCmd:
             assert "NOT scanned for secrets" in decision["permissionDecisionReason"]
         mock_notify.assert_not_called()
 
+    @patch(
+        "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",
+        side_effect=ConnectionError("server unreachable"),
+    )
+    def test_block_denies_an_unscanned_claude_edit(
+        self, mock_create_client: MagicMock, monkeypatch
+    ):
+        """
+        GIVEN a Claude Code Edit, whose output the model never receives, and a
+              server that fails
+        WHEN the hook runs with ai_hook_failure_policy block
+        THEN it gets the plain block, not the redacted continue a secret gets
+        """
+        monkeypatch.setenv("GITGUARDIAN_AI_HOOK_FAILURE_POLICY", "block")
+        payload = {
+            "session_id": "abc123",
+            "transcript_path": "/home/user/.claude/projects/p/transcript.jsonl",
+            "hook_event_name": "PostToolUse",
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "/repo/a.py"},
+            "tool_response": {"filePath": "/repo/a.py", "originalFile": "a = 1\n"},
+        }
+
+        runner = CliRunner()
+        runner.mix_stderr = False
+        result = runner.invoke(
+            cli, ["secret", "scan", "ai-hook"], input=json.dumps(payload)
+        )
+
+        assert result.exit_code == 0
+        response = json.loads(result.stdout)
+        assert response["decision"] == "block"
+        assert "NOT scanned for secrets" in response["reason"]
+        assert "hookSpecificOutput" not in response
+
     @pytest.mark.parametrize("event", ["SessionStart", "Stop"])
     @patch(
         "ggshield.cmd.secret.scan.ai_hook.create_client_from_config",

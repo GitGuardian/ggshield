@@ -1,0 +1,12 @@
+**🚨 Detected {count} {secrets} in {file_path} 🚨**  
+{secret_lines}
+
+The agent's change to this file went through, and its result did not reach the model.  
+The {secrets} {were} removed from the transcript stored on disk.
+
+> How to remediate
+
+  Since the {secrets} {were} found in a file the agent changed:  
+  1. consider moving the {secrets} to a secrets manager.
+
+{false_positive_instructions}

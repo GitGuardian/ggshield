@@ -330,12 +330,32 @@ pub struct Payload {
     /// The `cwd` the identifier was resolved against, see `Agent::event_cwd()`.
     pub cwd: String,
 
-    /// The original hook JSON, `{}` for synthesised payloads as in Python. Only
-    /// read for the desktop notification's command text.
+    /// The original hook JSON, `{}` for synthesised payloads as in Python.
     pub raw: Value,
     /// The lines a `Tool::Read` is about to expose, see `Agent::read_range()`.
     /// `None` means the whole file.
     pub read_range: Option<ReadRange>,
+}
+
+impl Payload {
+    /// A file write whose output the model never receives, so the hook redacts
+    /// it instead of blocking the agent. Mirrors Python's `Agent.is_file_change()`.
+    ///
+    /// Only a Claude Code Edit or Write (2.1.330, which has no MultiEdit) hands the
+    /// hook more than the model gets: the model gets one "updated successfully"
+    /// line, `tool_response` holds the original file and the diff. The edit tools
+    /// of Codex 0.170, Copilot CLI 1.0.104, Vibe 2.25.1 and Kiro CLI 2.24 send the
+    /// hook the status line the model gets, so there is no file content to scan.
+    /// Cursor and VS Code edit payloads are not captured.
+    pub fn is_file_change(&self) -> bool {
+        self.agent == Agent::Claude
+            && self.event_type == EventType::PostToolUse
+            && matches!(
+                self.raw.get("tool_name").and_then(Value::as_str),
+                Some("Edit" | "Write")
+            )
+            && self.raw.get("tool_response").is_some_and(Value::is_object)
+    }
 }
 
 fn lookup<'a>(data: &'a Value, keys: &[&str]) -> Option<&'a Value> {
@@ -932,6 +952,69 @@ mod tests {
         assert_eq!(payloads[0].content, r#"{"content":"file content"}"#);
         // Vibe's read_file carries no range: the whole file is scanned.
         assert_eq!(payloads[0].read_range, None);
+    }
+
+    /// GIVEN a file edit as Codex 0.170, Copilot CLI 1.0.104, Vibe 2.25.1 and
+    /// Kiro CLI 2.24 sent it, on a file that holds a secret
+    /// WHEN it is parsed
+    /// THEN the scanned content is the status line the model gets, and it is not
+    /// a file change to redact.
+    #[test]
+    fn an_edit_on_the_other_agents_scans_only_its_status_line() {
+        for (agent, raw, status) in [
+            (
+                Agent::Codex,
+                json!({"session_id": "s", "turn_id": "t", "cwd": "/p",
+                       "hook_event_name": "PostToolUse", "tool_name": "apply_patch",
+                       "tool_input": {"command": "*** Begin Patch\n*** Update File: /p/creds.py\n@@\n KEY = 'sk-in-file'\n-a = 1\n+a = 2\n*** End Patch"},
+                       "tool_response": "Exit code: 0\nWall time: 0 seconds\nOutput:\nSuccess. Updated the following files:\nM /p/creds.py\n"}),
+                json!(
+                    "Exit code: 0\nWall time: 0 seconds\nOutput:\nSuccess. Updated the following files:\nM /p/creds.py\n"
+                ),
+            ),
+            (
+                Agent::Copilot,
+                json!({"hook_event_name": "PostToolUse", "session_id": "s",
+                       "timestamp": "2026-11-23T09:21:03.487Z", "cwd": "/p", "tool_name": "Edit",
+                       "tool_input": "*** Begin Patch\n*** Update File: creds.py\n@@\n KEY = 'sk-in-file'\n-a = 1\n+a = 2\n*** End Patch\n",
+                       "tool_result": {"result_type": "success",
+                                       "text_result_for_llm": "Modified 1 file(s): /p/creds.py"}}),
+                json!({"result_type": "success", "text_result_for_llm": "Modified 1 file(s): /p/creds.py"}),
+            ),
+            (
+                Agent::Vibe,
+                json!({"cwd": "/p", "hook_event_name": "post_tool",
+                       "tool_name": "file_system.search_replace",
+                       "tool_input": {"content": [{"new_str": "a = 2", "old_str": "a = 1", "replace_all": false}],
+                                      "file_path": "./creds.py"},
+                       "tool_status": "success",
+                       "tool_output": {"file": "/p/creds.py", "lines_changed": 1, "warnings": []},
+                       "tool_output_text": "file: /p/creds.py\nlines_changed: 1\nwarnings: []",
+                       "tool_error": null}),
+                json!({"file": "/p/creds.py", "lines_changed": 1, "warnings": []}),
+            ),
+            (
+                Agent::Kiro,
+                json!({"hook_event_name": "postToolUse", "cwd": "/p", "session_id": "s",
+                       "tool_name": "write",
+                       "tool_input": {"command": "strReplace", "newStr": "a = 2", "oldStr": "a = 1", "path": "creds.py"},
+                       "tool_response": {"items": [{"Text": "Successfully replaced 1 occurrence(s) in /p/creds.py."}]}}),
+                json!({"items": [{"Text": "Successfully replaced 1 occurrence(s) in /p/creds.py."}]}),
+            ),
+        ] {
+            let payloads = parse(&raw.to_string()).expect("parses");
+            let [payload] = &payloads[..] else {
+                panic!("{agent:?}: {payloads:?}")
+            };
+            assert_eq!(payload.agent, agent);
+            let expected = match status {
+                Value::String(text) => text,
+                other => other.to_string(),
+            };
+            assert_eq!(payload.content, expected, "{agent:?}");
+            assert!(!payload.content.contains("sk-in-file"), "{agent:?}");
+            assert!(!payload.is_file_change(), "{agent:?}");
+        }
     }
 
     /// GIVEN a Cursor payload arriving at a Claude-Code-format hook
