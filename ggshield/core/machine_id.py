@@ -45,7 +45,13 @@ def endpoint_registration_opt_out(enabled_in_config: bool) -> Optional[str]:
 
 def running_on_ci() -> bool:
     """A CI runner is not an endpoint, even when it runs git or AI hooks."""
-    if os.getenv("CI"):
+    unsupported_ci_env_vars = [
+        # CIs that are not supported but that are still detectable from env vars
+        "CODEBUILD_BUILD_ID",
+        "TEAMCITY_VERSION",
+        "bamboo_buildNumber",
+    ]
+    if os.getenv("CI") or any(os.getenv(var) for var in unsupported_ci_env_vars):
         return True
     try:
         SupportedCI.from_ci_env()
