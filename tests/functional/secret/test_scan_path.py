@@ -1,4 +1,5 @@
 import json
+import random
 import shutil
 import sys
 from pathlib import Path
@@ -10,9 +11,9 @@ from tests.conftest import (
     GG_VALID_TOKEN,
     GG_VALID_TOKEN_IGNORE_SHA,
     KNOWN_SECRET,
-    UNKNOWN_SECRET,
 )
 from tests.functional.utils import (
+    generate_generic_secret,
     recreate_censored_content,
     recreate_censored_string,
     run_ggshield_scan,
@@ -103,6 +104,7 @@ def test_scan_path_ignore_known_secrets(tmp_path: Path) -> None:
         )
 
     # GIVEN a document containing 2 secrets, one known and one unknown
+    unknown_secret = generate_generic_secret(random.Random())
     test_file = tmp_path / "config.py"
     test_file.write_text(
         f"""
@@ -111,7 +113,7 @@ KNOWN_SECRET='{KNOWN_SECRET}'
 # Extra lines to ensure the line containing the known secret is not included when
 # ggshield shows the lines around the unknown secret.
 
-UNKNOWN_SECRET='{UNKNOWN_SECRET}'
+UNKNOWN_SECRET='{unknown_secret}'
 """
     )
 
@@ -127,7 +129,7 @@ UNKNOWN_SECRET='{UNKNOWN_SECRET}'
 
     # THEN only the unknown secret is reported
     assert f"KNOWN_SECRET='{KNOWN_SECRET}'" not in result.stdout
-    assert f"UNKNOWN_SECRET='{UNKNOWN_SECRET}'" in result.stdout
+    assert f"UNKNOWN_SECRET='{unknown_secret}'" in result.stdout
 
 
 def create_fake_path(tmp_path: Path) -> Path:

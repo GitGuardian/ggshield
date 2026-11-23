@@ -44,9 +44,6 @@ inputs:
   test-known-secret:
     description: Functional tests secret
     default: ''
-  test-unknown-secret:
-    description: Functional tests secret
-    default: ''
   test-gg-valid-token:
     description: Functional tests secret
     default: ''
@@ -314,7 +311,6 @@ runs:
         TEST_KNOWN_SECRET: ${{ inputs.test-known-secret }}
         TEST_GG_VALID_TOKEN: ${{ inputs.test-gg-valid-token }}
         TEST_GG_VALID_TOKEN_IGNORE_SHA: ${{ inputs.test-gg-valid-token-ignore-sha }}
-        TEST_UNKNOWN_SECRET: ${{ inputs.test-unknown-secret }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
