@@ -11,7 +11,7 @@ from click import UsageError
 from ggshield.core.config import AccountConfig, Config, InstanceConfig
 from ggshield.core.config.utils import get_auth_config_filepath, load_yaml_dict
 from ggshield.core.constants import DEFAULT_LOCAL_CONFIG_PATH
-from ggshield.core.errors import UnknownInstanceError
+from ggshield.core.errors import UnexpectedError, UnknownInstanceError
 from ggshield.core.url_utils import dashboard_to_api_url
 from tests.unit.conftest import write_yaml
 from tests.unit.core.config.conftest import TEST_AUTH_CONFIG
@@ -313,6 +313,37 @@ class TestConfig:
 
         dct = load_yaml_dict(local_config_path)
         assert dct["instance"] == "https://after.com"
+
+    def test_saving_an_untrusted_local_config_is_refused(self, local_config_path):
+        """
+        GIVEN a config loaded without trusting the local config, which sets an instance
+        WHEN saving the config
+        THEN it is refused, and the local config keeps its instance
+        """
+        write_yaml(local_config_path, {"instance": "https://repo.com"})
+
+        config = Config(trust_local_config=False)
+        assert not config.trusts_local_config
+        with pytest.raises(UnexpectedError, match="instance"):
+            config.save()
+
+        assert load_yaml_dict(local_config_path) == {"instance": "https://repo.com"}
+
+    def test_saving_an_untrusted_local_config_without_dropped_keys(
+        self, local_config_path
+    ):
+        """
+        GIVEN a config loaded without trusting the local config, which sets no
+        instance and no insecure value
+        WHEN saving the config
+        THEN it is saved: nothing was dropped
+        """
+        write_yaml(local_config_path, {"exit_zero": True})
+
+        config = Config(trust_local_config=False)
+        config.save()
+
+        assert load_yaml_dict(local_config_path)["exit_zero"] is True
 
     @pytest.mark.parametrize(
         "instance_url",
