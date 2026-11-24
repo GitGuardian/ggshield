@@ -4,24 +4,50 @@ Enterprise configuration - plugin settings.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import yaml
 
 from ggshield.core.config.utils import load_yaml_dict, save_yaml_dict
 from ggshield.core.dirs import (
     create_world_traversable_dir,
     get_config_dir,
     get_system_config_dir,
+    get_system_config_dirs,
     is_root,
+    is_safe_system_path,
     make_world_readable,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_enterprise_config_filepath(system: bool = False) -> Path:
     """Path to the enterprise config file (machine-wide when ``system``)."""
     base = get_system_config_dir() if system else get_config_dir()
     return base / "enterprise_config.yaml"
+
+
+def get_system_enterprise_config_filepaths() -> List[Path]:
+    """Machine-wide enterprise config paths in precedence order."""
+    return [d / "enterprise_config.yaml" for d in get_system_config_dirs()]
+
+
+def _is_valid_plugin_entry(plugin_data: Any) -> bool:
+    """Reject values such as ``enabled: "false"`` that would read as truthy."""
+    if isinstance(plugin_data, bool):
+        return True
+    if not isinstance(plugin_data, dict):
+        return False
+    return (
+        isinstance(plugin_data.get("enabled", True), bool)
+        and isinstance(plugin_data.get("auto_update", True), bool)
+        and isinstance(plugin_data.get("version"), (str, type(None)))
+    )
 
 
 @dataclass
@@ -50,6 +76,8 @@ class EnterpriseConfigSource:
     # Set when the file may exist but cannot be checked (e.g. an unsearchable
     # parent); load_effective() then treats it as absent.
     inaccessible: Optional[OSError] = None
+    # Why load_effective() skips an XDG_CONFIG_DIRS file (unsafe or invalid).
+    ignored: Optional[str] = None
 
 
 @dataclass
@@ -62,12 +90,19 @@ class EnterpriseConfig:
     plugins: Dict[str, PluginConfig] = field(default_factory=dict)
 
     @staticmethod
-    def _load_plugins(config_path: Path) -> Dict[str, PluginConfig]:
-        data = load_yaml_dict(config_path)
+    def _load_plugins(
+        config_path: Path, *, strict_mapping: bool = False
+    ) -> Dict[str, PluginConfig]:
+        data = load_yaml_dict(config_path, strict_mapping=strict_mapping)
         if data is None:
             return {}
+        plugin_entries = data.get("plugins", {})
+        if not isinstance(plugin_entries, dict):
+            raise ValueError(f"{config_path}: 'plugins' should be a dictionary.")
         plugins: Dict[str, PluginConfig] = {}
-        for name, plugin_data in data.get("plugins", {}).items():
+        for name, plugin_data in plugin_entries.items():
+            if strict_mapping and not _is_valid_plugin_entry(plugin_data):
+                raise ValueError(f"{config_path}: invalid entry for plugin {name!r}.")
             if isinstance(plugin_data, dict):
                 plugins[name] = PluginConfig(
                     enabled=plugin_data.get("enabled", True),
@@ -92,48 +127,71 @@ class EnterpriseConfig:
 
     @classmethod
     def load_effective(cls) -> EnterpriseConfig:
-        """Effective enablement seen at runtime: both files merged, read-only.
-        Used when loading/listing plugins so a root-enabled plugin is visible to
-        every user.
+        """Merge system and user plugin settings for discovery.
 
-        Both layers are always merged; precedence depends on who is running, so
-        the layer that ``load``/``save`` mutate for this user wins on conflict:
-
-        - Non-root: the per-user file overlays the system file — a user's own
-          entry (e.g. an opt-out of an admin-enabled plugin) wins.
-        - Root: the system file overlays the per-user one — a fresh ``sudo
-          ggshield plugin enable/disable`` is never shadowed by a stale
-          ``/root/.config`` entry, while a pre-machine-wide root install whose
-          enablement lives only per-user stays visible until migrated.
+        The fixed system file wins among system files. The system layer wins for
+        root, while the per-user file wins for everyone else.
         """
         return cls.from_sources(cls.effective_sources(strict=True))
 
     @classmethod
     def effective_sources(cls, *, strict: bool = False) -> List[EnterpriseConfigSource]:
         """Files merged by :meth:`load_effective`, lowest precedence first
-        (later wins). Strict reads stop at the first error in system-first order."""
-        sources = []
-        for scope in ("system", "user"):
-            path = get_enterprise_config_filepath(system=scope == "system")
-            source = EnterpriseConfigSource(path=path, scope=scope, exists=False)
-            try:
-                source.exists = path.exists()
-                if not source.exists and not strict:
-                    try:
-                        path.stat()
-                    except FileNotFoundError:
-                        pass
-                    except OSError as exc:
-                        source.inaccessible = exc
-                source.plugins = cls._load_plugins(path)
-            except Exception as exc:
-                if strict:
-                    raise
-                source.error = exc
-            sources.append(source)
+        (later wins). Strict reads stop at the first error in the fixed system
+        or user file; a broken ``XDG_CONFIG_DIRS`` file is only ignored."""
+        fixed, *secondary = get_system_enterprise_config_filepaths()
+        system = [cls._read_secondary_source(path) for path in reversed(secondary)]
+        system.append(cls._read_source(fixed, "system", strict))
+        user = cls._read_source(
+            get_enterprise_config_filepath(system=False), "user", strict
+        )
         if is_root():
-            sources.reverse()  # system wins for root
-        return sources
+            return [user, *system]  # system wins for root
+        return [*system, user]
+
+    @classmethod
+    def _read_source(
+        cls, path: Path, scope: str, strict: bool
+    ) -> EnterpriseConfigSource:
+        source = EnterpriseConfigSource(path=path, scope=scope, exists=False)
+        try:
+            source.exists = path.exists()
+            if not source.exists and not strict:
+                try:
+                    path.stat()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    source.inaccessible = exc
+            source.plugins = cls._load_plugins(path)
+        except Exception as exc:
+            if strict:
+                raise
+            source.error = exc
+        return source
+
+    @classmethod
+    def _read_secondary_source(cls, path: Path) -> EnterpriseConfigSource:
+        source = EnterpriseConfigSource(
+            path=path, scope="system, XDG_CONFIG_DIRS", exists=False
+        )
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return source
+        except OSError as exc:
+            source.ignored = f"cannot access: {exc}"
+            return source
+        source.exists = True
+        if not is_safe_system_path(path):
+            source.ignored = "not a regular file owned by root, or writable by others"
+            return source
+        try:
+            source.plugins = cls._load_plugins(path, strict_mapping=True)
+        except (OSError, ValueError, yaml.YAMLError) as e:
+            logger.debug("Cannot load secondary enterprise config %s: %s", path, e)
+            source.ignored = f"invalid: {e}"
+        return source
 
     @classmethod
     def from_sources(cls, sources: List[EnterpriseConfigSource]) -> EnterpriseConfig:

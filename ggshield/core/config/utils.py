@@ -41,14 +41,23 @@ def replace_dash_in_keys(data: Union[List[Any], Dict[str, Any]]) -> Set[str]:
     return dash_keys
 
 
-def load_yaml_dict(path: Union[str, Path]) -> Optional[Dict[str, Any]]:
+def load_yaml_dict(
+    path: Union[str, Path], *, strict_mapping: bool = False
+) -> Optional[Dict[str, Any]]:
     path = Path(path)
     if not path.exists():
         return None
 
     with path.open() as f:
         try:
-            data = yaml.safe_load(f) or {}
+            if strict_mapping:
+                # An empty file has no document, while explicit null is a value.
+                documents = yaml.safe_load_all(f)
+                data = next(documents, {})
+                if any(True for _ in documents):
+                    raise ValueError(f"{path} should contain a single YAML document.")
+            else:
+                data = yaml.safe_load(f) or {}
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as e:
             message = f"{path} is not a valid YAML file:\n{str(e)}"
             raise ValueError(message)

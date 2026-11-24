@@ -430,7 +430,7 @@ class TestPluginDownloader:
 
         with patch(
             "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
-        ):
+        ), patch("ggshield.core.plugin.downloader.is_root", return_value=False):
             downloader = PluginDownloader()
 
         downloader.trust_store.trust_plugin("testplugin", "abc123", "missing")

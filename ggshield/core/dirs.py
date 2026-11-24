@@ -1,6 +1,9 @@
+import logging
 import os
+import stat
 import sys
 from pathlib import Path
+from typing import Callable, List, Optional, Set, Tuple
 
 from platformdirs import (
     site_config_dir,
@@ -15,6 +18,14 @@ from ggshield.utils.git_shell import NotAGitDirectory, get_git_root
 
 APPNAME = "ggshield"
 APPAUTHOR = "GitGuardian"
+
+logger = logging.getLogger(__name__)
+
+# Keep root installs visible across sessions with different XDG settings.
+_LINUX_SYSTEM_DATA_DIR = Path("/usr/local/share") / APPNAME
+_LINUX_SYSTEM_CONFIG_DIR = Path("/etc/xdg") / APPNAME
+# platformdirs honors XDG vars (and Homebrew prefixes) on macOS: pin the path.
+_MACOS_SYSTEM_DIR = Path("/Library/Application Support") / APPNAME
 
 
 def get_user_home_dir() -> Path:
@@ -71,28 +82,155 @@ def get_data_dir() -> Path:
 
 
 def get_system_data_dir() -> Path:
-    """Machine-wide (all users) data dir, e.g. for system-scoped git hooks.
-
-    The system counterpart to :func:`get_data_dir`; used when ``machine setup`` runs
-    as root and installs git hooks for every user on the machine.
-    """
+    """Fixed write location for machine-wide plugins and Git hooks."""
     try:
         # See tests/conftest.py for details
         return Path(os.environ["GG_SYSTEM_DATA_DIR"])
     except KeyError:
+        pass
+    if sys.platform == "darwin":
+        return _MACOS_SYSTEM_DIR
+    if sys.platform == "win32":
         return Path(site_data_dir(appname=APPNAME, appauthor=APPAUTHOR))
+    return _LINUX_SYSTEM_DATA_DIR
 
 
 def get_system_config_dir() -> Path:
-    """Machine-wide (all users) config dir, the system counterpart to
-    :func:`get_config_dir`. Holds the system enterprise config that lets an
-    admin enable a plugin for every user from one root-owned file.
-    """
+    """Fixed write location for machine-wide enterprise config."""
     try:
         # See tests/conftest.py for details
         return Path(os.environ["GG_SYSTEM_CONFIG_DIR"])
     except KeyError:
+        pass
+    if sys.platform == "darwin":
+        return _MACOS_SYSTEM_DIR
+    if sys.platform == "win32":
         return Path(site_config_dir(appname=APPNAME, appauthor=APPAUTHOR))
+    return _LINUX_SYSTEM_CONFIG_DIR
+
+
+def _is_safe_system_dir(path: Path) -> bool:
+    """Check that the directory and its ancestors are controlled by root or us."""
+    try:
+        # Check the route to the resolved directory too. An unsafe ancestor
+        # could replace a symlink even when its current target is safe.
+        pending = [path, path.resolve(strict=True)]
+        checked = set()
+        euid = os.geteuid()
+        while pending:
+            directory = pending.pop()
+            for candidate in reversed((directory, *directory.parents)):
+                if candidate in checked:
+                    continue
+                checked.add(candidate)
+                st = candidate.lstat()
+                if st.st_uid not in (0, euid):
+                    return False
+                if stat.S_ISLNK(st.st_mode):
+                    pending.append(candidate.parent / candidate.readlink())
+                elif not stat.S_ISDIR(st.st_mode) or st.st_mode & 0o022:
+                    return False
+    except (OSError, RuntimeError):
+        return False
+    return True
+
+
+def is_safe_system_path(
+    path: Path, *, directory: bool = False, allow_missing: bool = False
+) -> bool:
+    """Check an entry in a secondary system directory without following symlinks."""
+    try:
+        st = path.lstat()
+    except FileNotFoundError:
+        return allow_missing
+    except (OSError, ValueError) as e:
+        logger.debug("Cannot inspect system path %s: %s", path, e)
+        return False
+
+    expected_type = stat.S_ISDIR if directory else stat.S_ISREG
+    if (
+        expected_type(st.st_mode)
+        and st.st_uid in (0, os.geteuid())
+        and not (st.st_mode & 0o022)
+    ):
+        return True
+    logger.debug("Ignoring unsafe system path %s", path)
+    return False
+
+
+_UNSAFE_REASON = "ignored: not owned by root, or writable by others"
+
+# (path, reason) pairs for XDG entries left out of a read list.
+IgnoredDirs = List[Tuple[Path, str]]
+
+
+def _get_system_dirs(
+    override_var: str,
+    fixed: Path,
+    xdg_var: str,
+    platformdirs_func: Callable[..., str],
+    ignored: Optional[IgnoredDirs] = None,
+) -> List[Path]:
+    """Read list for a machine-wide dir, highest precedence first: the fixed
+    write dir, then every XDG entry that passes :func:`_is_safe_system_dir`.
+    Entries left out are appended to ``ignored`` (for ``plugin list -v``)."""
+    if override_var in os.environ or sys.platform == "win32":
+        return [fixed]
+    # macOS ACLs can grant write access that mode bits do not show.
+    if sys.platform == "darwin" and is_root():
+        return [fixed]
+
+    dirs = [fixed]
+    # platformdirs versions differ in whether they honor XDG on macOS.
+    multipath = os.environ.get(xdg_var, "").strip() or platformdirs_func(multipath=True)
+    for entry in multipath.split(os.pathsep):
+        entry = entry.strip()
+        if not entry:
+            continue
+        path = Path(entry) / APPNAME
+        if not path.is_absolute() or path in dirs:
+            continue
+        if not _is_safe_system_dir(path):
+            logger.debug("Ignoring unsafe or missing system dir %s", path)
+            if ignored is not None:
+                ignored.append((path, _ignored_reason(path)))
+            continue
+        dirs.append(path)
+    return dirs
+
+
+def _ignored_reason(path: Path) -> str:
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return "not found"
+    except OSError as e:
+        return f"cannot access: {e}"
+    return _UNSAFE_REASON
+
+
+def get_system_data_dirs(ignored: Optional[IgnoredDirs] = None) -> List[Path]:
+    """Machine-wide data dirs to read, highest precedence first: the fixed write
+    dir, then the other ``XDG_DATA_DIRS`` entries (safe ones only), deduplicated."""
+    return _get_system_dirs(
+        "GG_SYSTEM_DATA_DIR",
+        get_system_data_dir(),
+        "XDG_DATA_DIRS",
+        site_data_dir,
+        ignored,
+    )
+
+
+def get_system_config_dirs(ignored: Optional[IgnoredDirs] = None) -> List[Path]:
+    """Machine-wide config dirs to read, highest precedence first (see
+    :func:`get_system_data_dirs`)."""
+    return _get_system_dirs(
+        "GG_SYSTEM_CONFIG_DIR",
+        get_system_config_dir(),
+        "XDG_CONFIG_DIRS",
+        site_config_dir,
+        ignored,
+    )
 
 
 def is_root() -> bool:
@@ -166,6 +304,49 @@ def get_system_plugins_dir(*, create: bool = False) -> Path:
         create_world_traversable_dir(path)
         make_world_readable(system_data)
     return path
+
+
+def get_system_plugins_dirs(ignored: Optional[IgnoredDirs] = None) -> List[Path]:
+    """Machine-wide plugin dirs to read, highest precedence first. XDG entries
+    left out are appended to ``ignored`` (as their ``plugins`` dir)."""
+    ignored_data: IgnoredDirs = []
+    dirs = get_system_data_dirs(ignored_data)
+    if ignored is not None:
+        ignored.extend((path / "plugins", reason) for path, reason in ignored_data)
+    plugins_dirs = [dirs[0] / "plugins"]
+    for data_dir in dirs[1:]:
+        plugins_dir = data_dir / "plugins"
+        try:
+            plugins_dir.lstat()
+        except FileNotFoundError:
+            plugins_dirs.append(plugins_dir)
+            continue
+        except OSError as e:
+            logger.debug("Cannot inspect plugins dir %s: %s", plugins_dir, e)
+            if ignored is not None:
+                ignored.append((plugins_dir, f"cannot access: {e}"))
+            continue
+        if not _is_safe_system_dir(plugins_dir):
+            logger.debug("Ignoring unsafe plugins dir %s", plugins_dir)
+            if ignored is not None:
+                ignored.append((plugins_dir, _UNSAFE_REASON))
+            continue
+        plugins_dirs.append(plugins_dir)
+    return plugins_dirs
+
+
+def get_plugin_read_dirs(
+    user_plugins_dir: Optional[Path] = None,
+) -> Tuple[List[Path], Set[Path]]:
+    """Return the plugin dirs in precedence order and the secondary system dirs.
+
+    - Root: machine-wide dirs, then root's own per-user dir (legacy installs).
+    - Others: their own dir, then the machine-wide ones.
+    """
+    system = get_system_plugins_dirs()
+    user = user_plugins_dir if user_plugins_dir is not None else get_plugins_dir()
+    dirs = [*system, user] if is_root() else [user, *system]
+    return list(dict.fromkeys(dirs)), set(system[1:]) - {user}
 
 
 def _ensure(path: Path, create: bool) -> Path:

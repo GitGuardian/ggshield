@@ -19,9 +19,9 @@ from ggshield import __version__ as ggshield_version
 from ggshield.core.config.enterprise_config import EnterpriseConfig
 from ggshield.core.dirs import (
     get_cache_dir,
+    get_plugin_read_dirs,
     get_plugins_dir,
-    get_system_plugins_dir,
-    is_root,
+    is_safe_system_path,
 )
 from ggshield.core.plugin.base import GGShieldPlugin, PluginMetadata
 from ggshield.core.plugin.registry import PluginRegistry
@@ -29,6 +29,7 @@ from ggshield.core.plugin.signature import (
     SignatureStatus,
     SignatureVerificationError,
     SignatureVerificationMode,
+    read_plugin_wheel,
     verify_wheel_signature,
 )
 from ggshield.core.plugin.trust import PluginTrustStore, compute_file_sha256
@@ -193,6 +194,10 @@ class PluginLoader:
         self.enterprise_config = enterprise_config
         self.plugins_dir = get_plugins_dir()
         self.trust_store = PluginTrustStore(plugins_dir=self.plugins_dir)
+        # Reuse the discovery paths for wheel trust checks.
+        self._read_dirs, self._secondary_system_dirs = get_plugin_read_dirs(
+            self.plugins_dir
+        )
         self.signature_mode = (
             signature_mode
             if signature_mode is not None
@@ -507,19 +512,24 @@ class PluginLoader:
     def _trust_stores_for(self, wheel_path: Path) -> List[PluginTrustStore]:
         """Trust stores that may hold a record for ``wheel_path``.
 
-        Always the per-user store this loader was built with; plus the
-        system store when the wheel lives under the machine-wide plugins
-        dir. A plugin root installed with ``--allow-unsigned`` records its
-        trust next to the *system* plugins, so without consulting that
-        store strict startup verification would reject the admin-installed
-        wheel for every non-root user."""
+        Always the per-user store this loader was built with; plus the store
+        next to the wheel when it lives under a machine-wide plugins dir. A
+        plugin root installed with ``--allow-unsigned`` records its trust next
+        to the *system* plugins, so without consulting that store strict
+        startup verification would reject the admin-installed wheel for every
+        non-root user."""
         stores = [self.trust_store]
-        system_plugins_dir = get_system_plugins_dir()
+        wheel_plugins_dir = wheel_path.parent.parent
         if (
-            wheel_path.parent.parent == system_plugins_dir
-            and system_plugins_dir != self.plugins_dir
+            wheel_plugins_dir != self.plugins_dir
+            and wheel_plugins_dir in self._read_dirs
         ):
-            stores.append(PluginTrustStore(plugins_dir=system_plugins_dir))
+            store = PluginTrustStore(plugins_dir=wheel_plugins_dir)
+            if (
+                wheel_plugins_dir not in self._secondary_system_dirs
+                or is_safe_system_path(store.path)
+            ):
+                stores.append(store)
         return stores
 
     def _read_wheel_entry_point(self, wheel_path: Path) -> Optional[str]:
@@ -542,26 +552,13 @@ class PluginLoader:
             yield from all_eps.get(PLUGIN_ENTRY_POINT_GROUP, [])
 
     def plugin_search_dirs(self) -> List[Path]:
-        """Plugin dirs scanned for wheels, lowest precedence first (later wins),
-        deduplicated.
+        """Plugin dirs scanned for wheels, lowest precedence first (later wins).
 
-        The winning layer comes last (``discover_plugins`` keys by name, last
-        write wins), mirroring :meth:`EnterpriseConfig.effective_sources`:
-
-        - Non-root: system then per-user, so a user's own install of a plugin
-          overrides the machine-wide one.
-        - Root: per-user then system, so a fresh machine-wide install wins over
-          a stale pre-machine-wide ``/root`` wheel, while a pre-existing root
-          install under the old per-user dir stays loadable until migrated."""
-        if is_root():
-            candidates = [get_plugins_dir(), get_system_plugins_dir()]
-        else:
-            candidates = [get_system_plugins_dir(), self.plugins_dir]
-        dirs: List[Path] = []
-        for plugins_dir in candidates:
-            if plugins_dir not in dirs:
-                dirs.append(plugins_dir)
-        return dirs
+        The reverse of the shared read order (see ``get_plugin_read_dirs``):
+        every safe ``XDG_DATA_DIRS`` entry, then the fixed system dir, then
+        the per-user dir for a normal user; root puts its legacy per-user dir
+        first so machine-wide installs win."""
+        return list(reversed(self._read_dirs))
 
     def _scan_local_wheels(self) -> Iterator[WheelInfo]:
         """Scan the :meth:`plugin_search_dirs` for installed wheels."""
@@ -569,8 +566,7 @@ class PluginLoader:
             yield from self._scan_wheels_in(plugins_dir)
 
     def _scan_wheels_in(self, plugins_dir: Path) -> Iterator[WheelInfo]:
-        import json
-
+        # An unreadable optional dir must not break discovery of the next one.
         try:
             entries = list(plugins_dir.iterdir())
         except FileNotFoundError:
@@ -579,8 +575,14 @@ class PluginLoader:
             self.skipped_entries.append((plugins_dir, f"cannot list: {e}"))
             return
 
+        secondary = plugins_dir in self._secondary_system_dirs
         for plugin_dir in entries:
-            if not plugin_dir.is_dir():
+            try:
+                is_dir = plugin_dir.is_dir()
+            except OSError as e:
+                self.skipped_entries.append((plugin_dir, f"cannot inspect: {e}"))
+                continue
+            if not is_dir:
                 if plugin_dir.suffix == ".whl" and plugin_dir.is_file():
                     self.skipped_entries.append(
                         (
@@ -591,50 +593,25 @@ class PluginLoader:
                     )
                 continue
 
-            manifest_path = plugin_dir / "manifest.json"
-            try:
-                try:
-                    manifest_text = manifest_path.read_text(encoding="utf-8")
-                except FileNotFoundError:
-                    self.skipped_entries.append((plugin_dir, "no manifest.json"))
-                    continue
-                manifest = json.loads(manifest_text)
-                if not isinstance(manifest, dict):
-                    raise ValueError("expected a JSON object")
-                for field_name in ("wheel_filename", "plugin_name", "version"):
-                    value = manifest.get(field_name)
-                    if not isinstance(value, str) or not value:
-                        raise ValueError(f"expected a non-empty {field_name}")
-                wheel_filename = manifest["wheel_filename"]
-                wheel_path = plugin_dir / wheel_filename
-
-                if self._path_exists(wheel_path):
-                    # Extract entry point name from wheel for deduplication
-                    entry_point_name = self._read_wheel_entry_point_name(wheel_path)
-                    yield WheelInfo(
-                        name=manifest["plugin_name"],
-                        version=manifest["version"],
-                        path=wheel_path,
-                        manifest_path=manifest_path,
-                        entry_point_name=entry_point_name,
-                    )
-                else:
-                    self.skipped_entries.append(
-                        (plugin_dir, f"wheel {wheel_filename} missing")
-                    )
-            except (ValueError, KeyError, OSError) as e:
-                logger.warning("Invalid manifest in %s: %s", plugin_dir, e)
-                self.skipped_entries.append((plugin_dir, f"invalid manifest: {e}"))
-
-    @staticmethod
-    def _path_exists(path: Path) -> bool:
-        """Like ``Path.exists()``, but raise on errors other than "not found"
-        (Python 3.14's ``exists()`` reports a permission error as missing)."""
-        try:
-            path.stat()
-        except FileNotFoundError:
-            return False
-        return True
+            reasons: List[str] = []
+            candidate = read_plugin_wheel(
+                plugin_dir,
+                secondary=secondary,
+                warn_invalid_manifest=True,
+                skip_reasons=reasons,
+            )
+            manifest, wheel_path = candidate or ({}, None)
+            if wheel_path is None:
+                if reasons:
+                    self.skipped_entries.append((plugin_dir, reasons[0]))
+                continue
+            yield WheelInfo(
+                name=manifest["plugin_name"],
+                version=manifest["version"],
+                path=wheel_path,
+                manifest_path=plugin_dir / "manifest.json",
+                entry_point_name=self._read_wheel_entry_point_name(wheel_path),
+            )
 
     @staticmethod
     def _get_entry_point_dist_name(

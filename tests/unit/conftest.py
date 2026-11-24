@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from os.path import dirname, join, realpath
@@ -844,6 +845,13 @@ def _disable_keyring(monkeypatch):
     reset_keystore()
     yield
     reset_keystore()
+
+
+@pytest.fixture(autouse=True)
+def _restore_sys_path(monkeypatch):
+    """Undo sys.path entries a test adds, e.g. the plugin loader's wheel
+    extraction dirs, so later tests do not discover stale plugin metadata."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
 
 
 @pytest.fixture(autouse=True)
