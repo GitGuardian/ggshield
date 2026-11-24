@@ -1,0 +1,13 @@
+{
+  "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+  "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+  "cwd": "/home/user/project",
+  "turn_id": "turn_123",
+  "model": "gpt-5.4",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Update File: /repo/creds.py\n@@\n KEY = '{{CLIENT_ID}}'\n-a = 1\n+b = 1\n*** End Patch"
+  },
+  "tool_response": "Exit code: 0\nOutput:\nSuccess. Updated the following files:\nM /repo/creds.py\n"
+}

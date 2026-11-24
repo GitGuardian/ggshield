@@ -1,0 +1,20 @@
+{
+  "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+  "transcript_path": "/home/user1/.claude/projects/foo/3b7ae0c5.jsonl",
+  "cwd": "/home/user1/foo",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/repo/creds.py",
+    "old_string": "a"
+  },
+  "tool_response": {
+    "filePath": "/repo/creds.py",
+    "originalFile": "KEY = '{{CLIENT_ID}}'\na = 1\n",
+    "structuredPatch": [
+      {
+        "lines": [" KEY = '{{CLIENT_ID}}'", "-a = 1", "+b = 1"]
+      }
+    ]
+  }
+}

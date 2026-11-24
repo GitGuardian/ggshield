@@ -1,0 +1,24 @@
+{
+  "session_id": "session-123",
+  "parent_session_id": null,
+  "transcript_path": "/home/claude/.vibe/logs/session-123.jsonl",
+  "cwd": "/home/user1/foo",
+  "hook_event_name": "post_tool",
+  "tool_name": "file_system.search_replace",
+  "tool_input": {
+    "content": [
+      {
+        "new_str": "b = 1",
+        "old_str": "KEY = '{{CLIENT_ID}}'\na = 1"
+      }
+    ],
+    "file_path": "./creds.py"
+  },
+  "tool_status": "success",
+  "tool_output": {
+    "file": "/repo/creds.py",
+    "lines_changed": 1
+  },
+  "tool_output_text": "file: /repo/creds.py\nlines_changed: 1",
+  "tool_error": null
+}
