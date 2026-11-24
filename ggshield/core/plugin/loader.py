@@ -8,7 +8,7 @@ import logging
 import os
 import shutil
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, TypedDict
 from zipfile import ZipFile
@@ -38,6 +38,7 @@ class WheelInfo(TypedDict):
     name: str
     version: str
     path: Path
+    manifest_path: Path
     entry_point_name: Optional[str]
 
 
@@ -174,6 +175,11 @@ class DiscoveredPlugin:
     is_installed: bool
     is_enabled: bool
     version: Optional[str]
+    # Where the plugin came from, for `plugin list -v`.
+    manifest_path: Optional[Path] = None
+    package_name: Optional[str] = None  # distribution / install folder name
+    config_key: Optional[str] = None  # enterprise config key that set is_enabled
+    shadowed: List[Path] = field(default_factory=list)  # lower-precedence wheels
 
 
 class PluginLoader:
@@ -192,10 +198,13 @@ class PluginLoader:
             if signature_mode is not None
             else SignatureVerificationMode.STRICT
         )
+        # Plugin dir entries ignored by the last discovery, with the reason.
+        self.skipped_entries: List[Tuple[Path, str]] = []
 
     def discover_plugins(self) -> List[DiscoveredPlugin]:
         """Discover all available plugins from entry points and local wheels."""
         discovered: Dict[str, DiscoveredPlugin] = {}
+        self.skipped_entries = []
 
         # 1. Discover from local wheels first and track their entry point names
         local_entry_point_names: set[str] = set()
@@ -214,10 +223,14 @@ class PluginLoader:
             if entry_point_name:
                 local_entry_point_names.add(entry_point_name)
 
-            is_enabled = self._is_enabled(key)
-            if key not in self.enterprise_config.plugins and plugin_name != key:
-                is_enabled = self._is_enabled(plugin_name)
+            config_key: Optional[str] = None
+            if key in self.enterprise_config.plugins:
+                config_key = key
+            elif plugin_name != key and plugin_name in self.enterprise_config.plugins:
+                config_key = plugin_name
+            is_enabled = config_key is not None and self._is_enabled(config_key)
 
+            previous = discovered.get(key)
             discovered[key] = DiscoveredPlugin(
                 name=key,
                 entry_point=None,
@@ -225,6 +238,14 @@ class PluginLoader:
                 is_installed=True,
                 is_enabled=is_enabled,
                 version=wheel_version,
+                manifest_path=wheel_info["manifest_path"],
+                package_name=plugin_name,
+                config_key=config_key,
+                shadowed=(
+                    [previous.wheel_path, *previous.shadowed]
+                    if previous is not None and previous.wheel_path is not None
+                    else []
+                ),
             )
 
         # 2. Discover from entry points (skip if already found in local wheels)
@@ -240,6 +261,12 @@ class PluginLoader:
                 is_installed=True,
                 is_enabled=self._is_enabled(plugin_name),
                 version=self._get_entry_point_version(ep),
+                package_name=self._get_entry_point_dist_name(ep),
+                config_key=(
+                    plugin_name
+                    if plugin_name in self.enterprise_config.plugins
+                    else None
+                ),
             )
 
         return list(discovered.values())
@@ -514,11 +541,12 @@ class PluginLoader:
             all_eps = importlib.metadata.entry_points()
             yield from all_eps.get(PLUGIN_ENTRY_POINT_GROUP, [])
 
-    def _scan_local_wheels(self) -> Iterator[WheelInfo]:
-        """Scan both plugin dirs for installed wheels.
+    def plugin_search_dirs(self) -> List[Path]:
+        """Plugin dirs scanned for wheels, lowest precedence first (later wins),
+        deduplicated.
 
-        The winning layer is yielded last (``discover_plugins`` keys by name,
-        last write wins), mirroring :meth:`EnterpriseConfig.load_effective`:
+        The winning layer comes last (``discover_plugins`` keys by name, last
+        write wins), mirroring :meth:`EnterpriseConfig.effective_sources`:
 
         - Non-root: system then per-user, so a user's own install of a plugin
           overrides the machine-wide one.
@@ -526,44 +554,97 @@ class PluginLoader:
           a stale pre-machine-wide ``/root`` wheel, while a pre-existing root
           install under the old per-user dir stays loadable until migrated."""
         if is_root():
-            scan_dirs: Tuple[Path, ...] = (get_plugins_dir(), get_system_plugins_dir())
+            candidates = [get_plugins_dir(), get_system_plugins_dir()]
         else:
-            scan_dirs = (get_system_plugins_dir(), self.plugins_dir)
-        seen: list[Path] = []
-        for plugins_dir in scan_dirs:
-            if plugins_dir in seen:
-                continue
-            seen.append(plugins_dir)
+            candidates = [get_system_plugins_dir(), self.plugins_dir]
+        dirs: List[Path] = []
+        for plugins_dir in candidates:
+            if plugins_dir not in dirs:
+                dirs.append(plugins_dir)
+        return dirs
+
+    def _scan_local_wheels(self) -> Iterator[WheelInfo]:
+        """Scan the :meth:`plugin_search_dirs` for installed wheels."""
+        for plugins_dir in self.plugin_search_dirs():
             yield from self._scan_wheels_in(plugins_dir)
 
     def _scan_wheels_in(self, plugins_dir: Path) -> Iterator[WheelInfo]:
         import json
 
-        if not plugins_dir.exists():
+        try:
+            entries = list(plugins_dir.iterdir())
+        except FileNotFoundError:
+            return
+        except OSError as e:
+            self.skipped_entries.append((plugins_dir, f"cannot list: {e}"))
             return
 
-        for plugin_dir in plugins_dir.iterdir():
+        for plugin_dir in entries:
             if not plugin_dir.is_dir():
+                if plugin_dir.suffix == ".whl" and plugin_dir.is_file():
+                    self.skipped_entries.append(
+                        (
+                            plugin_dir,
+                            "wheel file outside a plugin folder "
+                            "(not loaded; install with 'ggshield plugin install')",
+                        )
+                    )
                 continue
 
             manifest_path = plugin_dir / "manifest.json"
-            if manifest_path.exists():
+            try:
                 try:
-                    manifest = json.loads(manifest_path.read_text())
-                    wheel_filename = manifest.get("wheel_filename", "")
-                    wheel_path = plugin_dir / wheel_filename
+                    manifest_text = manifest_path.read_text(encoding="utf-8")
+                except FileNotFoundError:
+                    self.skipped_entries.append((plugin_dir, "no manifest.json"))
+                    continue
+                manifest = json.loads(manifest_text)
+                if not isinstance(manifest, dict):
+                    raise ValueError("expected a JSON object")
+                for field_name in ("wheel_filename", "plugin_name", "version"):
+                    value = manifest.get(field_name)
+                    if not isinstance(value, str) or not value:
+                        raise ValueError(f"expected a non-empty {field_name}")
+                wheel_filename = manifest["wheel_filename"]
+                wheel_path = plugin_dir / wheel_filename
 
-                    if wheel_path.exists():
-                        # Extract entry point name from wheel for deduplication
-                        entry_point_name = self._read_wheel_entry_point_name(wheel_path)
-                        yield WheelInfo(
-                            name=manifest["plugin_name"],
-                            version=manifest["version"],
-                            path=wheel_path,
-                            entry_point_name=entry_point_name,
-                        )
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.warning("Invalid manifest in %s: %s", plugin_dir, e)
+                if self._path_exists(wheel_path):
+                    # Extract entry point name from wheel for deduplication
+                    entry_point_name = self._read_wheel_entry_point_name(wheel_path)
+                    yield WheelInfo(
+                        name=manifest["plugin_name"],
+                        version=manifest["version"],
+                        path=wheel_path,
+                        manifest_path=manifest_path,
+                        entry_point_name=entry_point_name,
+                    )
+                else:
+                    self.skipped_entries.append(
+                        (plugin_dir, f"wheel {wheel_filename} missing")
+                    )
+            except (ValueError, KeyError, OSError) as e:
+                logger.warning("Invalid manifest in %s: %s", plugin_dir, e)
+                self.skipped_entries.append((plugin_dir, f"invalid manifest: {e}"))
+
+    @staticmethod
+    def _path_exists(path: Path) -> bool:
+        """Like ``Path.exists()``, but raise on errors other than "not found"
+        (Python 3.14's ``exists()`` reports a permission error as missing)."""
+        try:
+            path.stat()
+        except FileNotFoundError:
+            return False
+        return True
+
+    @staticmethod
+    def _get_entry_point_dist_name(
+        ep: importlib.metadata.EntryPoint,
+    ) -> Optional[str]:
+        """Best-effort distribution name, for diagnostics only."""
+        try:
+            return ep.dist.name if ep.dist else None
+        except Exception:
+            return None
 
     def _is_enabled(self, plugin_name: str) -> bool:
         """Check if a plugin is enabled in config."""

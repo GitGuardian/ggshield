@@ -298,3 +298,51 @@ def test_main_warns_then_click_rejects_unknown_plugin_command(
     combined = captured.out + captured.err
     assert "machine_scan" in combined
     assert "No such command" in combined
+
+
+def _run_main(monkeypatch, capsys, args: list[str]) -> tuple[int, str]:
+    import ggshield.__main__ as main_module
+    from ggshield.core.plugin.registry import PluginRegistry
+
+    _patch_registry(monkeypatch, PluginRegistry())
+    monkeypatch.setattr(main_module, "force_utf8_output", lambda: None)
+    monkeypatch.setattr(main_module, "setup_truststore", lambda: None)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main(args)
+
+    captured = capsys.readouterr()
+    return exc_info.value.code, captured.out + captured.err
+
+
+def test_missing_plugin_command_hint(monkeypatch, capsys) -> None:
+    """`machine scan` without the plugin says which plugin provides it."""
+    code, output = _run_main(monkeypatch, capsys, ["machine", "scan"])
+
+    assert code == 2
+    assert "No such command 'scan'." in output
+    assert "'machine_scan' plugin" in output
+    assert "ggshield plugin list -v" in output
+
+
+def test_unknown_command_keeps_plain_message(monkeypatch, capsys) -> None:
+    code, output = _run_main(monkeypatch, capsys, ["machine", "bogus"])
+
+    assert code == 2
+    assert "No such command 'bogus'." in output
+    assert "plugin" not in output.replace("ggshield machine", "")
+
+
+def test_plugin_command_hint_not_shown_when_command_exists(monkeypatch) -> None:
+    group = PluginAwareLazyGroup(
+        "machine",
+        commands={"scan": click.Command("scan")},
+        plugin_commands={"scan": "machine_scan"},
+    )
+    _patch_registry(monkeypatch, _registry_with_commands())
+
+    ctx = click.Context(group)
+    name, cmd, _ = group.resolve_command(ctx, ["scan"])
+
+    assert name == "scan"
+    assert cmd is not None

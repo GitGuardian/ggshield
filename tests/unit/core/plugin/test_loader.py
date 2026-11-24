@@ -1195,3 +1195,160 @@ class TestGetPluginsDir:
         result = get_plugins_dir()
 
         assert result == Path("/home/user/.local/share/ggshield/plugins")
+
+    def _make_wheel_plugin(
+        self, plugins_dir: Path, folder: str, entry_point_name: str, version: str
+    ) -> Path:
+        import zipfile
+
+        plugin_dir = plugins_dir / folder
+        plugin_dir.mkdir(parents=True)
+        wheel_file = plugin_dir / f"package_name-{version}.whl"
+        with zipfile.ZipFile(wheel_file, "w") as zf:
+            zf.writestr(
+                f"package_name-{version}.dist-info/entry_points.txt",
+                f"[ggshield.plugins]\n{entry_point_name} = package_name.plugin:Plugin\n",
+            )
+        (plugin_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "plugin_name": folder,
+                    "version": version,
+                    "wheel_filename": wheel_file.name,
+                }
+            )
+        )
+        return wheel_file
+
+    @pytest.mark.parametrize(
+        "plugins, expected_key",
+        [
+            ({"my_plugin": PluginConfig(enabled=False)}, "my_plugin"),
+            ({"package-name": PluginConfig(enabled=True)}, "package-name"),
+            ({}, None),
+        ],
+    )
+    def test_discovered_wheel_plugin_details(
+        self, tmp_path: Path, plugins, expected_key
+    ) -> None:
+        """Discovery reports the manifest, package name and deciding config key."""
+        wheel_file = self._make_wheel_plugin(
+            tmp_path, "package-name", "my_plugin", "1.0.0"
+        )
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([])):
+            loader = PluginLoader(EnterpriseConfig(plugins=plugins))
+            loader.plugins_dir = tmp_path
+            with patch.object(loader, "plugin_search_dirs", return_value=[tmp_path]):
+                (plugin,) = loader.discover_plugins()
+
+        assert plugin.name == "my_plugin"
+        assert plugin.wheel_path == wheel_file
+        assert plugin.manifest_path == wheel_file.parent / "manifest.json"
+        assert plugin.package_name == "package-name"
+        assert plugin.config_key == expected_key
+        assert plugin.shadowed == []
+
+    def test_discover_records_shadowed_wheels_and_skipped_entries(
+        self, tmp_path: Path
+    ) -> None:
+        low, high = tmp_path / "low", tmp_path / "high"
+        low_wheel = self._make_wheel_plugin(low, "package-name", "my_plugin", "0.1.0")
+        high_wheel = self._make_wheel_plugin(high, "package-name", "my_plugin", "0.2.0")
+        (low / "no-manifest").mkdir()
+        broken = low / "broken"
+        broken.mkdir()
+        (broken / "manifest.json").write_text("{not json")
+        (low / "gone").mkdir()
+        (low / "gone" / "manifest.json").write_text(
+            json.dumps({"plugin_name": "gone", "version": "1", "wheel_filename": "x"})
+        )
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([])):
+            loader = PluginLoader(EnterpriseConfig())
+            with patch.object(loader, "plugin_search_dirs", return_value=[low, high]):
+                (plugin,) = loader.discover_plugins()
+
+        assert plugin.wheel_path == high_wheel
+        assert plugin.shadowed == [low_wheel]
+        reasons = dict(loader.skipped_entries)
+        assert reasons[low / "no-manifest"] == "no manifest.json"
+        assert reasons[broken].startswith("invalid manifest")
+        assert reasons[low / "gone"] == "wheel x missing"
+
+    @pytest.mark.parametrize(
+        ("manifest", "reason"),
+        [
+            ([], "expected a JSON object"),
+            (
+                {"plugin_name": "broken", "version": "1"},
+                "expected a non-empty wheel_filename",
+            ),
+            (
+                {"plugin_name": "broken", "version": "1", "wheel_filename": ""},
+                "expected a non-empty wheel_filename",
+            ),
+            (
+                {"plugin_name": [], "version": "1", "wheel_filename": "x.whl"},
+                "expected a non-empty plugin_name",
+            ),
+        ],
+    )
+    def test_scan_skips_manifest_without_wheel_filename(
+        self, tmp_path, manifest, reason
+    ):
+        plugin_dir = tmp_path / "broken"
+        plugin_dir.mkdir()
+        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        loader = PluginLoader(EnterpriseConfig())
+
+        assert list(loader._scan_wheels_in(tmp_path)) == []
+        assert loader.skipped_entries == [(plugin_dir, f"invalid manifest: {reason}")]
+
+    def test_discovered_entry_point_plugin_details(self) -> None:
+        ep = MagicMock()
+        ep.name = "my_plugin"
+        ep.value = "other_package:Plugin"
+        ep.dist.name = "other-package"
+        config = EnterpriseConfig(plugins={"my_plugin": PluginConfig()})
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([ep])):
+            loader = PluginLoader(config)
+            with patch.object(loader, "plugin_search_dirs", return_value=[]):
+                (plugin,) = loader.discover_plugins()
+
+        assert plugin.package_name == "other-package"
+        assert plugin.config_key == "my_plugin"
+        assert plugin.manifest_path is None
+
+
+class TestDiscoveryRobustness:
+    def test_unreadable_entry_point_metadata_does_not_break_discovery(self) -> None:
+        ep = MagicMock()
+        ep.name = "my_plugin"
+        ep.value = "my_plugin:Plugin"
+
+        def unreadable_dist(_self):
+            raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+        type(ep).dist = property(unreadable_dist)
+        config = EnterpriseConfig(plugins={"my_plugin": PluginConfig()})
+
+        with patch.object(PluginLoader, "_get_entry_points", return_value=iter([ep])):
+            loader = PluginLoader(config)
+            with patch.object(loader, "plugin_search_dirs", return_value=[]):
+                (plugin,) = loader.discover_plugins()
+
+        assert plugin.is_enabled
+        assert plugin.package_name is None
+
+    def test_unlistable_dir_is_recorded_not_reported_missing(self, tmp_path) -> None:
+        loader = PluginLoader(EnterpriseConfig())
+        with patch.object(Path, "iterdir", side_effect=PermissionError("denied")):
+            assert list(loader._scan_wheels_in(tmp_path)) == []
+        assert loader.skipped_entries == [(tmp_path, "cannot list: denied")]
+
+    def test_missing_dir_is_not_recorded(self, tmp_path) -> None:
+        loader = PluginLoader(EnterpriseConfig())
+        assert list(loader._scan_wheels_in(tmp_path / "missing")) == []
+        assert loader.skipped_entries == []
