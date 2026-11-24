@@ -48,9 +48,9 @@ OOB_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 # Upper bound on how long a Ctrl+C can go unnoticed while waiting for the
 # browser callback.
 CALLBACK_POLL_INTERVAL_SECONDS = 0.5
-# The dashboard drops its side of the login flow after 5 minutes, so no
-# callback can arrive later.
-CALLBACK_TIMEOUT_SECONDS = 300
+# The dashboard drops its side of the login flow after about 5 minutes, but only
+# checks it loosely, so keep a margin before giving up on the callback.
+CALLBACK_TIMEOUT_SECONDS = 600
 
 logger = logging.getLogger(__name__)
 
@@ -300,10 +300,11 @@ class OAuthClient:
                 if time.monotonic() >= deadline:
                     self.server.server_close()  # type: ignore
                     url = urljoin(self.dashboard_url, "/api/personal-access-tokens")
+                    minutes = round(CALLBACK_TIMEOUT_SECONDS / 60)
                     raise UnexpectedError(
-                        "No answer from the browser after 5 minutes. If you reached "
-                        "the maximum number of personal access tokens, revoke one at "
-                        f"{url}, then run 'ggshield auth login' again."
+                        f"No answer from the browser after {minutes} minutes. If you "
+                        "reached the maximum number of personal access tokens, revoke "
+                        f"one at {url}, then run 'ggshield auth login' again."
                     )
                 # Wait for callback on localserver including an authorization code
                 # any matching request will get processed by the request handler and
@@ -565,13 +566,19 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._write_error_response(404, f"Invalid path: {parsed_url.path}")
             return
 
-        self.oauth_client._request_finished = True
-
         if error_param := get_error_param(parsed_url):
+            # Older dashboards send errors without a state: reject only a mismatch,
+            # so a forged request cannot end the login.
+            states = urlparse.parse_qs(parsed_url.query).get("state")
+            if states and states[0] != self.oauth_client.state:
+                self._write_error_response(400, "Invalid state.")
+                return
+            self.oauth_client._request_finished = True
             error_message = self.oauth_client.get_server_error_message(error_param)
             self._handle_error(error_message)
             return
 
+        self.oauth_client._request_finished = True
         try:
             self.oauth_client.process_callback(callback_url)
         except (OAuthError, UnexpectedError) as error:

@@ -134,6 +134,57 @@ def test_request_handler_records_unexpected_error(monkeypatch):
     assert client._request_error_message == error_message
 
 
+def _error_callback_handler(client: OAuthClient, path: str) -> RequestHandler:
+    client._state = "login-state"
+    handler = RequestHandler.__new__(RequestHandler)
+    handler.oauth_client = client
+    handler.path = path
+    handler.send_response = Mock()
+    handler.send_header = Mock()
+    handler.end_headers = Mock()
+    handler.wfile = Mock()
+    return handler
+
+
+@pytest.mark.parametrize(
+    "with_state", [pytest.param(True, id="matching"), pytest.param(False, id="none")]
+)
+def test_request_handler_accepts_error_callback(with_state):
+    """
+    GIVEN an error callback with the login state, or with no state (older dashboards)
+    WHEN the local request handler processes it
+    THEN the login ends with the server error message
+    """
+    client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
+    query = {"error": "too_many_tokens"}
+    if with_state:
+        query["state"] = "login-state"
+    handler = _error_callback_handler(client, "/?" + urlparse.urlencode(query))
+
+    handler.do_GET()
+
+    assert client._request_finished is True
+    assert client._request_error_message.startswith(
+        "Maximum number of personal access tokens reached."
+    )
+
+
+def test_request_handler_ignores_error_callback_with_another_state():
+    """
+    GIVEN an error callback whose state is not the one of this login
+    WHEN the local request handler processes it
+    THEN it is rejected and the login keeps waiting
+    """
+    client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
+    handler = _error_callback_handler(client, "/?error=too_many_tokens&state=forged")
+
+    handler.do_GET()
+
+    assert client._request_finished is False
+    assert client._request_error_message is None
+    handler.send_response.assert_called_once_with(400)
+
+
 def test_request_handler_records_arbitrary_exception(monkeypatch):
     """
     GIVEN a localhost OAuth callback whose processing raises an exception that
@@ -312,6 +363,6 @@ def test_wait_for_callback_times_out_without_browser_answer(monkeypatch):
 
     assert time.monotonic() - start < CALLBACK_WAIT_LIMIT
     message = str(exc_info.value)
-    assert "No answer from the browser after 5 minutes" in message
+    assert "No answer from the browser after 0 minutes" in message
     assert "https://dashboard.gitguardian.com/api/personal-access-tokens" in message
     assert client.server.socket.fileno() == -1
