@@ -12,7 +12,7 @@ import requests.exceptions
 
 from ggshield.core.config import Config
 from ggshield.core.errors import UnexpectedError
-from ggshield.verticals.auth import OAuthClient
+from ggshield.verticals.auth import OAuthClient, oauth
 from ggshield.verticals.auth.oauth import RequestHandler, _mask_code, get_error_param
 
 
@@ -56,6 +56,10 @@ def test_get_error_url_param(url, expected_error):
         (
             "invalid_scope",
             "The requested scopes are invalid.",
+        ),
+        (
+            "access_denied",
+            "The login was cancelled in the browser.",
         ),
         (
             "invalid_error_code",
@@ -286,3 +290,28 @@ def test_wait_for_callback_is_not_wedged_by_silent_peer(listening_client):
         assert not waiter.is_alive()
     finally:
         silent_peer.close()
+
+
+@pytest.mark.enable_socket
+def test_wait_for_callback_times_out_without_browser_answer(monkeypatch):
+    """
+    GIVEN the localhost callback server waiting for a browser redirect that
+          never arrives
+    WHEN the callback deadline passes
+    THEN the wait stops with an error pointing to the personal access tokens
+         page, and the server is closed
+    """
+    monkeypatch.setattr(oauth, "CALLBACK_TIMEOUT_SECONDS", 0.3)
+    client = OAuthClient(Config(), "https://dashboard.gitguardian.com")
+    client._prepare_server()
+    assert client.server is not None
+
+    start = time.monotonic()
+    with pytest.raises(UnexpectedError) as exc_info:
+        client._wait_for_callback()
+
+    assert time.monotonic() - start < CALLBACK_WAIT_LIMIT
+    message = str(exc_info.value)
+    assert "No answer from the browser after 5 minutes" in message
+    assert "https://dashboard.gitguardian.com/api/personal-access-tokens" in message
+    assert client.server.socket.fileno() == -1
