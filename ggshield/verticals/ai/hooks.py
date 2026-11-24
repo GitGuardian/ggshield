@@ -393,7 +393,9 @@ def _cannot_scan_warning(error: Exception) -> str:
 
 def _parse_tool(data: Dict[str, Any]) -> Tool:
     """Parse the tool name."""
-    tool_name = data.get("tool_name", "").lower()
+    # Vibe 3 hands hooks its built-in tools as `file_system.read_file` and
+    # `file_system.bash`, while the model sees the bare names.
+    tool_name = data.get("tool_name", "").lower().removeprefix("file_system.")
     if tool_name.startswith("mcp"):
         return Tool.MCP
     return TOOL_NAME_TO_TOOL.get(tool_name, Tool.OTHER)
