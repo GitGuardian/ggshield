@@ -3560,7 +3560,7 @@ def test_a_falsy_no_notification_switch_still_notifies(mock_run, monkeypatch, va
 
 
 class TestCannotScanWarning:
-    """The Rust hook gives the same warnings, see rust/common/src/error.rs."""
+    """The Rust hook gives the same warnings, see rust/src/error.rs."""
 
     @staticmethod
     def _token_read_error(failure: KeystoreFailure) -> AuthError:

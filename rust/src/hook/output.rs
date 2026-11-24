@@ -8,7 +8,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::payload::{Agent, EventType, Payload, Tool};
+use crate::hook::payload::{Agent, EventType, Payload, Tool};
 
 pub struct HookResult<'a> {
     pub block: bool,
@@ -108,7 +108,7 @@ fn decision_block(message: &str) -> Value {
 /// warning about it after the fact.
 ///
 /// Drives three things that must agree: the replacement `emission()` sends, the
-/// wording `message::from_secrets()` picks, and whether `lib.rs` raises the
+/// wording `message::from_secrets()` picks, and whether `hook.rs` raises the
 /// "already leaked" desktop notification.
 pub fn can_redact_tool_output(payload: &Payload) -> bool {
     payload.event_type == EventType::PostToolUse
@@ -538,7 +538,7 @@ pub fn emission(result: &HookResult) -> Emission {
                     EventType::UserPrompt | EventType::PreToolUse => {
                         Emission::Stderr(message.to_string(), 2)
                     }
-                    // Nothing to block after the fact; lib.rs raises the desktop
+                    // Nothing to block after the fact; hook.rs raises the desktop
                     // notification for PostToolUse.
                     EventType::PostToolUse | EventType::Other => Emission::Silent(0),
                 }
@@ -572,7 +572,7 @@ pub fn emit(emission: Emission) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::payload::Tool;
+    use crate::hook::payload::Tool;
 
     fn payload(agent: Agent, event_type: EventType) -> Payload {
         payload_with_tool(agent, event_type, Some(Tool::Bash))
@@ -703,7 +703,7 @@ mod tests {
     #[test]
     fn the_user_message_rides_in_the_user_only_field_of_each_agent() {
         let mut covered = Vec::new();
-        for agent in crate::payload::AGENTS {
+        for agent in crate::hook::payload::AGENTS {
             for event in [
                 EventType::UserPrompt,
                 EventType::PreToolUse,
@@ -1186,7 +1186,7 @@ mod tests {
             EventType::PreToolUse,
             EventType::Other,
         ] {
-            for agent in crate::payload::AGENTS {
+            for agent in crate::hook::payload::AGENTS {
                 assert!(
                     !can_redact_tool_output(&payload(agent, event)),
                     "{agent:?}/{event:?} is not a tool output"
@@ -1252,7 +1252,7 @@ mod tests {
                 "{event:?}"
             );
         }
-        // Too late to block: lib.rs notifies instead.
+        // Too late to block: hook.rs notifies instead.
         for event in [EventType::PostToolUse, EventType::Other] {
             let p = payload(Agent::Kiro, event);
             assert_eq!(

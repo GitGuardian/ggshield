@@ -244,15 +244,15 @@ jobs:
       - name: Check formatting
         working-directory: rust
         # rust-toolchain.toml pins the version, so rustup provisions it here.
-        run: cargo fmt --all --check
+        run: cargo fmt --check
 
       - name: Lint
         working-directory: rust
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Run unit tests
         working-directory: rust
-        run: cargo test --workspace
+        run: cargo test
 
       - name: Check the vendored binary extension list is in sync
         # src/binary_extensions.rs is generated from the Python set. It decides
@@ -263,7 +263,7 @@ jobs:
           import pathlib, re, sys
           from ggshield.utils._binary_extensions import BINARY_EXTENSIONS
 
-          rust = pathlib.Path("rust/common/src/binary_extensions.rs").read_text()
+          rust = pathlib.Path("rust/src/binary_extensions.rs").read_text()
           # cargo fmt packs the array, so match the literals, not whole lines.
           # Nothing before "= [" contains a quote, so the split is unambiguous.
           vendored = set(re.findall(r'"([^"]+)"', rust.split("= [", 1)[1]))
@@ -271,7 +271,7 @@ jobs:
               missing = sorted(set(BINARY_EXTENSIONS) - vendored)
               extra = sorted(vendored - set(BINARY_EXTENSIONS))
               sys.exit(
-                  "rust/common/src/binary_extensions.rs is out of sync with "
+                  "rust/src/binary_extensions.rs is out of sync with "
                   f"ggshield/utils/_binary_extensions.py\n  missing: {missing}\n  extra: {extra}"
               )
           print(f"{len(vendored)} extensions in sync")

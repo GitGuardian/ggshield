@@ -563,11 +563,9 @@ def add_rust_crates(builder: SbomBuilder, manifest: Path, target: str) -> None:
             )
         return builder.components[purl]
 
-    dispatcher = next(
-        p["id"] for p in metadata["packages"] if p["name"] == "ggshield-dispatcher"
-    )
-    # Workspace crates (no `source`) are ggshield itself: walk through them,
-    # attaching their external dependencies to the root
+    dispatcher = metadata["resolve"]["root"]
+    # The root crate (no `source`) is ggshield itself: walk through it,
+    # attaching its external dependencies to the root
     seen: Set[str] = set()
     stack: List[Tuple[str, Optional[Component]]] = [(dispatcher, None)]
     while stack:

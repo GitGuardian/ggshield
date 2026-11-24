@@ -6,12 +6,10 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use ggshield_common::error::Error;
-use ggshield_common::hash::sha256_hex;
-use ggshield_config::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
-use ggshield_config::user_config::{
-    DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig,
-};
+use crate::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
+use crate::error::Error;
+use crate::hash::sha256_hex;
+use crate::user_config::{DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig};
 
 /// `_API_PATH_MAX_LENGTH` in secret_scanner.py.
 const API_PATH_MAX_LENGTH: usize = 256;
@@ -268,7 +266,7 @@ fn env_usize(key: &str) -> Option<usize> {
 
 fn fetch_metadata(config: &Config) -> Option<Value> {
     let url = format!("{}/v1/metadata", config.api_url);
-    let mut response = crate::tls::agent(config)
+    let mut response = crate::hook::tls::agent(config)
         .ok()?
         .get(&url)
         .config()
@@ -340,7 +338,7 @@ pub fn encoded_size(config: &Config, doc: &Document) -> usize {
 
 pub fn multiscan<'a>(
     config: &Config,
-    agent: crate::payload::Agent,
+    agent: crate::hook::payload::Agent,
     documents: impl IntoIterator<Item = &'a Document>,
 ) -> Result<Vec<DocumentResult>, Error> {
     let payload: Vec<Value> = documents
@@ -374,7 +372,7 @@ pub fn multiscan<'a>(
 /// status and body.
 fn send_with_retries(
     config: &Config,
-    agent: crate::payload::Agent,
+    agent: crate::hook::payload::Agent,
     body: &str,
 ) -> Result<(u16, String), Error> {
     let mut answer = send_once(config, agent, body);
@@ -391,11 +389,11 @@ fn send_with_retries(
 
 fn send_once(
     config: &Config,
-    agent: crate::payload::Agent,
+    agent: crate::hook::payload::Agent,
     body: &str,
 ) -> Result<(u16, String), Error> {
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let mut response = crate::tls::agent(config)
+    let mut response = crate::hook::tls::agent(config)
         .map_err(Error::scan)?
         .post(&url)
         .config()
@@ -487,8 +485,7 @@ mod tests {
     /// native-hook scan to a version that was never released.
     #[test]
     fn the_reported_version_is_ggshields_own() {
-        let init =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ggshield/__init__.py");
+        let init = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ggshield/__init__.py");
         let source = std::fs::read_to_string(&init).expect("ggshield/__init__.py");
         let assignment = format!("__version__ = \"{}\"", env!("GGSHIELD_VERSION"));
         assert!(
@@ -581,7 +578,7 @@ mod tests {
     fn scan_one(config: &Config, content: &str) -> Result<Vec<DocumentResult>, Error> {
         multiscan(
             config,
-            crate::payload::Agent::Claude,
+            crate::hook::payload::Agent::Claude,
             [&Document {
                 content: content.into(),
                 filename: "a.env".into(),
@@ -684,7 +681,7 @@ mod tests {
     #[test]
     fn filename_only_sends_no_local_path() {
         let (url, bodies) = scan_api(vec![200]);
-        let mut user = ggshield_config::user_config::UserConfig::default();
+        let mut user = crate::user_config::UserConfig::default();
         user.secret.filename_only = true;
         let config = Config::with_token(url, "token".into(), user);
         let path = if cfg!(windows) {
@@ -695,7 +692,7 @@ mod tests {
 
         multiscan(
             &config,
-            crate::payload::Agent::Claude,
+            crate::hook::payload::Agent::Claude,
             [&Document {
                 content: "nothing here".into(),
                 filename: path.into(),
@@ -735,7 +732,7 @@ mod tests {
     /// learned; the second answers from that file.
     #[test]
     fn a_cold_resolution_fetches_once_and_a_warm_one_not_at_all() {
-        let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
+        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
         let (url, hits) = metadata_api();
 
         let cold = limits(&config_for(url.clone()));
@@ -758,7 +755,7 @@ mod tests {
     /// THEN the instance is asked again and the answer replaces the stale entry.
     #[test]
     fn an_expired_entry_is_refetched_and_rewritten() {
-        let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
+        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
         let (url, hits) = metadata_api();
 
         limits(&config_for(url.clone()));
@@ -778,7 +775,7 @@ mod tests {
     /// fetch must not pin a guess for the next five minutes.
     #[test]
     fn an_unreachable_instance_falls_back_to_the_defaults_without_caching_them() {
-        let (_guard, _dir) = crate::verdict_cache::with_cache_dir();
+        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
         // Port 1 is unbound: connection refused, immediately.
         let url = "http://127.0.0.1:1".to_string();
 

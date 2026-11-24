@@ -17,10 +17,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::output::Emission;
-use crate::payload::sha256_hex;
-use ggshield_common::secure_file;
-use ggshield_config::config;
+use crate::config;
+use crate::hook::output::Emission;
+use crate::hook::payload::sha256_hex;
+use crate::secure_file;
 
 /// Ours alone, unlike the clean-verdict cache: hooks.py keeps its own
 /// `latest_ai_hook.txt`, which holds a bare hash and no verdict to replay.
@@ -101,7 +101,7 @@ pub fn store(hash: &str, emission: &Emission) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::verdict_cache::with_cache_dir;
+    use crate::hook::verdict_cache::with_cache_dir;
     use serde_json::json;
 
     fn emissions() -> [Emission; 3] {

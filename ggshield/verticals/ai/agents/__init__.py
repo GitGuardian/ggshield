@@ -12,7 +12,7 @@ from .vscode import VSCode
 
 
 # Order matters: _detect_agent takes the first agent whose is_caller matches.
-# Same order as AGENTS in rust/hook/src/payload.rs: agents with a marker of their
+# Same order as AGENTS in rust/src/hook/payload.rs: agents with a marker of their
 # own first, then Kiro and Copilot, which key on fields others share, then
 # Claude, which claims any session_id beside a transcript_path.
 AGENTS: Dict[str, Agent] = {
