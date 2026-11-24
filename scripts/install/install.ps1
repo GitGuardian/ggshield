@@ -24,6 +24,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# The functions below read $script:Version and $script:Method. Run as a
+# scriptblock (& ([scriptblock]::Create(...)) -Version ...), the parameters
+# live in the scriptblock's scope, not in script scope, so copy them there.
+$script:Version = $Version
+$script:Method = $Method
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $GithubRepo = 'GitGuardian/ggshield'
