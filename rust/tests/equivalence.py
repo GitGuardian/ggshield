@@ -69,7 +69,12 @@ REPO = ROOT.parent
 PYTHON = Path(
     os.environ.get(
         "GGSHIELD_VENV_PYTHON",
-        Path.home() / "ggworkspace" / "ggshield" / ".venv" / "bin" / "python",
+        Path.home()
+        / "ggworkspace"
+        / "ggshield"
+        / ".venv"
+        / ("Scripts" if os.name == "nt" else "bin")
+        / f"python{'.exe' if os.name == 'nt' else ''}",
     )
 )
 # Which ggshield sources the Python side imports. This worktree by default;
@@ -79,7 +84,8 @@ PYTHON = Path(
 PY_SOURCES = Path(os.environ.get("GGSHIELD_PYTHON_SOURCES", REPO))
 # The dispatcher, named `ggshield`: it answers `secret scan ai-hook` natively and
 # execs `ggshield-py` for anything else, so RS_CMD carries that exact argv.
-RUST = ROOT / "target" / "release" / "ggshield"
+EXE = ".exe" if os.name == "nt" else ""
+RUST = ROOT / "target" / "release" / f"ggshield{EXE}"
 
 PY_CMD = [str(PYTHON), "-m", "ggshield", "secret", "scan", "ai-hook"]
 RS_CMD = [str(RUST), "secret", "scan", "ai-hook"]
@@ -91,16 +97,19 @@ FROZEN_CMD = [str(FROZEN), "secret", "scan", "ai-hook"]
 # Fabricated credentials, shaped like AWS keys. Must match mock_api.py.
 CLIENT_ID = "AKIA4SVQEXAMPLE01"
 CLIENT_SECRET = "bB0mVX8s2example5zRq7Nn1LxKp9Wc3TyUvGh4Jd"
-READ_FILE = "/tmp/ggshield-hook-equivalence-creds.env"
+# Fixture files sit at fixed paths in the system temp dir, so both sides see the
+# same identifier. Forward slashes, since they also go into shell commands.
+SCRATCH = Path(tempfile.gettempdir()).resolve().as_posix()
+READ_FILE = f"{SCRATCH}/ggshield-hook-equivalence-creds.env"
 # A multi-line fixture, for the ranged-read matrix.
-RANGE_FILE = "/tmp/ggshield-hook-equivalence-range.txt"
+RANGE_FILE = f"{SCRATCH}/ggshield-hook-equivalence-range.txt"
 # Byte-identical to READ_FILE, under a different name: proves the filename
 # is part of the verdict cache key.
-COPY_FILE = "/tmp/ggshield-hook-equivalence-creds-copy.env"
+COPY_FILE = f"{SCRATCH}/ggshield-hook-equivalence-creds-copy.env"
 # The file the encoding/size matrix rewrites for each of its cases. Its directory
 # is also the `cwd` the @-mention cases resolve against, so a relative mention
 # and an absolute file_path must land on this same path.
-CONTENT_DIR = "/tmp"
+CONTENT_DIR = SCRATCH
 CONTENT_NAME = "ggshield-hook-equivalence-content.env"
 CONTENT_FILE = f"{CONTENT_DIR}/{CONTENT_NAME}"
 
@@ -108,7 +117,7 @@ CONTENT_FILE = f"{CONTENT_DIR}/{CONTENT_NAME}"
 # directory, one whose path names nothing the default wildcards mention. Fixed
 # absolute paths, so both sides see the identical identifier -- which the
 # reported prose is built from.
-EXCL_ROOT = Path("/tmp/ggshield-hook-equivalence-exclusions")
+EXCL_ROOT = Path(SCRATCH) / "ggshield-hook-equivalence-exclusions"
 EXCL_VENDORED = EXCL_ROOT / "vendor" / "proj"
 EXCL_PLAIN = EXCL_ROOT / "proj"
 # `\` is a separator on Windows, not a filename character, so this fixture
@@ -252,10 +261,11 @@ def config_cases(ignore_sha):
             None,
             "block",
         ),
-        # A directory glob, the shape an agent writes for a fixtures dir.
+        # A directory glob, the shape an agent writes for a fixtures dir: here
+        # the temp dir READ_FILE sits in.
         (
             "ignored_path_directory_glob",
-            "version: 2\nsecret:\n  ignored_paths:\n  - 'tmp/**'\n",
+            f"version: 2\nsecret:\n  ignored_paths:\n  - '{Path(SCRATCH).name}/**'\n",
             None,
             "allow",
         ),
@@ -806,7 +816,8 @@ def compare_mentions(tmp):
                     for body in bodies[side]
                     for document in json.loads(body)
                 }
-                if filename not in names:
+                # The hooks report native paths: backslashes on Windows.
+                if os.path.normpath(filename) not in names:
                     failures.append(f"mention/{name} ({side} resolved it elsewhere)")
                     print(f"        ^ {side} sent {sorted(names)}")
     finally:
@@ -862,7 +873,7 @@ def compare_valid_elsewhere(tmp):
 # One more file than `maximum_documents_per_scan` (20 in mock_api), so the batch
 # has to be split -- and one chunk failing must not discard the others.
 MENTIONED_FILES = 21
-BATCH_DIR = "/tmp/ggshield-hook-equivalence-batch"
+BATCH_DIR = f"{SCRATCH}/ggshield-hook-equivalence-batch"
 
 
 def compare_batches(tmp):
@@ -912,7 +923,7 @@ def compare_batches(tmp):
             )
             # The prompt payload is scanned too, under a sha256 of its text.
             wanted = sorted(
-                [f"{BATCH_DIR}/{name}" for name in names]
+                [os.path.normpath(f"{BATCH_DIR}/{name}") for name in names]
                 + [next(n for n in sent if IS_SHA256.match(n))]
             )
             if sent != wanted or sorted(len(b) for b in batches) != [2, 20]:
@@ -1175,6 +1186,13 @@ def run(cmd, payload, port, workdir, env_extra=None):
         "GITGUARDIAN_DONT_LOAD_ENV": "1",
         "PYTHONPATH": str(PY_SOURCES),
     }
+    if os.name == "nt":
+        # Without SYSTEMROOT, Python cannot seed its RNG and Winsock cannot
+        # resolve `localhost`. Windows finds the home dir through USERPROFILE.
+        for key in ("SYSTEMROOT", "TEMP", "TMP"):
+            if key in os.environ:
+                env[key] = os.environ[key]
+        env["USERPROFILE"] = env["HOME"]
     for key, value in (env_extra or {}).items():
         if value is None:
             env.pop(key, None)
@@ -1399,10 +1417,19 @@ def compare_agents(tmp):
             for agent, shapes in agent_payloads().items():
                 for shape, payload in shapes.items():
                     name = f"{label}/{agent}/{shape}"
-                    verdict_ok, request_ok, py, rs, _ = compare_one(
+                    before = len(read_requests(log))
+                    verdict_ok, request_ok, py, rs, bodies = compare_one(
                         tmp, log, port, name.replace("/", "-"), payload
                     )
                     report(failures, name, verdict_ok, request_ok, py, rs)
+                    # The dispatcher execs `ggshield-py` for what it cannot
+                    # handle, and both sides would then agree. Rust's requests
+                    # come after Python's in the log.
+                    clients = [r["client"] for r in read_requests(log)[before:]]
+                    rust_clients = clients[len(bodies["python"]) :]
+                    if not all(c.startswith("ggshield-hook/") for c in rust_clients):
+                        failures.append(f"{name} (rust handed it to python)")
+                        print(f"        ^ rust side scanned as {rust_clients}")
                     for side, out in (("python", py), ("rust", rs)):
                         if hint_reaches_the_model(out):
                             failures.append(f"{name} ({side} shows the model the hint)")
@@ -1785,35 +1812,38 @@ def extra_cases(tmp):
     # 4. A candidate read path that stats but cannot be opened. It is not a
     #    document, and it must not take the rest of the event down with it: the
     #    prompt holds the secret, so both sides have to block.
-    print("\nUnreadable candidate (the secret in the same event must still block):")
-    unreadable = tmp / "unreadable" / "locked.env"
-    mention_payload = {
-        **agent_bases()["claude"],
-        "hook_event_name": "UserPromptSubmit",
-        "prompt": f"compare @{unreadable} with AWS_KEY={CLIENT_ID}",
-    }
+    # chmod cannot make a file unreadable on Windows: it only sets the
+    # read-only flag, which then blocks the unlink.
+    if POSIX_ONLY:
+        print("\nUnreadable candidate (the secret in the same event must still block):")
+        unreadable = tmp / "unreadable" / "locked.env"
+        mention_payload = {
+            **agent_bases()["claude"],
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": f"compare @{unreadable} with AWS_KEY={CLIENT_ID}",
+        }
 
-    def lock_file():
-        # Runs once per side, and the previous run left it unwritable.
-        unreadable.parent.mkdir(parents=True, exist_ok=True)
-        unreadable.unlink(missing_ok=True)
-        unreadable.write_text(f"AWS_KEY={CLIENT_ID}\n")
-        unreadable.chmod(0o000)
+        def lock_file():
+            # Runs once per side, and the previous run left it unwritable.
+            unreadable.parent.mkdir(parents=True, exist_ok=True)
+            unreadable.unlink(missing_ok=True)
+            unreadable.write_text(f"AWS_KEY={CLIENT_ID}\n")
+            unreadable.chmod(0o000)
 
-    log = tmp / "requests-unreadable.jsonl"
-    mock, port = start_mock("secret", log)
-    try:
-        verdict_ok, request_ok, py, rs, _ = compare_one(
-            tmp, log, port, "unreadable", mention_payload, setup=lock_file
-        )
-        report(failures, "unreadable/mention", verdict_ok, request_ok, py, rs)
-        for side, proc in (("python", py), ("rust", rs)):
-            if verdict_of(proc.stdout) != "block":
-                failures.append(f"unreadable/mention ({side} did not block)")
-                print(f"        ^ {side}: {proc.stdout[:120]!r}")
-    finally:
-        mock.kill()
-        unreadable.chmod(0o600)
+        log = tmp / "requests-unreadable.jsonl"
+        mock, port = start_mock("secret", log)
+        try:
+            verdict_ok, request_ok, py, rs, _ = compare_one(
+                tmp, log, port, "unreadable", mention_payload, setup=lock_file
+            )
+            report(failures, "unreadable/mention", verdict_ok, request_ok, py, rs)
+            for side, proc in (("python", py), ("rust", rs)):
+                if verdict_of(proc.stdout) != "block":
+                    failures.append(f"unreadable/mention ({side} did not block)")
+                    print(f"        ^ {side}: {proc.stdout[:120]!r}")
+        finally:
+            mock.kill()
+            unreadable.chmod(0o600)
 
     # 5. A payload from no known agent: no verdict at all, and the default
     #    `secret.ai_hook_failure_policy: allow` lets it through.

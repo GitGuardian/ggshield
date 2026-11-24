@@ -1,0 +1,93 @@
+name: AI hook equivalence (platforms)
+
+# The equivalence job in ci.yml runs on ubuntu-22.04 only. The hooks also ship
+# for arm64 Linux, Windows (x64 and arm64) and macOS (arm64 and Intel), where
+# paths, shells and the dispatcher's hand-over to `ggshield-py` can differ.
+# This runs the same harness, against a binary built from this commit, on each.
+on:
+  pull_request:
+    paths:
+      - 'rust/**'
+      - 'ggshield/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ai-hook-platforms.yml'
+  push:
+    branches:
+      - '*'
+    tags-ignore:
+      - '*'
+    paths:
+      - 'rust/**'
+      - 'ggshield/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ai-hook-platforms.yml'
+
+concurrency:
+  group: ai-hook-platforms-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+env:
+  UV_VERSION: 0.10.8
+
+jobs:
+  equivalence:
+    name: AI hook equivalence (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04-arm
+          - windows-2022
+          - windows-11-arm
+          - macos-26
+          - macos-15-intel
+        python: ['3.9']
+        include:
+          # No 3.9 build exists for Windows on arm64.
+          - os: windows-11-arm
+            python: '3.11'
+        exclude:
+          - os: windows-11-arm
+            python: '3.9'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-platforms|${{ matrix.os }}|${{ hashFiles('rust/Cargo.lock', 'rust/rust-toolchain.toml') }}
+
+      - name: Build the release binary
+        working-directory: rust
+        run: cargo build --release
+
+      - name: Compare against the Python hook
+        # Only the localhost mock API is involved; no API key is provided.
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            export GGSHIELD_VENV_PYTHON="$GITHUB_WORKSPACE/.venv/Scripts/python.exe"
+          else
+            export GGSHIELD_VENV_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python"
+          fi
+          uv run python rust/tests/equivalence.py
