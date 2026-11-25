@@ -12,6 +12,7 @@
 //! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
 
 mod api;
+pub mod config;
 mod debounce;
 pub mod error;
 mod exclusion;
@@ -24,7 +25,6 @@ mod verdict_cache;
 mod vibe;
 
 use crate::binary_extensions;
-use crate::config;
 use crate::error::{Cause, Error, ExitCode, FailurePolicy};
 use crate::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
 

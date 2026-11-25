@@ -214,7 +214,7 @@ impl From<V1Config> for RawUserConfig {
         let instance = v1.instance.or_else(|| {
             v1.api_url
                 .as_deref()
-                .map(crate::config::api_to_dashboard_url)
+                .map(crate::hook::config::api_to_dashboard_url)
         });
         RawUserConfig {
             instance,

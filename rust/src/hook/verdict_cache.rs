@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::config;
+use crate::hook::config;
 use crate::hook::payload::sha256_hex;
 use crate::secure_file;
 use crate::user_config::SecretConfig;

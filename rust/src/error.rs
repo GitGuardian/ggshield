@@ -3,7 +3,7 @@
 //! This error is the only error that should be stringified/returned by the CLI.
 //! An error cause should not refer to a specific command. Callers should instead
 //! use the `context` vector to add context-specific information to an error.
-use crate::config::CredentialStoreError;
+use crate::hook::config::CredentialStoreError;
 use crate::hook::{ApiError, HookInputError, TlsError};
 use crate::user_config::{AiHookFailurePolicy, ConfigError};
 

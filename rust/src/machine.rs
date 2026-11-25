@@ -219,7 +219,7 @@ fn resolve_machine_id() -> String {
 /// soon reports the same id as Python, which resolves it on every run.
 #[cfg(any(target_os = "macos", windows))]
 fn resolve_machine_id() -> String {
-    let cache = crate::config::cache_dir().map(|dir| dir.join("machine_id"));
+    let cache = crate::hook::config::cache_dir().map(|dir| dir.join("machine_id"));
     cached_for_a_day(cache.as_deref(), || system_id().unwrap_or_else(fallback_id))
 }
 

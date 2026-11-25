@@ -6,9 +6,9 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
 use crate::error::{Cause, Error};
 use crate::hash::sha256_hex;
+use crate::hook::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
 use crate::machine::Header;
 use crate::user_config::{DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig};
 

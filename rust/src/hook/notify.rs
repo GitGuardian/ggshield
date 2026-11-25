@@ -11,7 +11,7 @@
 /// lands on whoever is at the keyboard, and the equivalence gate runs both hooks
 /// against payloads carrying secrets.
 pub fn send(title: &str, body: &str) {
-    if crate::config::getenv_bool("GGSHIELD_NO_NOTIFICATION") {
+    if crate::hook::config::getenv_bool("GGSHIELD_NO_NOTIFICATION") {
         return;
     }
     imp::send(title, body);
@@ -58,7 +58,7 @@ mod imp {
 end run"#;
 
     pub fn send(title: &str, body: &str) {
-        let Some(dir) = crate::config::cache_dir() else {
+        let Some(dir) = crate::hook::config::cache_dir() else {
             return;
         };
         // Without a bundle there is still a notification to raise; it just wears
@@ -375,7 +375,7 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 "#;
 
     pub fn send(title: &str, body: &str) {
-        let Some(dir) = crate::config::cache_dir() else {
+        let Some(dir) = crate::hook::config::cache_dir() else {
             return;
         };
         let script = dir.join("toast.ps1");
@@ -443,7 +443,7 @@ mod imp {
 #[cfg(any(target_os = "linux", windows))]
 fn icon_file() -> Option<std::path::PathBuf> {
     const PNG: &[u8] = include_bytes!("../../assets/ggshield.png");
-    let dir = crate::config::cache_dir()?;
+    let dir = crate::hook::config::cache_dir()?;
     let path = dir.join("ggshield.png");
     // Compared whole, not by length: an icon swapped for another of the same
     // size would otherwise never be put back. It is 28 KB, on a path that only

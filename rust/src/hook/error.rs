@@ -1,5 +1,5 @@
-use crate::config::CredentialStoreError;
 use crate::error::{Cause, Error};
+use crate::hook::config::CredentialStoreError;
 
 #[cfg(target_os = "macos")]
 const CREDENTIAL_STORE_DENIED_CAUSE: &str =

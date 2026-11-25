@@ -17,7 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::config;
+use crate::hook::config;
 use crate::hook::output::Emission;
 use crate::hook::payload::sha256_hex;
 use crate::secure_file;
