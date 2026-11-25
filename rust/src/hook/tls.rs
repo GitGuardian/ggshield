@@ -5,7 +5,7 @@
 //! - respects `REQUESTS_CA_BUNDLE` and `CURL_CA_BUNDLE` for backwards compatibility
 use std::fmt;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::config::Config;
@@ -23,15 +23,34 @@ use ureq::unversioned::transport::{
     TcpConnector, Transport, TransportAdapter,
 };
 
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum TlsError {
+    #[error("Could not read the TLS CA certificate directory {}", .path.display())]
+    CaDirectoryUnreadable {
+        path: PathBuf,
+        #[source]
+        source: Arc<std::io::Error>,
+    },
+    #[error(
+        "Could not find a suitable TLS CA certificate bundle, invalid path: {}",
+        .path.display()
+    )]
+    CaBundleNotFound { path: PathBuf },
+    #[error("No certificate found in the TLS CA certificate bundle: {}", .path.display())]
+    CaBundleEmpty { path: PathBuf },
+    #[error(transparent)]
+    Rustls(#[from] rustls::Error),
+}
+
 /// Creates a [ureq::Agent] for a ggshield config
-pub fn agent(config: &Config) -> Result<Agent, String> {
+pub fn agent(config: &Config) -> Result<Agent, TlsError> {
     config
         .agent
         .get_or_init(|| build(config.user.insecure, config.ca_bundle.as_deref()))
         .clone()
 }
 
-fn build(insecure: bool, ca_bundle: Option<&str>) -> Result<Agent, String> {
+fn build(insecure: bool, ca_bundle: Option<&str>) -> Result<Agent, TlsError> {
     if insecure && ca_bundle.is_none() {
         let tls = TlsConfig::builder().disable_verification(true).build();
         return Ok(ureq::Agent::new_with_config(
@@ -48,20 +67,17 @@ fn build(insecure: bool, ca_bundle: Option<&str>) -> Result<Agent, String> {
             webpki_root_certs::TLS_SERVER_ROOT_CERTS.to_vec(),
             crypto_provider.clone(),
         ),
-    }
-    .map_err(|e| e.to_string())?;
-    agent_verifying(verifier, crypto_provider).map_err(|e| e.to_string())
+    }?;
+    Ok(agent_verifying(verifier, crypto_provider)?)
 }
 
 /// Loads the PEM certificates from a CA bundle file or directory
-fn load_ca_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> {
+fn load_ca_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, TlsError> {
     let files = if path.is_dir() {
         std::fs::read_dir(path)
-            .map_err(|e| {
-                format!(
-                    "Could not read the TLS CA certificate directory {}: {e}",
-                    path.display()
-                )
+            .map_err(|source| TlsError::CaDirectoryUnreadable {
+                path: path.to_path_buf(),
+                source: Arc::new(source),
             })?
             .flatten()
             .map(|entry| entry.path())
@@ -70,10 +86,9 @@ fn load_ca_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> {
     } else if path.is_file() {
         vec![path.to_path_buf()]
     } else {
-        return Err(format!(
-            "Could not find a suitable TLS CA certificate bundle, invalid path: {}",
-            path.display()
-        ));
+        return Err(TlsError::CaBundleNotFound {
+            path: path.to_path_buf(),
+        });
     };
 
     let mut certs = Vec::new();
@@ -103,10 +118,9 @@ fn load_ca_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> {
         }
     }
     if certs.is_empty() {
-        return Err(format!(
-            "No certificate found in the TLS CA certificate bundle: {}",
-            path.display()
-        ));
+        return Err(TlsError::CaBundleEmpty {
+            path: path.to_path_buf(),
+        });
     }
     Ok(certs)
 }
@@ -380,7 +394,7 @@ mod tests {
         let error = build(false, Some("/nonexistent/bundle.pem")).expect_err("missing bundle");
 
         assert!(
-            error.contains("/nonexistent/bundle.pem"),
+            error.to_string().contains("/nonexistent/bundle.pem"),
             "unexpected error: {error}"
         );
     }
@@ -397,7 +411,10 @@ mod tests {
 
         let error = build(false, Some(path)).expect_err("empty bundle");
 
-        assert!(error.contains(path), "unexpected error: {error}");
+        assert!(
+            error.to_string().contains(path),
+            "unexpected error: {error}"
+        );
     }
 
     /// GIVEN `insecure` and a CA bundle that does not hold the server's root

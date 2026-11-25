@@ -13,6 +13,7 @@
 
 mod api;
 mod debounce;
+pub mod error;
 mod exclusion;
 mod message;
 mod notify;
@@ -22,16 +23,20 @@ mod tls;
 mod verdict_cache;
 mod vibe;
 
+use crate::binary_extensions;
 use crate::config;
+use crate::error::{Cause, Error, ExitCode, FailurePolicy};
 use crate::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
-use crate::{binary_extensions, error};
 
 use std::io::Read;
 use std::path::Path;
 
-use error::Error;
 use output::{Emission, HookResult};
 use payload::{EventType, Payload, Tool};
+
+pub use api::ApiError;
+pub use payload::HookInputError;
+pub use tls::TlsError;
 
 /// `MAX_READ_SIZE` in ai_hook.py.
 const MAX_READ_SIZE: u64 = 10 * 1024 * 1024;
@@ -74,13 +79,13 @@ pub fn run_hook() -> Outcome {
     // An agent reads a non-zero exit with no JSON as "the hook is broken", so a
     // panic is treated as any other internal failure.
     let outcome = std::panic::catch_unwind(|| run(&stdin_content))
-        .unwrap_or_else(|_| Err(Error::scan("internal error")));
+        .unwrap_or_else(|_| Err(Cause::Internal.into()));
 
     match outcome {
         Ok(code) => Outcome::Done(code),
         // Nothing has been written to stdout yet on this path, so the child owns
         // the whole answer: no double verdict, no half-printed JSON.
-        Err(err @ Error::Unsupported(_)) => Outcome::Delegate {
+        Err(err) if matches!(err.cause(), Cause::Unsupported(_)) => Outcome::Delegate {
             stdin: stdin_content,
             fallback_warning: err,
         },
@@ -116,26 +121,25 @@ pub fn warm_notifier() -> i32 {
 
 /// The failure modes of `ai_hook_cmd`.
 fn handle_error(stdin_content: &str, err: Error) -> i32 {
-    let warning = match err {
+    let policy = FailurePolicy {
+        ai_hook: Some(ai_hook_failure_policy()),
+    };
+    let fail = match err.exit_code(&policy) {
+        ExitCode::Success => false,
+        ExitCode::HookBlock => true,
         // `except ValueError`: stderr, exit 1, nothing on stdout.
-        Error::Invalid(message) => {
-            eprintln!("{message}");
-            return 1;
+        code @ ExitCode::HookInputFailure => {
+            eprintln!("Error: {}", err.summary());
+            return code.into();
         }
         // Raised while loading config, before the command's try block exists:
         // ExitCode.UNEXPECTED_ERROR, no fail-open.
-        Error::Fatal(message) => {
-            eprintln!("Error: {message}");
-            return 128;
+        code => {
+            eprintln!("Error: {}", error::warning(&err));
+            return code.into();
         }
-        // Only reached when the dispatcher could not hand this event to
-        // `ggshield-py`; it then behaves exactly like any other fail-open.
-        Error::Fail(warning) | Error::Unsupported(warning) => warning,
-        Error::UnrecognizedAgent => error::UNRECOGNIZED_AGENT_WARNING.to_string(),
     };
-
-    let fail = ai_hook_failure_policy() == AiHookFailurePolicy::Block;
-    let answer = cannot_scan(stdin_content, warning, fail);
+    let answer = cannot_scan(stdin_content, error::warning(&err), fail);
     eprintln!("Warning: {}", answer.warning);
     output::emit(answer.emission)
 }
@@ -169,8 +173,8 @@ fn cannot_scan(stdin_content: &str, warning: String, fail: bool) -> CannotScan {
         // Even with a working token this event could not be scanned. The agent's
         // response format is unknown: an empty stdout with exit 0 is the most
         // widely understood "allow", exit 2 the most common "block".
-        Err(Error::UnrecognizedAgent) => CannotScan {
-            warning: error::UNRECOGNIZED_AGENT_WARNING.to_string(),
+        Err(err) if matches!(err.cause(), Cause::UnrecognizedAgent) => CannotScan {
+            warning: error::warning(&err),
             emission: Emission::Silent(if fail { 2 } else { 0 }),
         },
         Ok(payloads) if !payloads.is_empty() => {
@@ -315,7 +319,7 @@ fn scan_payloads(
     payloads: &mut [Payload],
 ) -> Result<(usize, Vec<api::Secret>, bool), Error> {
     if payloads.is_empty() {
-        return Err(Error::Invalid("Error: no payloads to scan".into()));
+        return Err(HookInputError::NoPayload.into());
     }
     let agent = payloads[0].agent;
     let exclusions = exclusion::Exclusions::new(&config.user.secret);
@@ -654,13 +658,14 @@ mod tests {
     #[test]
     fn an_unrecognized_agent_follows_ai_hook_failure_policy() {
         for (fail, code) in [(false, 0), (true, 2)] {
+            let unrecognized = error::warning(&Cause::UnrecognizedAgent.into());
             for reason in [
-                error::UNRECOGNIZED_AGENT_WARNING.to_string(),
+                unrecognized.clone(),
                 "ggshield could not authenticate".to_string(),
             ] {
                 let answer = cannot_scan(UNKNOWN_AGENT_EVENT, reason, fail);
                 assert_eq!(answer.emission, Emission::Silent(code), "{fail:?}");
-                assert_eq!(answer.warning, error::UNRECOGNIZED_AGENT_WARNING);
+                assert_eq!(answer.warning, unrecognized);
             }
         }
     }
@@ -1131,7 +1136,14 @@ mod tests {
         let outcome = scan_payloads(&test_config(url), &mut payloads);
 
         assert!(
-            matches!(&outcome, Err(Error::Fail(m)) if m.contains("(refused)")),
+            matches!(
+                &outcome,
+                Err(error) if matches!(
+                    error.cause(),
+                    Cause::ServerUnavailable(ApiError::Status { detail: Some(detail), .. })
+                        if detail == "refused"
+                )
+            ),
             "{:?}",
             outcome.map(|(index, secrets, _)| (index, secrets.len()))
         );
@@ -1220,7 +1232,7 @@ mod tests {
     }
 
     /// GIVEN an instance whose token lives in a credential store with no item for
-    /// it, so any read surfaces as an auth `Fail`
+    /// it, so any read surfaces as a `CredentialStore` cause
     /// WHEN an unrecognised agent's payload arrives
     /// THEN it is rejected without the store ever being read — on macOS that read
     /// is what pops the Keychain dialog.
@@ -1261,9 +1273,9 @@ mod tests {
         }
 
         assert!(resolved.is_ok(), "config resolution failed: {resolved:?}");
-        // An `Error::Fail` here would mean the credential store was read.
+        // A `CredentialStore` cause here would mean the credential store was read.
         match outcome {
-            Ok(Err(Error::UnrecognizedAgent)) => {}
+            Ok(Err(error)) if matches!(error.cause(), Cause::UnrecognizedAgent) => {}
             other => panic!("expected an UnrecognizedAgent rejection, got {other:?}"),
         }
     }

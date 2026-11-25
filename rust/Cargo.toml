@@ -47,6 +47,7 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 # `.env` parsing (GITGUARDIAN_* overrides). Only the `*_iter` API is used: it
 # yields pairs without touching the process environment.
 dotenvy = "0.15"
+thiserror = "2.0.21"
 
 # O_NOFOLLOW and getuid for the cache files' ownership checks, flock for the
 # keyring lock. Already in the tree transitively; std exposes none of them.
@@ -87,7 +88,7 @@ tempfile = "3"
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 
 [lints.clippy]
-unwrap_used = "warn"
+unwrap_used = "deny"
 
 [profile.release]
 lto = true

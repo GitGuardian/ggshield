@@ -7,10 +7,27 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
-use crate::error::Error;
+use crate::error::{Cause, Error};
 use crate::hash::sha256_hex;
 use crate::machine::Header;
 use crate::user_config::{DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig};
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApiError {
+    #[error("the GitGuardian server did not answer")]
+    Transport(#[source] ureq::Error),
+    #[error(
+        "the GitGuardian API answered with HTTP {status}{}",
+        detail_suffix(.detail.as_deref())
+    )]
+    Status { status: u16, detail: Option<String> },
+}
+
+fn detail_suffix(detail: Option<&str>) -> String {
+    detail
+        .map(|detail| format!(": {detail}"))
+        .unwrap_or_default()
+}
 
 /// `_API_PATH_MAX_LENGTH` in secret_scanner.py.
 const API_PATH_MAX_LENGTH: usize = 256;
@@ -351,18 +368,17 @@ pub fn multiscan<'a>(
 
     let (status, text) = send_with_retries(config, agent, identity, &body)?;
     if status == 401 || status == 403 {
-        return Err(Error::auth());
+        return Err(Cause::Unauthorized.into());
     }
     if status != 200 {
         let detail = serde_json::from_str::<Value>(&text)
             .ok()
-            .and_then(|v| v.get("detail").and_then(Value::as_str).map(str::to_string))
-            .unwrap_or_else(|| format!("HTTP {status}"));
-        return Err(Error::scan(detail));
+            .and_then(|v| v.get("detail").and_then(Value::as_str).map(str::to_string));
+        return Err(ApiError::Status { status, detail }.into());
     }
 
     let results: Vec<ScanResult> =
-        serde_json::from_str(&text).map_err(|e| Error::scan(format!("bad API response: {e}")))?;
+        serde_json::from_str(&text).map_err(Cause::UnexpectedResponse)?;
 
     Ok(results
         .into_iter()
@@ -397,8 +413,7 @@ fn send_once(
     body: &str,
 ) -> Result<(u16, String), Error> {
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let request = crate::hook::tls::agent(config)
-        .map_err(Error::scan)?
+    let request = crate::hook::tls::agent(config)?
         .post(&url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))))
@@ -424,13 +439,13 @@ fn send_once(
             request.header(*name, value)
         })
         .send(body)
-        .map_err(|e| Error::scan(e.to_string()))?;
+        .map_err(ApiError::Transport)?;
 
     let status = response.status().as_u16();
     let text = response
         .body_mut()
         .read_to_string()
-        .map_err(|e| Error::scan(e.to_string()))?;
+        .map_err(ApiError::Transport)?;
     Ok((status, text))
 }
 
@@ -639,9 +654,7 @@ mod tests {
             panic!("a 401 must not look like a clean scan");
         };
 
-        let Error::Fail(message) = error else {
-            panic!("expected Fail, got {error:?}");
-        };
+        let message = crate::hook::error::warning(&error);
         assert!(
             message.contains("could not authenticate") && message.contains("auth login"),
             "{message}"
@@ -749,7 +762,11 @@ mod tests {
         };
 
         assert!(
-            matches!(&error, Error::Fail(m) if m.contains("(nope)")),
+            matches!(
+                error.cause(),
+                Cause::ServerUnavailable(ApiError::Status { status: 400, detail: Some(detail) })
+                    if detail == "nope"
+            ),
             "{error:?}"
         );
         assert_eq!(bodies.lock().expect("lock").len(), 1);

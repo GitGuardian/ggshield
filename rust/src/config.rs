@@ -11,10 +11,11 @@ use std::time::{Duration, Instant};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
+use crate::error::{Cause, Error};
 use crate::hash::sha256_hex;
+use crate::hook::TlsError;
 use crate::secure_file;
-use crate::user_config::{self, UserConfig};
+use crate::user_config::{self, ConfigError, UserConfig};
 
 #[cfg(target_os = "linux")]
 use secret_service::{EncryptionType, blocking::SecretService};
@@ -47,6 +48,56 @@ pub const KEYRING_SENTINEL: &str = "__KEYRING__";
 #[cfg(target_os = "macos")]
 const ALLOW_KEYCHAIN_DIALOG_ENV_VAR: &str = "GGSHIELD_ALLOW_KEYCHAIN_DIALOG";
 pub const DEFAULT_INSTANCE_URL: &str = "https://dashboard.gitguardian.com";
+
+#[cfg(target_os = "macos")]
+const CREDENTIAL_STORE: &str = "macOS Keychain";
+#[cfg(windows)]
+const CREDENTIAL_STORE: &str = "Windows Credential Manager";
+#[cfg(target_os = "linux")]
+const CREDENTIAL_STORE: &str = "Secret Service";
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+const CREDENTIAL_STORE: &str = "OS credential store";
+
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+pub enum CredentialStoreError {
+    #[error("ggshield could not read its token from the {}", CREDENTIAL_STORE)]
+    Denied,
+    #[error(
+        "ggshield's token should be in the {}, but it is not there",
+        CREDENTIAL_STORE
+    )]
+    Missing,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TokenReadError {
+    CredentialStore(CredentialStoreError),
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    NotText,
+    #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
+    NoCredentialStore,
+}
+
+impl From<CredentialStoreError> for TokenReadError {
+    fn from(error: CredentialStoreError) -> Self {
+        TokenReadError::CredentialStore(error)
+    }
+}
+
+impl From<TokenReadError> for Error {
+    fn from(error: TokenReadError) -> Self {
+        match error {
+            TokenReadError::CredentialStore(error) => error.into(),
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            TokenReadError::NotText => Cause::Unauthorized.into(),
+            #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
+            TokenReadError::NoCredentialStore => Error::from(Cause::Unsupported(
+                "reading the token from this platform's credential store".into(),
+            ))
+            .context("Set GITGUARDIAN_API_KEY in the environment."),
+        }
+    }
+}
 
 const TRACKED_ENV_VARS: [&str; 6] = [
     user_config::AI_HOOK_FAILURE_POLICY_ENV_VAR,
@@ -222,13 +273,13 @@ pub struct Config {
     token_source: TokenSource,
     /// Read from the credential store on first use, failure included: see
     /// [`Config::token`].
-    token: OnceCell<Result<String, Error>>,
+    token: OnceCell<Result<String, TokenReadError>>,
     pub user: UserConfig,
     pub ca_bundle: Option<String>,
     /// Instance limits, resolved at most once per run. The hook's `api` module
     /// owns the resolution order; this is where the answer is memoised.
     pub limits: OnceCell<Limits>,
-    pub agent: OnceCell<Result<ureq::Agent, String>>,
+    pub agent: OnceCell<Result<ureq::Agent, TlsError>>,
 }
 
 #[derive(Debug)]
@@ -258,7 +309,7 @@ impl Config {
                 TokenSource::Keyring(instance_url) => keyring_token(instance_url),
             })
             .as_deref()
-            .map_err(Clone::clone)
+            .map_err(|error| Error::from(*error))
     }
 
     /// A config with a token already in hand, for tests and for callers that
@@ -404,13 +455,13 @@ fn dotenv_overrides() -> Result<DotEnv, Error> {
                 bindings_of(&content, var) > found.iter().filter(|(key, _)| key == var).count()
             })
         {
-            return Err(Error::unimplemented(
-                format!(
-                    "a {var} binding that is not valid `.env` syntax ({})",
-                    path.display()
-                ),
-                format!("Fix that line, or set {var} in the environment instead."),
-            ));
+            return Err(Error::from(Cause::Unsupported(format!(
+                "a {var} binding that is not valid `.env` syntax ({})",
+                path.display()
+            )))
+            .context(format!(
+                "Fix that line, or set {var} in the environment instead."
+            )));
         }
         return Ok(found);
     }
@@ -498,14 +549,16 @@ pub fn api_to_dashboard_url(api_url: &str) -> String {
 ///
 /// Python raises a `UsageError`, which `ai_hook_cmd`'s `except Exception` turns
 /// into this same fail-open warning.
-fn validate_scheme(url: &str, kind: &str, loopback: &[&str]) -> Result<(), Error> {
+fn validate_scheme(url: &str, kind: &'static str, loopback: &[&str]) -> Result<(), Error> {
     let (scheme, rest) = url.split_once("://").unwrap_or(("", url));
     if scheme == "https" || loopback.iter().any(|host| rest.starts_with(host)) {
         return Ok(());
     }
-    Err(Error::scan(format!(
-        "Invalid scheme for {kind} URL '{url}', expected HTTPS"
-    )))
+    Err(Cause::InvalidUrlScheme {
+        kind,
+        url: url.to_string(),
+    }
+    .into())
 }
 
 fn validate_dashboard_url(url: &str) -> Result<(), Error> {
@@ -589,30 +642,30 @@ pub fn getenv_bool(key: &str) -> bool {
     std::env::var(key).is_ok_and(|v| !matches!(v.to_lowercase().as_str(), "false" | "0"))
 }
 
-fn auth_config_path() -> Result<PathBuf, Error> {
+fn auth_config_path() -> Result<PathBuf, ConfigError> {
     config_dir()
         .map(|d| d.join("auth_config.yaml"))
-        .ok_or_else(|| Error::scan("could not locate the ggshield config directory"))
+        .ok_or(ConfigError::DirectoryNotFound)
 }
 
 fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
     let path = auth_config_path()?;
-    let raw = std::fs::read_to_string(&path).map_err(|_| Error::auth())?;
+    let raw = std::fs::read_to_string(&path).map_err(|_| Cause::Unauthorized)?;
     let config: AuthConfig =
-        serde_yaml_ng::from_str(&raw).map_err(|e| Error::fatal(format!("{path:?}: {e}")))?;
+        serde_yaml_ng::from_str(&raw).map_err(|source| ConfigError::Parse { path, source })?;
 
     let inst = config
         .instances
         .iter()
         .find(|i| i.url == instance || i.name.as_deref() == Some(instance))
-        .ok_or_else(Error::auth)?;
+        .ok_or(Cause::Unauthorized)?;
 
-    let account = inst.accounts.first().ok_or_else(Error::auth)?;
+    let account = inst.accounts.first().ok_or(Cause::Unauthorized)?;
     if is_expired(account.expire_at.as_deref()) {
-        return Err(Error::auth());
+        return Err(Cause::Unauthorized.into());
     }
     if account.token.is_empty() {
-        return Err(Error::auth());
+        return Err(Cause::Unauthorized.into());
     }
     // `_hydrate_from_keyring`: the sentinel means the real token lives in the OS
     // credential store; any other value IS the token (auth_config.py:237).
@@ -621,7 +674,7 @@ fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
         // hydrate the sentinel: the blank token fails auth at client creation,
         // before the debounce, so it is eager here too.
         if getenv_bool("GGSHIELD_NO_KEYRING") {
-            return Err(Error::auth());
+            return Err(Cause::Unauthorized.into());
         }
         return Ok(TokenSource::Keyring(inst.url.clone()));
     }
@@ -743,7 +796,7 @@ fn try_keyring_lock(path: &Path) -> Option<std::fs::File> {
 /// The token for `instance_url`, read from the OS credential store under
 /// `token_store.py`'s lock. The lock covers the credential-store call and nothing
 /// else; closing the file releases it, on every path out.
-fn keyring_token(instance_url: &str) -> Result<String, Error> {
+fn keyring_token(instance_url: &str) -> Result<String, TokenReadError> {
     // Bound to a name on purpose: `let _ = ` would release the lock before the
     // read it is meant to serialise.
     let _lock = keyring_lock(KEYRING_LOCK_TIMEOUT);
@@ -751,7 +804,7 @@ fn keyring_token(instance_url: &str) -> Result<String, Error> {
 }
 
 #[cfg(target_os = "macos")]
-fn read_credential_store(instance_url: &str) -> Result<String, Error> {
+fn read_credential_store(instance_url: &str) -> Result<String, TokenReadError> {
     use security_framework::os::macos::keychain::SecKeychain;
 
     let _no_dialog = if getenv_bool(ALLOW_KEYCHAIN_DIALOG_ENV_VAR) {
@@ -762,33 +815,33 @@ fn read_credential_store(instance_url: &str) -> Result<String, Error> {
     // Read only: a write probe is what popped blocking Keychain modals in Python.
     let raw = security_framework::passwords::get_generic_password(KEYRING_SERVICE, instance_url)
         .map_err(|e| keychain_read_error(e.code()))?;
-    String::from_utf8(raw).map_err(|_| Error::auth())
+    String::from_utf8(raw).map_err(|_| TokenReadError::NotText)
 }
 
 #[cfg(any(target_os = "macos", test))]
 const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 
 #[cfg(any(target_os = "macos", test))]
-fn keychain_read_error(code: i32) -> Error {
+fn keychain_read_error(code: i32) -> CredentialStoreError {
     match code {
-        ERR_SEC_ITEM_NOT_FOUND => Error::credential_store_missing(),
-        _ => Error::credential_store_denied(),
+        ERR_SEC_ITEM_NOT_FOUND => CredentialStoreError::Missing,
+        _ => CredentialStoreError::Denied,
     }
 }
 
 #[cfg(target_os = "linux")]
-fn read_credential_store(instance_url: &str) -> Result<String, Error> {
+fn read_credential_store(instance_url: &str) -> Result<String, TokenReadError> {
     // keyring's SecretService backend looks an item up by the default scheme's
     // two attributes, `service` and `username` (backend.py:280-299,
     // SecretService.py:get_password), and token_store.py stores the token under
     // service == KEYRING_SERVICE, username == the instance URL. Query the same
     // attributes so we read the item keyring wrote and no other.
     let service =
-        SecretService::connect(EncryptionType::Dh).map_err(|_| Error::credential_store_denied())?;
+        SecretService::connect(EncryptionType::Dh).map_err(|_| CredentialStoreError::Denied)?;
     let attributes = HashMap::from([("service", KEYRING_SERVICE), ("username", instance_url)]);
     let found = service
         .search_items(attributes)
-        .map_err(|_| Error::credential_store_denied())?;
+        .map_err(|_| CredentialStoreError::Denied)?;
     // Prefer an already-unlocked item (keyring returns the first match); fall
     // back to a locked one, letting the daemon decide whether reading it needs a
     // prompt, mirroring keyring's own `unlock(); get_secret()`.
@@ -797,15 +850,15 @@ fn read_credential_store(instance_url: &str) -> Result<String, Error> {
         .into_iter()
         .chain(found.locked)
         .next()
-        .ok_or_else(Error::credential_store_missing)?;
+        .ok_or(CredentialStoreError::Missing)?;
     let secret = item
         .get_secret()
-        .map_err(|_| Error::credential_store_denied())?;
-    String::from_utf8(secret).map_err(|_| Error::auth())
+        .map_err(|_| CredentialStoreError::Denied)?;
+    String::from_utf8(secret).map_err(|_| TokenReadError::NotText)
 }
 
 #[cfg(windows)]
-fn read_credential_store(instance_url: &str) -> Result<String, Error> {
+fn read_credential_store(instance_url: &str) -> Result<String, TokenReadError> {
     // keyring's WinVaultKeyring stores the token under TargetName == the service,
     // and only moves it to the compound target (username, '@', service) when a
     // second user collides on that service (Windows.py: _compound_name,
@@ -820,7 +873,7 @@ fn read_credential_store(instance_url: &str) -> Result<String, Error> {
     let compound = compound_target(instance_url, service);
     match cred_read(&compound)? {
         Some((_, token)) => Ok(token),
-        None => Err(Error::credential_store_missing()),
+        None => Err(CredentialStoreError::Missing.into()),
     }
 }
 
@@ -839,7 +892,7 @@ fn compound_target(username: &str, service: &str) -> String {
 /// keyring's `DecodingCredential` does. Returns `(UserName, secret)` or `None`
 /// when there is no such credential; any other failure is an auth fail-open.
 #[cfg(windows)]
-fn cred_read(target: &str) -> Result<Option<(String, String)>, Error> {
+fn cred_read(target: &str) -> Result<Option<(String, String)>, CredentialStoreError> {
     // NUL-terminated UTF-16, as CredReadW's PCWSTR expects.
     let wide: Vec<u16> = std::ffi::OsStr::new(target)
         .encode_wide()
@@ -857,7 +910,7 @@ fn cred_read(target: &str) -> Result<Option<(String, String)>, Error> {
         return if err == ERROR_NOT_FOUND {
             Ok(None)
         } else {
-            Err(Error::credential_store_denied())
+            Err(CredentialStoreError::Denied)
         };
     }
 
@@ -915,12 +968,9 @@ fn wide_to_string(ptr: *const u16) -> String {
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
-fn read_credential_store(_instance_url: &str) -> Result<String, Error> {
+fn read_credential_store(_instance_url: &str) -> Result<String, TokenReadError> {
     // No credential store implementation for this platform.
-    Err(Error::unimplemented(
-        "reading the token from this platform's credential store",
-        "Set GITGUARDIAN_API_KEY in the environment.",
-    ))
+    Err(TokenReadError::NoCredentialStore)
 }
 
 #[cfg(test)]
@@ -1066,13 +1116,7 @@ mod tests {
         }
         let resolved = dotenv_overrides()
             .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
-            .map_err(|error| match error {
-                Error::Fail(message)
-                | Error::Fatal(message)
-                | Error::Invalid(message)
-                | Error::Unsupported(message) => message,
-                Error::UnrecognizedAgent => crate::error::UNRECOGNIZED_AGENT_WARNING.into(),
-            });
+            .map_err(|error| crate::hook::error::warning(&error));
         unsafe {
             for (key, _) in vars {
                 std::env::remove_var(key);
@@ -1547,10 +1591,10 @@ mod tests {
             let result =
                 with_sentinel_config(|| token_source_for_instance("https://example.invalid"));
             unsafe { std::env::remove_var("GGSHIELD_NO_KEYRING") };
-            let Err(Error::Fail(msg)) = result else {
-                panic!("{value:?} must disable the keyring, got {result:?}");
-            };
-            assert!(msg.contains("could not authenticate"), "{msg}");
+            assert!(
+                matches!(&result, Err(error) if matches!(error.cause(), Cause::Unauthorized)),
+                "{value:?} must disable the keyring, got {result:?}"
+            );
         }
         for value in ["0", "false", "False"] {
             unsafe { std::env::set_var("GGSHIELD_NO_KEYRING", value) };
@@ -1598,10 +1642,10 @@ mod tests {
         unsafe { std::env::set_var("GG_CONFIG_DIR", dir.path()) };
         let result = token_source_for_instance("https://example.invalid");
         unsafe { std::env::remove_var("GG_CONFIG_DIR") };
-        let Err(Error::Fail(msg)) = result else {
-            panic!("expected a fail-open auth warning");
-        };
-        assert!(msg.contains("could not authenticate"), "{msg}");
+        assert!(
+            matches!(&result, Err(error) if matches!(error.cause(), Cause::Unauthorized)),
+            "expected a fail-open auth warning, got {result:?}"
+        );
     }
 
     /// GIVEN an instance with no item in the credential store
@@ -1617,7 +1661,7 @@ mod tests {
         let result = keyring_token("https://keyring-absent.invalid");
         unsafe { std::env::remove_var("GG_CACHE_DIR") };
         assert!(
-            matches!(result, Err(Error::Fail(_))),
+            matches!(result, Err(TokenReadError::CredentialStore(_))),
             "an absent keyring item must fail open, got {result:?}"
         );
     }
@@ -1628,10 +1672,7 @@ mod tests {
     /// `NOT_FOUND` and `DENIED`
     #[test]
     fn keychain_read_errors_match_the_python_keystore_failures() {
-        let message = |code| match keychain_read_error(code) {
-            Error::Fail(message) => message,
-            other => panic!("a Keychain read must fail open, got {other:?}"),
-        };
+        let message = |code| crate::hook::error::warning(&keychain_read_error(code).into());
         for code in [-25308, -25293, -128, -1] {
             assert!(
                 message(code).starts_with("ggshield could not read its token from the "),
@@ -1725,7 +1766,10 @@ mod tests {
         assert!(waited < timeout * 10, "waited past the timeout: {waited:?}");
 
         let result = keyring_token("https://keyring-absent.invalid");
-        assert!(matches!(result, Err(Error::Fail(_))), "{result:?}");
+        assert!(
+            matches!(result, Err(TokenReadError::CredentialStore(_))),
+            "{result:?}"
+        );
 
         drop(held);
         unsafe { std::env::remove_var("GG_CACHE_DIR") };
@@ -1753,7 +1797,10 @@ mod tests {
         unsafe { std::env::remove_var("GG_CACHE_DIR") };
         std::fs::set_permissions(parent.path(), std::fs::Permissions::from_mode(0o700))
             .expect("chmod");
-        assert!(matches!(result, Err(Error::Fail(_))), "{result:?}");
+        assert!(
+            matches!(result, Err(TokenReadError::CredentialStore(_))),
+            "{result:?}"
+        );
         assert!(elapsed < KEYRING_LOCK_TIMEOUT, "it waited: {elapsed:?}");
     }
 
@@ -1767,7 +1814,10 @@ mod tests {
         with_cache_dir(&dir);
 
         let result = keyring_token("https://keyring-absent.invalid");
-        assert!(matches!(result, Err(Error::Fail(_))), "{result:?}");
+        assert!(
+            matches!(result, Err(TokenReadError::CredentialStore(_))),
+            "{result:?}"
+        );
         assert!(
             keyring_lock(Duration::ZERO).is_some(),
             "the guard outlived the failed read"

@@ -25,6 +25,26 @@ pub const USER_CONFIG_FILENAMES: [&str; 3] =
     [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"];
 const CURRENT_CONFIG_VERSION: i64 = 2;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("could not locate the ggshield config directory")]
+    DirectoryNotFound,
+    #[error("{}", .path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{}", .path.display())]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml_ng::Error,
+    },
+    #[error("Don't know how to load config version {0}")]
+    UnsupportedVersion(i64),
+}
+
 /// `DEFAULT_API_TIMEOUT` in core/constants.py, and the bounds `_resolve_timeout()`
 /// enforces in core/client.py.
 pub const DEFAULT_API_TIMEOUT: u64 = 60;
@@ -323,19 +343,24 @@ pub fn local_config_path() -> Option<PathBuf> {
 }
 
 /// An empty document deserializes as `None`, which is the default config.
-fn parse_yaml<T>(raw: &str, path: &Path) -> Result<T, Error>
+fn parse_yaml<T>(raw: &str, path: &Path) -> Result<T, ConfigError>
 where
     T: Default + serde::de::DeserializeOwned,
 {
     serde_yaml_ng::from_str::<Option<T>>(raw)
         .map(Option::unwrap_or_default)
-        .map_err(|e| Error::fatal(format!("{}: {e}", path.display())))
+        .map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })
 }
 
 /// `_load_config_dict()` for one file.
-fn load_config_file(path: &Path) -> Result<RawUserConfig, Error> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| Error::fatal(format!("{}: {e}", path.display())))?;
+fn load_config_file(path: &Path) -> Result<RawUserConfig, ConfigError> {
+    let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Read {
+        path: path.to_path_buf(),
+        source,
+    })?;
     // A missing `version` means 1: Python warns and converts rather than reject,
     // so declining here would disable scanning for every pre-`version` config.
     let version = parse_yaml::<ConfigVersion>(&raw, path)?
@@ -345,9 +370,7 @@ fn load_config_file(path: &Path) -> Result<RawUserConfig, Error> {
         CURRENT_CONFIG_VERSION => parse_yaml(&raw, path),
         1 => parse_yaml::<V1Config>(&raw, path).map(Into::into),
         // `raise UnexpectedError`, which reaches the hook's fail-open handler.
-        other => Err(Error::fatal(format!(
-            "Don't know how to load config version {other}"
-        ))),
+        other => Err(ConfigError::UnsupportedVersion(other)),
     }
 }
 
@@ -366,6 +389,7 @@ pub fn load() -> Result<UserConfig, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Cause;
 
     fn parse(yaml: &str) -> Result<UserConfig, Error> {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -526,9 +550,11 @@ mod tests {
     /// THEN it is fatal rather than fail-open, matching Python's UnexpectedError.
     #[test]
     fn unknown_config_version_is_an_error_in_both_implementations() {
-        let Err(Error::Fatal(msg)) = parse("version: 3\n") else {
+        let Err(error) = parse("version: 3\n") else {
             panic!("an unknown version must be fatal, not fail-open");
         };
+        assert!(matches!(error.cause(), Cause::Config(_)), "{error:?}");
+        let msg = error.summary();
         assert!(
             msg.contains("Don't know how to load config version 3"),
             "{msg}"
@@ -547,7 +573,7 @@ mod tests {
             "version: 2\nsecret:\n  ignored_detectors: nope\n",
         ] {
             assert!(
-                matches!(parse(yaml), Err(Error::Fatal(_))),
+                matches!(parse(yaml), Err(error) if matches!(error.cause(), Cause::Config(_))),
                 "{yaml:?} must be fatal"
             );
         }
@@ -652,7 +678,7 @@ mod tests {
         for bad in ["deny", "Block", "true"] {
             let yaml = format!("version: 2\nsecret:\n  ai_hook_failure_policy: {bad}\n");
             assert!(
-                matches!(of(&yaml), Err(Error::Fatal(_))),
+                matches!(of(&yaml), Err(error) if matches!(error.cause(), Cause::Config(_))),
                 "{bad} must be fatal"
             );
         }
