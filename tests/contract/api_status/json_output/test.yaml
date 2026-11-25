@@ -1,0 +1,2 @@
+# `ggshield api-status --json`.
+command: [api-status, --json]

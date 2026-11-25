@@ -1,0 +1,6 @@
+exit_code: 0
+stdout:
+  contains:
+  - --json
+  - --instance
+stderr: full

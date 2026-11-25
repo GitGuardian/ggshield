@@ -1,0 +1,3 @@
+# `ggshield api-status --help`. Help text differs between Python (Click) and
+# Rust, so expected/expected.yaml is hand-written: exit code + key words only.
+command: [api-status, --help]
