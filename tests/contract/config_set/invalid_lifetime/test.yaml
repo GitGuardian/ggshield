@@ -1,0 +1,2 @@
+# Not an integer: usage error. Message wording differs between Python and Rust, see expected/expected.yaml.
+command: [config, set, default_token_lifetime, not-a-number]

@@ -1,0 +1,2 @@
+# Sets the default token lifetime in auth_config.yaml ({{config}}).
+command: [config, set, default_token_lifetime, '30']

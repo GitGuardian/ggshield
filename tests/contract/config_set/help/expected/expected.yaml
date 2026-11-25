@@ -1,0 +1,7 @@
+exit_code: 0
+stdout:
+  contains:
+  - --instance
+  - default_token_lifetime
+  - instance
+stderr: full

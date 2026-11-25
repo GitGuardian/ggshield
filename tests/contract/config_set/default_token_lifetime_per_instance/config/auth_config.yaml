@@ -1,0 +1,9 @@
+# An instance the user is logged in to (fabricated token).
+instances:
+- url: https://dashboard.example.com
+  accounts:
+  - workspace_id: 1
+    token: contract-test-fake-token
+    type: PAT
+    token_name: contract-test-token
+    expire_at: null

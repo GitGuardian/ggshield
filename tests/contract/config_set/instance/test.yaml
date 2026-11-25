@@ -1,0 +1,2 @@
+# Sets the default instance in the global user config ({{home}}/.gitguardian.yaml).
+command: [config, set, instance, 'https://dashboard.example.com']

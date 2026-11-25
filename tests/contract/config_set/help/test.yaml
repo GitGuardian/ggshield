@@ -1,0 +1,2 @@
+# Help text differs between Python (Click) and Rust: key words only.
+command: [config, set, --help]

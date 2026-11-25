@@ -1,0 +1,10 @@
+# `instance` cannot be set per instance: usage error.
+command:
+  [
+    config,
+    set,
+    instance,
+    'https://dashboard.example.com',
+    --instance,
+    'https://other.example.com',
+  ]

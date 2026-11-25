@@ -1,0 +1,11 @@
+default_token_lifetime: null
+instances:
+- accounts:
+  - expire_at: null
+    token: contract-test-fake-token
+    token_name: contract-test-token
+    type: PAT
+    workspace_id: 1
+  default_token_lifetime: 30
+  name: null
+  url: https://dashboard.example.com

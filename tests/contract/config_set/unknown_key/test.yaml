@@ -1,0 +1,2 @@
+# Not a settable key: usage error.
+command: [config, set, unknown_key, some-value]

@@ -1,0 +1,10 @@
+# Per-instance setting for an instance not in auth_config.yaml (not logged in): error.
+command:
+  [
+    config,
+    set,
+    default_token_lifetime,
+    '30',
+    --instance,
+    'https://dashboard.example.com',
+  ]

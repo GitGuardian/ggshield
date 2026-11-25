@@ -1,0 +1,7 @@
+exit_code: 0
+stdout: full
+stderr: full
+files:
+  home/.gitguardian.yaml: data
+file_modes:
+  home/.gitguardian.yaml: '0644'
