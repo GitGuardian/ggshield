@@ -24,6 +24,58 @@ GG_VALID_TOKEN_IGNORE_SHA = os.getenv(
 KNOWN_SECRET = os.environ.get("TEST_KNOWN_SECRET", "")
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    # Contract test options (tests/contract/). Declared here rather than in
+    # tests/contract/conftest.py: pytest only accepts options from conftests loaded
+    # at startup, and that one is not when running `pytest` from the repo root.
+    group = parser.getgroup("contract", "ggshield contract tests")
+    group.addoption(
+        "--impl",
+        choices=["python", "rust"],
+        default=None,
+        help="Implementation to run contract tests against. Contract tests are"
+        " skipped when not set.",
+    )
+    group.addoption(
+        "--record",
+        action="store_true",
+        help="Save the output of contract tests as their expected output instead of"
+        " comparing with it. Replays the recorded API calls, never calls the real API.",
+    )
+    group.addoption(
+        "--record-api",
+        action="store_true",
+        help="Record the API calls of contract tests against the real GitGuardian API, then"
+        " save the expected output. Needs GITGUARDIAN_API_KEY.",
+    )
+    group.addoption(
+        "--rust-bin",
+        default=str(ROOT_DIR / "rust/target/release/ggshield"),
+        help="Rust dispatcher binary used by --impl=rust.",
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    if config.getoption("--record-api"):
+        config.option.record = True
+    if config.getoption("--record") and is_windows():
+        raise pytest.UsageError(
+            "Record contract tests on Linux or macOS: recordings must be identical"
+            " across OSes (Windows prints other paths and has no POSIX file modes)."
+        )
+    # Contract tests are skipped without --impl; asking to record and silently
+    # recording nothing would be a trap.
+    if config.getoption("--record") and config.getoption("--impl") is None:
+        raise pytest.UsageError(
+            "--record and --record-api need --impl=python or --impl=rust"
+        )
+    # `--lf` after a run with no failure selects every test, so `--lf --record`
+    # would re-record the whole suite. Make it select nothing instead.
+    # (`lf` is absent when the cache plugin is disabled with -p no:cacheprovider.)
+    if config.getoption("--record") and config.getoption("lf", default=False):
+        config.option.last_failed_no_failures = "none"
+
+
 def is_windows():
     return platform.system() == "Windows"
 

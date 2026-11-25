@@ -7,3 +7,13 @@ rust/hook/src/templates/*.in text eol=lf
 # would corrupt them.
 rust/hook/assets/*.png binary
 rust/hook/assets/*.icns binary
+
+# Contract tests compare bytes. Inputs (work/) may hold CRLF line endings or
+# unusual encodings on purpose, and recordings are written with \n by the
+# harness: a Windows checkout (core.autocrlf=true) must not rewrite either.
+tests/contract/**/work/** -text
+tests/contract/**/home/** -text
+tests/contract/**/config/** -text
+tests/contract/**/data/** -text
+tests/contract/**/expected/** -text
+tests/contract/**/api_calls.yaml -text

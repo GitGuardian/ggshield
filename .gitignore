@@ -134,3 +134,12 @@ test-secret-files.json
 
 # uv
 .python-version
+
+# Contract test fixtures are kept whatever their name (.cache_ggshield, .env...)
+# Folders first: git can't re-include a file inside an ignored folder (instance/)
+!tests/contract/**/
+!tests/contract/**/work/**
+!tests/contract/**/home/**
+!tests/contract/**/config/**
+!tests/contract/**/data/**
+!tests/contract/**/expected/**

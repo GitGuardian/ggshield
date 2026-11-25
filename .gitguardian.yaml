@@ -39,3 +39,10 @@ secret:
     - 'tests/unit/cassettes/*'
     - 'tests/unit/**/snapshots/*'
     - 'tests/unit/verticals/secret/output/__snapshots__/*'
+    # Contract test fixtures, recorded API calls and outputs carry fabricated secrets
+    - 'tests/contract/**/work/'
+    - 'tests/contract/**/home/'
+    - 'tests/contract/**/config/'
+    - 'tests/contract/**/data/'
+    - 'tests/contract/**/api_calls.yaml'
+    - 'tests/contract/**/expected/'

@@ -1,0 +1,39 @@
+# Values replaced in every api_calls.yaml recorded with --record-api, before it
+# is saved. Whoever re-records, and whenever, api_calls.yaml and expected outputs show
+# the same values, so a diff only contains real behaviour changes.
+#
+# Only listed fields change. Body fields are replaced per endpoint, never by
+# name everywhere: a broad rule could change values ggshield depends on.
+
+response_headers:
+  X-App-Version: v0.0.0-test
+  X-Secrets-Engine-Version: 0.0.0-test
+
+response_json:
+  /v1/api_tokens/self:
+    id: 00000000-0000-0000-0000-000000000000
+    name: contract-test-token
+    workspace_id: 1
+    member_id: 1
+    creator_id: 1
+    created_at: '2026-01-01T00:00:00Z'
+    last_used_at: '2026-01-01T00:00:00Z'
+    expire_at: null
+
+# Request headers saved in api_calls.yaml, and how they are checked on replay.
+# Headers not listed are not saved, and not checked (Accept, Connection, ...).
+# A trailing * matches any suffix.
+request_headers:
+  exact: # compared exactly (after placeholders: the key is {{api_key}})
+    - Authorization
+    - Content-Type
+    - GGShield-Command-Path
+    - mode
+  presence_only: # saved as '*': must be present, any value
+    - User-Agent
+    - GGShield-Version
+    - GGShield-Command-Id
+    - GGShield-OS-*
+    - GGShield-Python-Version
+    - GGShield-Machine-*
+    - GGShield-Repository-URL
