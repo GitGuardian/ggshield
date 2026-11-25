@@ -1,0 +1,2 @@
+# Python's int() accepts surrounding spaces and a sign: ' +30 ' is stored as 30.
+command: [config, set, default_token_lifetime, ' +30 ']

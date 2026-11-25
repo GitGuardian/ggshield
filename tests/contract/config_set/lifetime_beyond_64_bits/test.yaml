@@ -1,0 +1,2 @@
+# A lifetime too big for a 64-bit integer is accepted and stored as is.
+command: [config, set, default_token_lifetime, '99999999999999999999']

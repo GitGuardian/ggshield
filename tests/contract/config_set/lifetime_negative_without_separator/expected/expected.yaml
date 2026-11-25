@@ -1,0 +1,5 @@
+exit_code: 2
+stdout: full
+stderr:
+  contains:
+  - '-5'

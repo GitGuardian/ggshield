@@ -1,0 +1,2 @@
+# Hexadecimal is refused: the value must be a decimal integer.
+command: [config, set, default_token_lifetime, '0x10']

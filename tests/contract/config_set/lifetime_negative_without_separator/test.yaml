@@ -1,0 +1,2 @@
+# Without --, a negative lifetime is read as an unknown option and refused.
+command: [config, set, default_token_lifetime, '-5']

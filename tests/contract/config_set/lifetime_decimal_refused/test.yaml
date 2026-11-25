@@ -1,0 +1,2 @@
+# A decimal number is refused, even with a zero fraction.
+command: [config, set, default_token_lifetime, '30.0']

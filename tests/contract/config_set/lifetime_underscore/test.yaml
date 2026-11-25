@@ -1,0 +1,2 @@
+# Python's int() accepts digit separators: '1_000' is stored as 1000.
+command: [config, set, default_token_lifetime, '1_000']

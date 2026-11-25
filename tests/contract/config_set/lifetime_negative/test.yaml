@@ -1,0 +1,2 @@
+# A negative lifetime, passed after --, is accepted and stored as is.
+command: [config, set, default_token_lifetime, '--', '-5']

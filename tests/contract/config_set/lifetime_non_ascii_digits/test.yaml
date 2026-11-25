@@ -1,0 +1,2 @@
+# Python's int() accepts non-ASCII digits: the Arabic-Indic '٣' is stored as 3.
+command: [config, set, default_token_lifetime, '٣']
