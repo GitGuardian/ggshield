@@ -1,4 +1,4 @@
-default_token_lifetime: null
+default_token_lifetime: 90
 instances:
 - accounts:
   - expire_at: null
@@ -9,3 +9,12 @@ instances:
   default_token_lifetime: 30
   name: null
   url: https://dashboard.example.com
+- accounts:
+  - expire_at: null
+    token: contract-test-fake-token-other
+    token_name: contract-test-token
+    type: PAT
+    workspace_id: 2
+  default_token_lifetime: 15
+  name: null
+  url: https://other.example.com

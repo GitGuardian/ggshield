@@ -1,0 +1,10 @@
+# An instance with its own lifetime (fabricated token).
+instances:
+- url: https://dashboard.example.com
+  default_token_lifetime: 10
+  accounts:
+  - workspace_id: 1
+    token: contract-test-fake-token
+    type: PAT
+    token_name: contract-test-token
+    expire_at: null

@@ -1,0 +1,3 @@
+version: 2
+exit_zero: true
+max_commits_for_hook: 7

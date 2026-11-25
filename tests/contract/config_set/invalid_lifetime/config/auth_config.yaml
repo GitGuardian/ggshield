@@ -1,0 +1,3 @@
+# An existing config: the refused value must not change it.
+default_token_lifetime: 90
+instances: []

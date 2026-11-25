@@ -1,9 +1,18 @@
-# An instance the user is logged in to (fabricated token).
+# Two instances the user is logged in to, and a global lifetime (fabricated tokens).
+default_token_lifetime: 90
 instances:
 - url: https://dashboard.example.com
   accounts:
   - workspace_id: 1
     token: contract-test-fake-token
+    type: PAT
+    token_name: contract-test-token
+    expire_at: null
+- url: https://other.example.com
+  default_token_lifetime: 15
+  accounts:
+  - workspace_id: 2
+    token: contract-test-fake-token-other
     type: PAT
     token_name: contract-test-token
     expire_at: null

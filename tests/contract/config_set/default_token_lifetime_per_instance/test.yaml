@@ -1,4 +1,4 @@
-# Per-instance setting for an instance already in auth_config.yaml (see config/).
+# Per-instance setting: only the chosen instance changes; the other instance and the global value are left unchanged (see config/).
 command:
   [
     config,
