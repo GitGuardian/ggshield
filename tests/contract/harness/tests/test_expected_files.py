@@ -246,3 +246,21 @@ def test_hand_written_file_mode_is_kept_on_re_record(tmp_path: Path) -> None:
         )
         != []
     )
+
+
+def test_git_folder_is_stored_under_another_name(tmp_path: Path) -> None:
+    """
+    GIVEN a run that writes a file inside .git/ (git cannot track that path)
+    WHEN it is recorded, then compared
+    THEN the file is stored under _git/, expected.yaml keeps the real path,
+    and the comparison passes
+    """
+    expected_dir = tmp_path / "expected"
+    outputs = _outputs({"work/.git/hooks/pre-commit": "#!/bin/sh\n"})
+
+    expected.record(expected_dir, outputs)
+
+    assert (expected_dir / "files/work/_git/hooks/pre-commit").is_file()
+    assert not (expected_dir / "files/work/.git").exists()
+    assert "work/.git/hooks/pre-commit" in (expected_dir / "expected.yaml").read_text()
+    assert expected.compare(expected_dir, outputs) == []

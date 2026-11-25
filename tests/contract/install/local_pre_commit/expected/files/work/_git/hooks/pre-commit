@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# ggshield-hook-version: 1
+ggshield secret scan pre-commit "$@"

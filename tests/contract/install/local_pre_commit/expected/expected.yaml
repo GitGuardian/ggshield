@@ -1,0 +1,7 @@
+exit_code: 0
+stdout: full
+stderr: full
+files:
+  work/.git/hooks/pre-commit: full
+file_modes:
+  work/.git/hooks/pre-commit: '0700'

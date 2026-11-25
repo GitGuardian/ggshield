@@ -48,6 +48,17 @@ def build_env(
             # Not a terminal: no colours, no prompts expected
             "NO_COLOR": "1",
             "PYTHONIOENCODING": "utf-8",
+            # Git: same commit hashes on every machine and run
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "Contract Test",
+            "GIT_AUTHOR_EMAIL": "contract-test@example.com",
+            "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z",
+            "GIT_COMMITTER_NAME": "Contract Test",
+            "GIT_COMMITTER_EMAIL": "contract-test@example.com",
+            "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z",
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "init.defaultBranch",
+            "GIT_CONFIG_VALUE_0": "main",
         }
     )
     for key, value in (extra or {}).items():

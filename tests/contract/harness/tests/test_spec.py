@@ -11,6 +11,7 @@ from tests.contract.harness import spec
 def test_valid_spec_has_no_error() -> None:
     data = {
         "command": ["quota", "--json"],
+        "setup": [["git", "init"], ["git", "commit", "--allow-empty", "-m", "x"]],
         "env": {"GITGUARDIAN_TIMEOUT": "5", "GITGUARDIAN_INSTANCE": None},
         "stdin": "{}",
     }
@@ -39,6 +40,16 @@ def test_valid_spec_has_no_error() -> None:
         ({"command": ["quota"], "stdin": 12}, "stdin must be a string, got int 12"),
         ({"command": []}, "`command` must be a non-empty list"),
         ({"command": ["quota"], "unknown": 1}, "unknown keys ['unknown']"),
+        ({"command": ["quota"], "setup": "git init"}, "`setup` must be a list"),
+        ({"command": ["quota"], "setup": [[]]}, "setup step 0 must be a non-empty"),
+        (
+            {"command": ["quota"], "setup": [["sh", "-c", "git init"]]},
+            "setup step 0 must run one of ['git'], got 'sh'",
+        ),
+        (
+            {"command": ["quota"], "setup": [["git", "commit", "-m", 1]]},
+            "setup step 0 argument 3 must be a string, got int 1",
+        ),
     ],
 )
 def test_invalid_spec_is_reported(data: dict, message: str) -> None:

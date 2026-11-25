@@ -1,0 +1,1 @@
+pre-commit successfully added in .git/hooks/pre-commit

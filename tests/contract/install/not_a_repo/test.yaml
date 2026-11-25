@@ -1,0 +1,2 @@
+# Installing a local hook outside a git repository fails.
+command: [install, -m, local, -t, pre-commit]

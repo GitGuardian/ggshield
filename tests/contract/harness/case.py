@@ -125,7 +125,12 @@ class ContractCase(pytest.Item):
         # Kept after the run (pytest rotates old runs), so a failure can be
         # inspected: see repr_failure.
         self.sandbox_root = self._make_sandbox_root()
-        return runner.run(test_spec, self.folder, ggshield, server, self.sandbox_root)
+        try:
+            return runner.run(
+                test_spec, self.folder, ggshield, server, self.sandbox_root
+            )
+        except runner.SetupError as error:
+            raise ContractFailure([str(error)])  # shows the sandbox path
 
     def _make_sandbox_root(self) -> Path:
         # pytest's own temporary folders (what the tmp_path fixture uses): kept

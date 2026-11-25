@@ -1,0 +1,4 @@
+exit_code: 1
+stdout: full
+stderr:
+  contains: [Not a git directory]

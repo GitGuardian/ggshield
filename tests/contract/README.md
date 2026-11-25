@@ -25,7 +25,8 @@ tests/contract/api_status/json_output/
 ```
 
 Files the command writes are found by comparing the sandbox before and after
-the run (the cache folder is left out). Files it deletes are listed in
+the run (the cache folder is left out). A `.git` folder is stored as `_git` under
+`expected/files/`, since git refuses to track a path containing `.git`. Files it deletes are listed in
 `expected.yaml` under `deleted_files`. Binary files are compared byte for byte.
 For text files, `expected.yaml` lists a compare mode per file under `files:`,
 set by `--record`: `data` for `.yaml`, `.yml` and `.json` (parsed and compared
@@ -40,6 +41,8 @@ every machine. Modes are not checked on Windows.
 
 ```yaml
 command: [api-status, --json]
+setup: # optional; commands run in {{work}} before it (git only for now)
+  - [git, init]
 env: # optional; a null value unsets the variable
   GITGUARDIAN_INSTANCE: null
 stdin: '...' # optional
@@ -92,8 +95,8 @@ They are also kept byte for byte: pre-commit formatters skip them and
 ## Comparing
 
 Outputs are compared exactly after cleanup (colours, line endings, placeholders).
-JSON output is compared as data. For help and usage messages, which differ
-between Python and Rust, write `expected/expected.yaml` by hand:
+JSON output is compared as data. For help, usage and error messages, which
+differ between Python and Rust, write `expected/expected.yaml` by hand:
 
 ```yaml
 exit_code: 0

@@ -1,6 +1,8 @@
 """test.yaml: how to run the command of one contract test.
 
     command: [api-status, --json]
+    setup:                    # optional; commands run in {{work}} before it, git only
+      - [git, init]
     env:                      # optional; a null value unsets the variable
       GITGUARDIAN_INSTANCE: null
     stdin: '...'              # optional
@@ -20,12 +22,16 @@ import yaml
 from .files import read_utf8
 
 
-_ALLOWED_KEYS = {"command", "env", "stdin"}
+_ALLOWED_KEYS = {"command", "setup", "env", "stdin"}
+
+# Programs a setup step may run
+_SETUP_PROGRAMS = {"git"}
 
 
 @dataclass
 class Spec:
     command: List[str]
+    setup: List[List[str]] = field(default_factory=list)
     env: Dict[str, Optional[str]] = field(default_factory=dict)
     stdin: Optional[str] = None
 
@@ -40,7 +46,10 @@ def load(path: Path) -> Spec:
     if errors:
         raise SpecError("\n".join(f"{path}: {error}" for error in errors))
     return Spec(
-        command=data["command"], env=data.get("env") or {}, stdin=data.get("stdin")
+        command=data["command"],
+        setup=data.get("setup") or [],
+        env=data.get("env") or {},
+        stdin=data.get("stdin"),
     )
 
 
@@ -61,6 +70,14 @@ def validate(spec: Any) -> List[str]:
             if not isinstance(arg, str):
                 errors.append(_not_a_string(f"command argument {index}", arg))
 
+    setup = spec.get("setup")
+    if setup is not None:
+        if not isinstance(setup, list):
+            errors.append("`setup` must be a list of commands")
+        else:
+            for index, step in enumerate(setup):
+                errors.extend(_validate_setup_step(index, step))
+
     env = spec.get("env")
     if env is not None:
         if not isinstance(env, dict):
@@ -75,6 +92,22 @@ def validate(spec: Any) -> List[str]:
     stdin = spec.get("stdin")
     if stdin is not None and not isinstance(stdin, str):
         errors.append(_not_a_string("stdin", stdin))
+    return errors
+
+
+def _validate_setup_step(index: int, step: Any) -> List[str]:
+    if not isinstance(step, list) or not step:
+        return [f"setup step {index} must be a non-empty list"]
+    errors = [
+        _not_a_string(f"setup step {index} argument {position}", arg)
+        for position, arg in enumerate(step)
+        if not isinstance(arg, str)
+    ]
+    if step[0] not in _SETUP_PROGRAMS:
+        errors.append(
+            f"setup step {index} must run one of {sorted(_SETUP_PROGRAMS)},"
+            f" got {step[0]!r}"
+        )
     return errors
 
 

@@ -1,0 +1,4 @@
+# Installs the pre-commit hook in a new repository (.git/hooks/pre-commit).
+setup:
+  - [git, init]
+command: [install, -m, local, -t, pre-commit]

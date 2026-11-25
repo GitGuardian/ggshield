@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from .environment import build_env
 from .expected import Outputs
@@ -26,6 +26,10 @@ from .text import unix_newlines
 COMMAND_TIMEOUT = 120  # seconds
 
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+
+class SetupError(Exception):
+    """A setup step failed; the message shows the step and its output."""
 
 
 def run(
@@ -43,11 +47,14 @@ def run(
         # api_calls.yaml stores them
         mock.normalize = placeholders.collapse
         sandbox.seed(test_folder, placeholders.expand)
+        env = build_env(sandbox, mock.url, placeholders.expand_value(spec.env))
+        for step in spec.setup:
+            _run_setup_step(placeholders.expand_value(step), sandbox.work, env)
         before = sandbox.snapshot()
         proc = subprocess.run(
             ggshield + placeholders.expand_value(spec.command),
             cwd=sandbox.work,
-            env=build_env(sandbox, mock.url, placeholders.expand_value(spec.env)),
+            env=env,
             input=placeholders.expand(spec.stdin).encode() if spec.stdin else b"",
             capture_output=True,
             timeout=COMMAND_TIMEOUT,
@@ -64,6 +71,17 @@ def run(
         stderr=output(proc.stderr),
         written=WrittenFiles.from_changes(written, deleted, placeholders.collapse),
     )
+
+
+def _run_setup_step(step: List[str], cwd: Path, env: Dict[str, str]) -> None:
+    proc = subprocess.run(
+        step, cwd=cwd, env=env, capture_output=True, timeout=COMMAND_TIMEOUT
+    )
+    if proc.returncode != 0:
+        raise SetupError(
+            f"Setup step failed (exit code {proc.returncode}): {step}\n"
+            + clean((proc.stdout + proc.stderr).decode("utf-8", "replace"))
+        )
 
 
 def clean(text: str) -> str:

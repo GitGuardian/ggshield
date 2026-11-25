@@ -13,6 +13,9 @@ and their entries in expected.yaml:
 
 Text files get placeholders and \\n line endings, like outputs; binary files
 are kept as bytes and compared byte for byte.
+
+Git refuses to track a path containing a `.git` folder, so a `.git` folder is
+stored as `_git` under expected/files/ (expected.yaml keeps the real path).
 """
 
 from __future__ import annotations
@@ -51,6 +54,9 @@ _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 
 # Files operating systems drop in folders on their own: never a recording
 _OS_JUNK = {".DS_Store", "Thumbs.db", "desktop.ini"}
+
+# How a `.git` folder is stored under expected/files/ (see the module docstring)
+_STORED_GIT_FOLDER = "_git"
 
 
 @dataclass
@@ -91,7 +97,7 @@ def record(
     if files_dir.exists():
         shutil.rmtree(files_dir)
     for key, content in written.files.items():
-        path = files_dir / key
+        path = files_dir / stored_path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(content, bytes):
             path.write_bytes(content)
@@ -134,7 +140,10 @@ def compare(
         mode = compare_modes.get(key, default_compare_mode(key))
         for failure in (
             _compare_content(
-                key, (files_dir / key).read_bytes(), written.files[key], mode
+                key,
+                (files_dir / stored_path(key)).read_bytes(),
+                written.files[key],
+                mode,
             ),
             _compare_permissions(
                 key, expected_permissions.get(key), written.permissions.get(key)
@@ -176,12 +185,25 @@ def _canonical_data(text: str) -> Optional[str]:
     return canonical_json(data)
 
 
+def stored_path(key: str) -> str:
+    """Where the file `key` is stored under expected/files/."""
+    return "/".join(
+        _STORED_GIT_FOLDER if part == ".git" else part for part in key.split("/")
+    )
+
+
+def _key(stored: str) -> str:
+    return "/".join(
+        ".git" if part == _STORED_GIT_FOLDER else part for part in stored.split("/")
+    )
+
+
 def _recorded_keys(files_dir: Path) -> Set[str]:
     """The files recorded under expected/files/, keyed <folder>/<path>."""
     if not files_dir.is_dir():
         return set()
     return {
-        p.relative_to(files_dir).as_posix()
+        _key(p.relative_to(files_dir).as_posix())
         for p in files_dir.rglob("*")
         if p.is_file() and p.name not in _OS_JUNK
     }
@@ -201,7 +223,9 @@ def _compare_content(
     if mode == CompareMode.FULL:
         if recorded_text == content:
             return None
-        return f"file {key}:\n" + diff(recorded_text, content, f"expected/files/{key}")
+        return f"file {key}:\n" + diff(
+            recorded_text, content, f"expected/files/{stored_path(key)}"
+        )
     return f"file {key}: unknown compare mode {mode!r} in expected.yaml"
 
 
@@ -229,7 +253,7 @@ def _compare_file_data(key: str, recorded: str, actual: str) -> Optional[str]:
     if expected_data == actual_data:
         return None
     return f"file {key} (compared as data):\n" + diff(
-        expected_data, actual_data, f"expected/files/{key}"
+        expected_data, actual_data, f"expected/files/{stored_path(key)}"
     )
 
 
