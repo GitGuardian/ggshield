@@ -98,7 +98,7 @@ def setup_cmd(
     Configures every protection in one idempotent run: the ggshield AI hook for
     each detected AI coding assistant, the global git pre-commit/pre-push hooks,
     and a honeytoken of each type the workspace offers (AWS, kubeconfig) to
-    detect endpoint intrusion. Safe to re-run — it adds what is missing and
+    detect endpoint intrusion. It is safe to re-run as it adds what is missing and
     leaves existing entries untouched.
 
     Each protection is on by default; drop one with `--no-ai-hooks`,
