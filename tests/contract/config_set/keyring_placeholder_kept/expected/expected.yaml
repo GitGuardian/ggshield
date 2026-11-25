@@ -1,0 +1,7 @@
+exit_code: 0
+stdout: full
+stderr: full
+files:
+  config/auth_config.yaml: data
+file_modes:
+  config/auth_config.yaml: '0600'

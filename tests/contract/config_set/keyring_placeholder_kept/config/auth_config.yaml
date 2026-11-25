@@ -1,0 +1,9 @@
+# An instance whose token is in the keyring: the file only holds the __KEYRING__ placeholder.
+instances:
+- url: https://dashboard.example.com
+  accounts:
+  - workspace_id: 1
+    token: __KEYRING__
+    type: PAT
+    token_name: contract-test-token
+    expire_at: null

@@ -1,0 +1,2 @@
+# Saving auth_config.yaml keeps the __KEYRING__ placeholder, even with the keyring off.
+command: [config, set, default_token_lifetime, '30']

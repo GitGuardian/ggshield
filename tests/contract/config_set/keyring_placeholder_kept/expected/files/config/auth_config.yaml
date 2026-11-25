@@ -1,0 +1,11 @@
+default_token_lifetime: 30
+instances:
+- accounts:
+  - expire_at: null
+    token: __KEYRING__
+    token_name: contract-test-token
+    type: PAT
+    workspace_id: 1
+  default_token_lifetime: null
+  name: null
+  url: https://dashboard.example.com

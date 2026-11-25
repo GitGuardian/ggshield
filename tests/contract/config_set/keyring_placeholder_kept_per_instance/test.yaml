@@ -1,0 +1,10 @@
+# Changing the instance whose token is in the keyring keeps the __KEYRING__ placeholder.
+command:
+  [
+    config,
+    set,
+    default_token_lifetime,
+    '30',
+    --instance,
+    'https://dashboard.example.com',
+  ]
