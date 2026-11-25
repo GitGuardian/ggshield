@@ -1,0 +1,2 @@
+# --allow-self-signed is deprecated: it warns and behaves like --insecure.
+command: [api-status, --allow-self-signed]

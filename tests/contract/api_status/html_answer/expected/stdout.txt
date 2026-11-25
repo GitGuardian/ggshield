@@ -1,0 +1,10 @@
+API URL: {{mock_url}}
+Workspace ID: 1
+Status: healthy
+App version: Unknown
+Secrets engine version: Unknown
+
+Instance source: environment variable
+API key source: environment variable
+Token scopes: scan, sources:read, scan:create-incidents, honeytokens:check, endpoints:send, ai-discover:send
+

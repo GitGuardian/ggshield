@@ -1,0 +1,2 @@
+# The health check answers 200 with an HTML page (wrong URL, SSO proxy): currently reported as healthy.
+command: [api-status]

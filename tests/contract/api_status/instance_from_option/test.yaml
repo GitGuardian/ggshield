@@ -1,0 +1,4 @@
+# The instance given with --instance is used; instance_source is CMD_OPTION.
+command: [api-status, --json, --instance, '{{mock_url}}']
+env:
+  GITGUARDIAN_API_URL: null

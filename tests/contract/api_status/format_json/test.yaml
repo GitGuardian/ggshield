@@ -1,0 +1,2 @@
+# --format json gives the same output as --json.
+command: [api-status, --format, json]

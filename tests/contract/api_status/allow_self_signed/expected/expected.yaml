@@ -1,0 +1,6 @@
+exit_code: 0
+stdout: full
+stderr:
+  contains:
+  - deprecated
+  - --insecure

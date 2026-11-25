@@ -1,0 +1,5 @@
+# GITGUARDIAN_API_KEY wins over the token in auth_config.yaml.
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_URL: null
+  GITGUARDIAN_INSTANCE: '{{mock_url}}'

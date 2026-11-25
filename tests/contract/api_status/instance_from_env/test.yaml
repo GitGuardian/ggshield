@@ -1,0 +1,5 @@
+# The instance comes from GITGUARDIAN_INSTANCE; instance_source is ENV_VAR.
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_URL: null
+  GITGUARDIAN_INSTANCE: '{{mock_url}}'

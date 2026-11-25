@@ -1,0 +1,2 @@
+# --insecure prints a warning that the connection is not verified.
+command: [api-status, --insecure]

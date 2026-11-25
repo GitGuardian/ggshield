@@ -1,0 +1,29 @@
+calls:
+- request:
+    method: GET
+    uri: /v1/api_tokens/self
+    headers:
+      Authorization: Token {{api_key}}
+      User-Agent: '*'
+    body: null
+  response:
+    status: 403
+    headers:
+      Content-Type: application/json
+      x-app-version: v0.0.0-test
+      x-secrets-engine-version: 0.0.0-test
+    body: '{"detail":"Forbidden"}'
+- request:
+    method: GET
+    uri: /v1/health
+    headers:
+      Authorization: Token {{api_key}}
+      User-Agent: '*'
+    body: null
+  response:
+    status: 200
+    headers:
+      Content-Type: application/json
+      x-app-version: v0.0.0-test
+      x-secrets-engine-version: 0.0.0-test
+    body: '{"detail":"Valid API key."}'

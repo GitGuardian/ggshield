@@ -1,0 +1,6 @@
+exit_code: 3
+stdout: full
+stderr:
+  contains:
+  - API key is needed
+  - auth login

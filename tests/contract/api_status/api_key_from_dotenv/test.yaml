@@ -1,0 +1,5 @@
+# The API key comes from a .env file in the current folder; api_key_source is DOTENV.
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_KEY: null
+  GITGUARDIAN_DONT_LOAD_ENV: null

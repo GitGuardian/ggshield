@@ -1,0 +1,5 @@
+# --instance wins over GITGUARDIAN_INSTANCE (which points nowhere).
+command: [api-status, --json, --instance, '{{mock_url}}']
+env:
+  GITGUARDIAN_API_URL: null
+  GITGUARDIAN_INSTANCE: 'http://localhost:1'

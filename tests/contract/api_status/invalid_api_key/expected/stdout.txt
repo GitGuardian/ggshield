@@ -1,0 +1,8 @@
+API URL: {{mock_url}}
+Status: unhealthy (Invalid API key.)
+App version: v0.0.0-test
+Secrets engine version: 0.0.0-test
+
+Instance source: environment variable
+API key source: environment variable
+

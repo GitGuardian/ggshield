@@ -1,0 +1,6 @@
+# Without GITGUARDIAN_API_KEY, the token of the instance in auth_config.yaml is used.
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_KEY: null
+  GITGUARDIAN_API_URL: null
+  GITGUARDIAN_INSTANCE: '{{mock_url}}'

@@ -1,0 +1,4 @@
+# The instance comes from the global user config ({{home}}/.gitguardian.yaml).
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_URL: null

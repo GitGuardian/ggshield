@@ -1,0 +1,5 @@
+# The instance comes from a .env file in the current folder; instance_source is DOTENV.
+command: [api-status, --json]
+env:
+  GITGUARDIAN_API_URL: null
+  GITGUARDIAN_DONT_LOAD_ENV: null

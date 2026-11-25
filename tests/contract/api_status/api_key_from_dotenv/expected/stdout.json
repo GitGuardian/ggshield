@@ -1,0 +1,18 @@
+{
+  "api_key_source": "DOTENV",
+  "app_version": "v0.0.0-test",
+  "detail": "Valid API key.",
+  "instance": "{{mock_url}}",
+  "instance_source": "ENV_VAR",
+  "secrets_engine_version": "0.0.0-test",
+  "status_code": 200,
+  "token_scopes": [
+    "scan",
+    "sources:read",
+    "scan:create-incidents",
+    "honeytokens:check",
+    "endpoints:send",
+    "ai-discover:send"
+  ],
+  "workspace_id": 1
+}

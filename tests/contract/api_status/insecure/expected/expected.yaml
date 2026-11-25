@@ -1,0 +1,5 @@
+exit_code: 0
+stdout: full
+stderr:
+  contains:
+  - SSL verification is disabled

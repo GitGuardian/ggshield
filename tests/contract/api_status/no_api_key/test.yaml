@@ -1,0 +1,4 @@
+# No API key anywhere: error with a hint to log in, no API call.
+command: [api-status]
+env:
+  GITGUARDIAN_API_KEY: null

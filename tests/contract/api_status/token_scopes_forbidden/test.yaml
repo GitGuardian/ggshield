@@ -1,0 +1,2 @@
+# api_tokens/self is refused (403): the status is shown without token scopes.
+command: [api-status]
