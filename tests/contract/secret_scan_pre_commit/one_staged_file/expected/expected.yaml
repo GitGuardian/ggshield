@@ -1,0 +1,7 @@
+exit_code: 1
+stdout: full
+stderr: full
+files:
+  work/.cache_ggshield: data
+file_modes:
+  work/.cache_ggshield: '0600'

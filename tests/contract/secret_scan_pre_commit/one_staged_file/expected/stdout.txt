@@ -1,0 +1,16 @@
+
+> commit://staged/config.env: 1 secret detected
+
+>> Secret detected: Generic High Entropy Secret
+   Validity: No Checker
+   Occurrences: 1
+   Known by GitGuardian dashboard: NO
+   Incident URL: N/A
+   Secret SHA: 00a48f033f342801618d08ab70903e7a44872edb27ef643acce698ddc6b7d4fe
+   Secret found in vault: No
+   Detector documentation: https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_high_entropy_secret
+
+    | @@ -0,0 +1 @@
+  1 | +GITHUB_CLIENT_SECRET=7dfc7a8**************************99def9a
+                            |________________apikey________________|
+

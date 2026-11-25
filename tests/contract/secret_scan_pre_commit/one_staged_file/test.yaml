@@ -1,0 +1,5 @@
+# Scans the one file staged in a new repository; the API reports a secret in it.
+setup:
+  - [git, init]
+  - [git, add, config.env]
+command: [secret, scan, pre-commit]

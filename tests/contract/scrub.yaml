@@ -10,6 +10,8 @@ response_headers:
   X-Secrets-Engine-Version: 0.0.0-test
 
 response_json:
+  /v1/metadata:
+    version: v0.0.0-test
   /v1/api_tokens/self:
     id: 00000000-0000-0000-0000-000000000000
     name: contract-test-token

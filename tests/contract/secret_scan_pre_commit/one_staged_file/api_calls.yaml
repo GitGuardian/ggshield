@@ -1,0 +1,84 @@
+calls:
+- request:
+    method: GET
+    uri: /v1/api_tokens/self
+    headers:
+      Authorization: Token {{api_key}}
+      User-Agent: '*'
+    body: null
+  response:
+    status: 200
+    headers:
+      Content-Type: application/json
+      x-app-version: v0.0.0-test
+      x-secrets-engine-version: 0.0.0-test
+    body: '{"id": "00000000-0000-0000-0000-000000000000", "name": "contract-test-token", "type": "personal_access_token",
+      "scopes": ["scan", "sources:read", "scan:create-incidents", "honeytokens:check", "endpoints:send",
+      "ai-discover:send"], "member_id": 1, "workspace_id": 1, "created_at": "2026-01-01T00:00:00Z", "last_used_at":
+      "2026-01-01T00:00:00Z", "expire_at": null, "revoked_at": null, "status": "active", "creator_id":
+      1}'
+- request:
+    method: GET
+    uri: /v1/metadata
+    headers:
+      Authorization: Token {{api_key}}
+      User-Agent: '*'
+    body: null
+  response:
+    status: 200
+    headers:
+      Content-Type: application/json
+      x-app-version: v0.0.0-test
+      x-secrets-engine-version: 0.0.0-test
+    body: '{"version": "v0.0.0-test", "preferences": {"on_premise__restrict_signup": true, "on_premise__is_email_server_configured":
+      true, "on_premise__default_sso_config_api_id": null, "on_premise__default_sso_config_force_sso":
+      null, "onboarding__segmentation_v1_enabled": true, "onboarding__unified_flow_enabled": false, "onboarding__detectors_for_revocation":
+      ["github_fine_grained_pat", "github_personal_access_token_v2", "github_token", "openai_admin_apikey",
+      "openai_apikey", "openai_project_apikey", "openai_project_apikey_v2"], "general__maximum_payload_size":
+      26214400, "general__mutual_tls_mode": "disabled", "general__signup_enabled": true}, "secret_scan_preferences":
+      {"maximum_documents_per_scan": 20, "maximum_document_size": 10485760}, "remediation_messages": {"pre_commit":
+      "> How to remediate\n\n  Since the secret was detected before the commit was made:\n  1. replace
+      the secret with its reference (e.g. environment variable).\n  2. commit again.\n\n> [Apply with
+      caution] If you want to bypass ggshield (false positive or other reason), run:\n  - if you use the
+      pre-commit framework:\n\n    SKIP=ggshield git commit -m \"<your message>\"\n    ", "pre_push":
+      "> How to remediate\n\n  Since the secret was detected before the push BUT after the commit, you
+      need to:\n  1. rewrite the git history making sure to replace the secret with its reference (e.g.
+      environment variable).\n  2. push again.\n\n  To prevent having to rewrite git history in the future,
+      setup ggshield as a pre-commit hook:\n    https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit\n\n>
+      [Apply with caution] If you want to bypass ggshield (false positive or other reason), run:\n  -
+      if you use the pre-commit framework:\n\n    SKIP=ggshield-push git push", "pre_receive": "> How
+      to remediate\n\n  A pre-receive hook set server side prevented you from pushing secrets.\n\n  Since
+      the secret was detected during the push BUT after the commit, you need to:\n  1. rewrite the git
+      history making sure to replace the secret with its reference (e.g. environment variable).\n  2.
+      push again.\n\n  To prevent having to rewrite git history in the future, setup ggshield as a pre-commit
+      hook:\n    https://docs.gitguardian.com/ggshield-docs/integrations/git-hooks/pre-commit\n\n> [Apply
+      with caution] If you want to bypass ggshield (false positive or other reason), run:\n\n    git push
+      -o breakglass"}}'
+- request:
+    method: POST
+    uri: /v1/multiscan?all_secrets=True
+    headers:
+      Authorization: Token {{api_key}}
+      Content-Type: application/json
+      GGShield-Command-Id: '*'
+      GGShield-Command-Path: ggshield secret scan pre-commit
+      GGShield-Machine-Hostname: '*'
+      GGShield-Machine-Id: '*'
+      GGShield-Machine-Username: '*'
+      GGShield-OS-Name: '*'
+      GGShield-OS-Version: '*'
+      GGShield-Python-Version: '*'
+      GGShield-Version: '*'
+      User-Agent: '*'
+      mode: pre_commit
+    body: '[{"filename": "commit://staged/config.env", "document": "@@ -0,0 +1 @@\n+GITHUB_CLIENT_SECRET=7dfc7a8b97409e216c35b21e4008938d599def9a",
+      "location": null}]'
+  response:
+    status: 200
+    headers:
+      Content-Type: application/json
+      x-app-version: v0.0.0-test
+      x-secrets-engine-version: 0.0.0-test
+    body: '[{"policy_break_count":1,"policies":["Secrets detection"],"policy_breaks":[{"type":"Generic
+      High Entropy Secret","detector_name":"generic_high_entropy_secret","detector_group_name":"generic_high_entropy_secret","documentation_url":"https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/generics/generic_high_entropy_secret","policy":"Secrets
+      detection","matches":[{"type":"apikey","match":"7dfc7a8b97409e216c35b21e4008938d599def9a","index_start":36,"index_end":75,"line_start":2,"line_end":2}],"is_excluded":false,"exclude_reason":null,"diff_kind":"addition","is_vaulted":false,"known_secret":false,"incident_url":"","validity":"no_checker"}],"is_diff":true}]'
