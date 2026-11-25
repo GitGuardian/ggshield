@@ -22,7 +22,7 @@ FROM ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb22
 # to the same interpreter every time. Bumped by Dependabot (docker ecosystem).
 # `builder-py` and `build` stay on the same base image: see UV_PYTHON_DOWNLOADS
 # below.
-FROM python:3.10.22-slim-trixie@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d AS builder-py
+FROM python:3.14.10-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b AS builder-py
 
 COPY --from=uv /uv /usr/local/bin/uv
 
@@ -61,7 +61,7 @@ COPY ggshield ./ggshield
 # time (and needs network to do so).
 RUN cd rust && cargo build --release --locked
 
-FROM python:3.10.22-slim-trixie@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d AS build
+FROM python:3.14.10-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b AS build
 
 LABEL maintainer="GitGuardian SRE Team <support@gitguardian.com>"
 
