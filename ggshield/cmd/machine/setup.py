@@ -1,5 +1,7 @@
 import subprocess
-from typing import Any, Tuple
+from dataclasses import asdict
+from functools import partial
+from typing import Any, Dict, Tuple
 
 import click
 
@@ -23,13 +25,14 @@ from ggshield.cmd.utils.context_obj import ContextObj
 from ggshield.core import ui
 from ggshield.core.errors import GIT_INSTALL_HINT
 from ggshield.utils.git_shell import git, git_unavailable_reason
-from ggshield.utils.os import is_root
+from ggshield.utils.os import is_root, run_as_user
 from ggshield.verticals.ai.agents import AGENTS
 from ggshield.verticals.ai.installation import (
     check_ai_hook_authentication,
     hook_executable,
     install_all_agent_hooks,
 )
+from ggshield.verticals.honeytoken.targets import resolve_targets
 
 
 _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
@@ -63,7 +66,7 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
     multiple=True,
     metavar="ASSISTANT",
     help="Only configure the AI hook for these assistants (repeatable). "
-    "Defaults to every assistant detected on this machine.",
+    "Defaults to every assistant detected for the user (as root, for each user).",
 )
 @click.option(
     "--exclude-agent",
@@ -104,7 +107,10 @@ def setup_cmd(
     Each protection is on by default; drop one with `--no-ai-hooks`,
     `--no-git-hooks`, or `--no-honeytokens`. `--agent` / `--exclude-agent`
     narrow which assistants get the AI hook. When run as root (or with
-    `--system`), the git hooks are installed machine-wide for every user.
+    `--system`), the git hooks are installed machine-wide for every user. As
+    root, the AI hook is configured in each user's home, as that user: for the
+    assistants that user has, or for every assistant `--agent` names. Root's
+    own home only gets the named assistants it already has.
 
     Finally, registers this machine and the honeytoken target users on the
     Endpoints page, even before the first scan. This best-effort step takes at
@@ -145,12 +151,56 @@ def _setup_ai_hooks(
     leaves any existing entry untouched.
     """
     click.echo(click.style("AI hooks", bold=True))
+    if is_root():
+        return _setup_ai_hooks_for_each_user(agents, exclude_agents)
     summary = install_all_agent_hooks(only=agents, exclude=exclude_agents)
     # Run the auth preflight once, and only if we actually configured something.
     if summary.configured and not summary.failed:
         check_ai_hook_authentication(ContextObj.get(ctx).config)
         _warm_notifier()
     return summary.failed == 0
+
+
+def _setup_ai_hooks_for_each_user(
+    agents: Tuple[str, ...], exclude_agents: Tuple[str, ...]
+) -> bool:
+    """As root, configure the AI hook in every user's home, as that user: agents keep
+    their config per user, so root's own home protects nobody else.
+
+    The auth preflight and Keychain warm-up are skipped: they would test root's
+    credentials, not the user's.
+    """
+    try:
+        targets = resolve_targets(None, None)
+    except Exception as exc:  # e.g. an unreadable passwd database
+        ui.display_warning(f"  could not list the users of this machine: {exc}")
+        return False
+
+    ok = True
+    for target in targets:
+        click.echo(f"  {target.username} ({target.home})")
+        only, exclude = agents, exclude_agents
+        if target.uid == 0 and agents:
+            # Assistants rarely run as root: configure the named ones root already
+            # has, without creating their config.
+            only = ()
+            exclude = tuple(name for name in AGENTS if name not in agents)
+        install = partial(_install_summary, only, exclude)
+        try:
+            summary = run_as_user(target.uid, target.home, install)
+        except Exception as exc:  # one user must not stop the others
+            ui.display_warning(
+                f"  could not configure AI hooks for {target.username}: {exc}"
+            )
+            ok = False
+            continue
+        if summary["failed"]:
+            ok = False
+    return ok
+
+
+def _install_summary(only: Tuple[str, ...], exclude: Tuple[str, ...]) -> Dict[str, int]:
+    return asdict(install_all_agent_hooks(only=only, exclude=exclude))
 
 
 def _warm_notifier() -> None:

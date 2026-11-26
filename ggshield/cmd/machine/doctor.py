@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from importlib import import_module
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import click
 from pygitguardian.models import APITokensResponse, HealthCheckResponse
@@ -19,7 +19,9 @@ from ggshield.core.client import create_client_from_config, safe_api_tokens
 from ggshield.core.errors import GIT_INSTALL_HINT
 from ggshield.core.plugin.hooks import load_plugin_registry
 from ggshield.utils.git_shell import git_unavailable_reason
+from ggshield.utils.os import is_root, run_as_user
 from ggshield.verticals.ai.installation import ai_hook_posture
+from ggshield.verticals.honeytoken.targets import resolve_targets
 
 
 PLUGIN_NAME = "machine_scan"
@@ -78,7 +80,8 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     """
     Check that this machine's ggshield protections are correctly set up.
 
-    Verifies the AI hooks and git hooks are installed, that no higher-precedence
+    Verifies the AI hooks (as root, in each user's home) and git hooks are
+    installed, that no higher-precedence
     `core.hooksPath` override (e.g. Husky or lefthook) shadows ggshield's git hook
     in the current context, that the GitGuardian token is reachable and carries the
     scopes the configured protections need (including `honeytokens:write` and
@@ -133,6 +136,8 @@ def _check_auth_and_scopes(config: Any) -> "tuple[Optional[List[str]], Check]":
 
 
 def _check_ai_hooks() -> Check:
+    if is_root():
+        return _check_ai_hooks_for_each_user()
     statuses = ai_hook_posture()
     if not statuses:
         return Check("AI hooks", True, "no AI coding assistants detected")
@@ -146,6 +151,58 @@ def _check_ai_hooks() -> Check:
         )
     installed = ", ".join(status.display_name for status in statuses)
     return Check("AI hooks", True, f"installed for: {installed}")
+
+
+def _check_ai_hooks_for_each_user() -> Check:
+    """As root, check every user's home, where `machine setup` puts the AI hook.
+
+    Each user's files are read as that user, so a symlink they planted cannot make
+    root read something they could not.
+    """
+
+    def posture() -> List[Tuple[str, bool]]:
+        return [(status.display_name, status.installed) for status in ai_hook_posture()]
+
+    try:
+        targets = resolve_targets(None, None)
+    except Exception as exc:  # e.g. an unreadable passwd database
+        return Check("AI hooks", False, f"could not list the users: {exc}")
+
+    installed: List[str] = []
+    missing: List[str] = []
+    unchecked: List[str] = []
+    for target in targets:
+        try:
+            statuses = run_as_user(target.uid, target.home, posture)
+        except Exception as exc:  # one user must not hide the others
+            unchecked.append(f"{target.username} ({exc})")
+            continue
+        ok = [name for name, is_installed in statuses if is_installed]
+        ko = [name for name, is_installed in statuses if not is_installed]
+        if ok:
+            installed.append(f"{target.username} ({', '.join(ok)})")
+        if ko:
+            missing.append(f"{target.username} ({', '.join(ko)})")
+
+    details = [
+        f"{label}: {'; '.join(names)}"
+        for label, names in (
+            ("installed for", installed),
+            ("not installed for", missing),
+            ("could not check", unchecked),
+        )
+        if names
+    ]
+    if not details:
+        return Check("AI hooks", True, "no AI coding assistants detected")
+    if missing or unchecked:
+        return Check(
+            "AI hooks",
+            False,
+            ". ".join(details),
+            fix="run `ggshield machine setup` as root",
+        )
+    return Check("AI hooks", True, ". ".join(details))
 
 
 def _check_git_hooks() -> Check:
