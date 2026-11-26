@@ -3,12 +3,14 @@
 //! to define command-specific configuration settings
 //! using the [crate::config::Setting] builder to build
 //! from the collected configuration [crate::config::Sources].
+use std::io::Error as IoError;
 use std::path::PathBuf;
 
 use clap::CommandFactory;
 use clap::error::ErrorKind;
 use gg_url::{ApiUrl, DashboardUrl};
 use log::LevelFilter;
+use serde_yaml_ng::Error as YamlError;
 
 use crate::cli::GGShield;
 use crate::config::config_parameter::ConfigParameter;
@@ -22,6 +24,33 @@ mod config_parameter;
 mod env;
 mod file;
 mod sources;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("could not locate the ggshield config directory")]
+    DirectoryNotFound,
+    #[error("{}", .path.display())]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: IoError,
+    },
+    #[error("{}", .path.display())]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: YamlError,
+    },
+    #[error("Don't know how to load config version {0}")]
+    UnsupportedVersion(i64),
+    #[error("{}: line {line}, column {column}: {reason}", .path.display())]
+    DotEnvSyntax {
+        path: PathBuf,
+        line: usize,
+        column: usize,
+        reason: String,
+    },
+}
 
 /// The configuration of ggshield, consolidated from various sources.
 #[derive(Debug, Clone, PartialEq, Eq)]

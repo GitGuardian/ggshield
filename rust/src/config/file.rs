@@ -7,8 +7,8 @@ use gg_fs::locations::{Dir, Locations, project_root};
 use gg_fs::read_to_string;
 use serde_yaml_ng::{Value, from_str};
 
+use crate::config::ConfigError;
 use crate::error::Error;
-use crate::user_config::ConfigError;
 
 const FILE_NAMES: [&str; 3] = [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"];
 

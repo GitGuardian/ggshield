@@ -7,10 +7,14 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::error::{Cause, Error};
-use crate::hash::sha256_hex;
-use crate::hook::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
-use crate::machine::Header;
-use crate::user_config::{DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig};
+use crate::subcommands::secret::scan::ai_hook::config::{
+    self, Config, Limits, SIZE_METADATA_OVERHEAD,
+};
+use crate::subcommands::secret::scan::ai_hook::hash::sha256_hex;
+use crate::subcommands::secret::scan::ai_hook::machine::Header;
+use crate::subcommands::secret::scan::ai_hook::user_config::{
+    DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
@@ -284,7 +288,7 @@ fn env_usize(key: &str) -> Option<usize> {
 
 fn fetch_metadata(config: &Config) -> Option<Value> {
     let url = format!("{}/v1/metadata", config.api_url);
-    let mut response = crate::hook::tls::agent(config)
+    let mut response = crate::subcommands::secret::scan::ai_hook::tls::agent(config)
         .ok()?
         .get(&url)
         .config()
@@ -356,7 +360,7 @@ pub fn encoded_size(config: &Config, doc: &Document) -> usize {
 
 pub fn multiscan<'a>(
     config: &Config,
-    agent: crate::hook::payload::Agent,
+    agent: crate::subcommands::secret::scan::ai_hook::payload::Agent,
     identity: &[Header],
     documents: impl IntoIterator<Item = &'a Document>,
 ) -> Result<Vec<DocumentResult>, Error> {
@@ -390,7 +394,7 @@ pub fn multiscan<'a>(
 /// status and body.
 fn send_with_retries(
     config: &Config,
-    agent: crate::hook::payload::Agent,
+    agent: crate::subcommands::secret::scan::ai_hook::payload::Agent,
     identity: &[Header],
     body: &str,
 ) -> Result<(u16, String), Error> {
@@ -408,12 +412,12 @@ fn send_with_retries(
 
 fn send_once(
     config: &Config,
-    agent: crate::hook::payload::Agent,
+    agent: crate::subcommands::secret::scan::ai_hook::payload::Agent,
     identity: &[Header],
     body: &str,
 ) -> Result<(u16, String), Error> {
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let request = crate::hook::tls::agent(config)?
+    let request = crate::subcommands::secret::scan::ai_hook::tls::agent(config)?
         .post(&url)
         .config()
         .timeout_global(Some(std::time::Duration::from_secs(timeout_secs(config))))
@@ -602,8 +606,10 @@ mod tests {
     fn scan_one(config: &Config, content: &str) -> Result<Vec<DocumentResult>, Error> {
         multiscan(
             config,
-            crate::hook::payload::Agent::Claude,
-            &crate::machine::headers(config.user.endpoint_registration_opt_out),
+            crate::subcommands::secret::scan::ai_hook::payload::Agent::Claude,
+            &crate::subcommands::secret::scan::ai_hook::machine::headers(
+                config.user.endpoint_registration_opt_out,
+            ),
             [&Document {
                 content: content.into(),
                 filename: "a.env".into(),
@@ -654,7 +660,7 @@ mod tests {
             panic!("a 401 must not look like a clean scan");
         };
 
-        let message = crate::hook::error::warning(&error);
+        let message = crate::subcommands::secret::scan::ai_hook::error::warning(&error);
         assert!(
             message.contains("could not authenticate") && message.contains("auth login"),
             "{message}"
@@ -795,7 +801,8 @@ mod tests {
     #[test]
     fn filename_only_sends_no_local_path() {
         let (url, bodies) = scan_api(vec![200]);
-        let mut user = crate::user_config::UserConfig::default();
+        let mut user =
+            crate::subcommands::secret::scan::ai_hook::user_config::UserConfig::default();
         user.secret.filename_only = true;
         let config = Config::with_token(url, "token".into(), user);
         let path = if cfg!(windows) {
@@ -806,7 +813,7 @@ mod tests {
 
         multiscan(
             &config,
-            crate::hook::payload::Agent::Claude,
+            crate::subcommands::secret::scan::ai_hook::payload::Agent::Claude,
             &[],
             [&Document {
                 content: "nothing here".into(),
@@ -847,7 +854,8 @@ mod tests {
     /// learned; the second answers from that file.
     #[test]
     fn a_cold_resolution_fetches_once_and_a_warm_one_not_at_all() {
-        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
+        let (_guard, _dir) =
+            crate::subcommands::secret::scan::ai_hook::verdict_cache::with_cache_dir();
         let (url, hits) = metadata_api();
 
         let cold = limits(&config_for(url.clone()));
@@ -870,7 +878,8 @@ mod tests {
     /// THEN the instance is asked again and the answer replaces the stale entry.
     #[test]
     fn an_expired_entry_is_refetched_and_rewritten() {
-        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
+        let (_guard, _dir) =
+            crate::subcommands::secret::scan::ai_hook::verdict_cache::with_cache_dir();
         let (url, hits) = metadata_api();
 
         limits(&config_for(url.clone()));
@@ -890,7 +899,8 @@ mod tests {
     /// fetch must not pin a guess for the next five minutes.
     #[test]
     fn an_unreachable_instance_falls_back_to_the_defaults_without_caching_them() {
-        let (_guard, _dir) = crate::hook::verdict_cache::with_cache_dir();
+        let (_guard, _dir) =
+            crate::subcommands::secret::scan::ai_hook::verdict_cache::with_cache_dir();
         // Port 1 is unbound: connection refused, immediately.
         let url = "http://127.0.0.1:1".to_string();
 

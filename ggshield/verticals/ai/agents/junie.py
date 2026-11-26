@@ -36,7 +36,8 @@ class Junie(Agent):
     """Behavior specific to Junie CLI, JetBrains' standalone terminal agent.
 
     Installation, MCP discovery and activity only: the hook itself is served by
-    `rust/src/hook/`, so nothing here parses a payload or emits a verdict.
+    `rust/src/subcommands/secret/scan/ai_hook/`, so nothing here parses a payload
+    or emits a verdict.
 
     Junie inside a JetBrains IDE is a different surface and not covered: hooks
     are dispatched by the interactive TUI and batch hosts only, and the IDE
@@ -60,7 +61,8 @@ class Junie(Agent):
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
         """Never: the Rust hook answers Junie's payloads.
 
-        Detection and verdicts live in `rust/src/hook/`, which is what
+        Detection and verdicts live in
+        `rust/src/subcommands/secret/scan/ai_hook/`, which is what
         `ggshield secret scan ai-hook` runs. This adapter carries only what the
         Rust hook does not do: installation, MCP discovery and activity.
         """

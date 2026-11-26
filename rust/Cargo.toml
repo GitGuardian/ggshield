@@ -100,4 +100,4 @@ lto = true
 codegen-units = 1
 strip = true
 # NOT panic = "abort": `run_hook()` catches unwinds so a bug still fails open
-# with a warning instead of killing the hook. See src/hook.rs.
+# with a warning instead of killing the hook. See src/subcommands/secret/scan/ai_hook.rs.

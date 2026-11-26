@@ -219,7 +219,8 @@ fn resolve_machine_id() -> String {
 /// soon reports the same id as Python, which resolves it on every run.
 #[cfg(any(target_os = "macos", windows))]
 fn resolve_machine_id() -> String {
-    let cache = crate::hook::config::cache_dir().map(|dir| dir.join("machine_id"));
+    let cache = crate::subcommands::secret::scan::ai_hook::config::cache_dir()
+        .map(|dir| dir.join("machine_id"));
     cached_for_a_day(cache.as_deref(), || system_id().unwrap_or_else(fallback_id))
 }
 
@@ -242,11 +243,11 @@ fn cached_for_a_day(path: Option<&Path>, resolve: impl FnOnce() -> String) -> St
     }
     let id = resolve();
     if let Some(path) = path
-        && path
-            .parent()
-            .is_some_and(|dir| crate::secure_file::create_dir_private(dir).is_ok())
+        && path.parent().is_some_and(|dir| {
+            crate::subcommands::secret::scan::ai_hook::secure_file::create_dir_private(dir).is_ok()
+        })
     {
-        let _ = crate::secure_file::write_private(path, &id);
+        let _ = crate::subcommands::secret::scan::ai_hook::secure_file::write_private(path, &id);
     }
     id
 }
@@ -266,7 +267,9 @@ fn read_fresh_cache(path: &Path) -> Option<String> {
     if age > SYSTEM_ID_CACHE_TTL {
         return None;
     }
-    first_nonempty_line(crate::secure_file::read_if_trusted(path)?.as_bytes())
+    first_nonempty_line(
+        crate::subcommands::secret::scan::ai_hook::secure_file::read_if_trusted(path)?.as_bytes(),
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -406,7 +409,7 @@ fn first_nonempty_line(data: &[u8]) -> Option<String> {
 /// no hardware id converges on one id across the three.
 fn fallback_path() -> Option<PathBuf> {
     Some(
-        crate::user_config::home_dir()?
+        crate::subcommands::secret::scan::ai_hook::user_config::home_dir()?
             .join(".ggshield")
             .join("machine_id"),
     )
@@ -433,7 +436,10 @@ fn mint_uuid() -> String {
         .map(|d| d.as_nanos())
         .unwrap_or_default();
     let random = std::collections::hash_map::RandomState::new().hash_one(nanos);
-    let digest = crate::hash::sha256_hex(&format!("{nanos}:{}:{random}", std::process::id()));
+    let digest = crate::subcommands::secret::scan::ai_hook::hash::sha256_hex(&format!(
+        "{nanos}:{}:{random}",
+        std::process::id()
+    ));
     let mut hex: Vec<char> = digest.chars().take(32).collect();
     hex[12] = '4';
     hex[16] = ['8', '9', 'a', 'b'][hex[16].to_digit(16).unwrap_or(0) as usize & 3];
@@ -487,7 +493,7 @@ fn read_trusted_cache_line(path: &Path) -> Option<String> {
 /// an existing path, and never over another user's file.
 fn write_fallback(path: &Path, id: &str) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
-        crate::secure_file::create_dir_private(dir)?;
+        crate::subcommands::secret::scan::ai_hook::secure_file::create_dir_private(dir)?;
     }
     if let Ok(meta) = std::fs::symlink_metadata(path) {
         #[cfg(unix)]
@@ -639,7 +645,8 @@ mod tests {
     fn a_cached_system_id_expires_after_a_day() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("machine_id");
-        crate::secure_file::write_private(&path, "4c4c4544\n").expect("write");
+        crate::subcommands::secret::scan::ai_hook::secure_file::write_private(&path, "4c4c4544\n")
+            .expect("write");
         assert_eq!(read_fresh_cache(&path).as_deref(), Some("4c4c4544"));
 
         let two_days_ago = std::time::SystemTime::now() - 2 * SYSTEM_ID_CACHE_TTL;

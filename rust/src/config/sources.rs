@@ -5,7 +5,7 @@
 //! - Project-scoped gitguardian YAML config file
 //! - User-scoped gitguardian YAML config file
 //! - Default configuration settings
-//! 
+//!
 //! The module exposes a builder that commands and subcommands should
 //! use to build their configurations.
 #![expect(dead_code)]

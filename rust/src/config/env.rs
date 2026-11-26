@@ -12,8 +12,8 @@ use gg_fs::locations::project_root;
 use gg_fs::read_to_string;
 use log::warn;
 
+use crate::config::ConfigError;
 use crate::error::Error;
-use crate::user_config::ConfigError;
 
 const DONT_LOAD_ENV: &str = "GITGUARDIAN_DONT_LOAD_ENV";
 const DOTENV_PATH: &str = "GITGUARDIAN_DOTENV_PATH";

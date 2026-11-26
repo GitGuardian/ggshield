@@ -10,7 +10,7 @@ use serde_json::Value;
 
 use crate::error::{Cause, Error};
 
-pub use crate::hash::sha256_hex;
+pub use crate::subcommands::secret::scan::ai_hook::hash::sha256_hex;
 
 #[derive(Debug, thiserror::Error)]
 pub enum HookInputError {
@@ -672,7 +672,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         // can distinguish. See `vibe::post_process`.
         Agent::Vibe => {
             for payload in &mut payloads {
-                crate::hook::vibe::post_process(payload);
+                crate::subcommands::secret::scan::ai_hook::vibe::post_process(payload);
             }
         }
         _ => {}

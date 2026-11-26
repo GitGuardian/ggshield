@@ -1,5 +1,5 @@
 use crate::error::{Cause, Error};
-use crate::hook::config::CredentialStoreError;
+use crate::subcommands::secret::scan::ai_hook::config::CredentialStoreError;
 
 #[cfg(target_os = "macos")]
 const CREDENTIAL_STORE_DENIED_CAUSE: &str =
@@ -83,8 +83,8 @@ fn first_line(detail: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hook::ApiError;
-    use crate::user_config::ConfigError;
+    use crate::config::ConfigError;
+    use crate::subcommands::secret::scan::ai_hook::ApiError;
 
     /// GIVEN a multi-line upstream error
     /// WHEN it becomes a fail-open warning

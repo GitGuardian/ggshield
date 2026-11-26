@@ -12,11 +12,12 @@ use chrono::{DateTime, Utc};
 use gg_url::{ApiUrl, DashboardUrl};
 use serde::{Deserialize, Serialize};
 
+use crate::config::ConfigError;
 use crate::error::{Cause, Error};
-use crate::hash::sha256_hex;
-use crate::hook::TlsError;
-use crate::secure_file;
-use crate::user_config::{self, ConfigError, UserConfig};
+use crate::subcommands::secret::scan::ai_hook::TlsError;
+use crate::subcommands::secret::scan::ai_hook::hash::sha256_hex;
+use crate::subcommands::secret::scan::ai_hook::secure_file;
+use crate::subcommands::secret::scan::ai_hook::user_config::{self, UserConfig};
 
 #[cfg(target_os = "linux")]
 use secret_service::{EncryptionType, blocking::SecretService};
@@ -999,7 +1000,7 @@ mod tests {
         let resolved = dotenv_overrides()
             .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
             .map(|instance| instance.to_string())
-            .map_err(|error| crate::hook::error::warning(&error));
+            .map_err(|error| crate::subcommands::secret::scan::ai_hook::error::warning(&error));
         unsafe {
             for (key, _) in vars {
                 std::env::remove_var(key);
@@ -1541,7 +1542,11 @@ mod tests {
     /// `NOT_FOUND` and `DENIED`
     #[test]
     fn keychain_read_errors_match_the_python_keystore_failures() {
-        let message = |code| crate::hook::error::warning(&keychain_read_error(code).into());
+        let message = |code| {
+            crate::subcommands::secret::scan::ai_hook::error::warning(
+                &keychain_read_error(code).into(),
+            )
+        };
         for code in [-25308, -25293, -128, -1] {
             assert!(
                 message(code).starts_with("ggshield could not read its token from the "),

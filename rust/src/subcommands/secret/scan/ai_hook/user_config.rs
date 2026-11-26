@@ -20,38 +20,12 @@ use std::path::{Path, PathBuf};
 use gg_url::{ApiUrl, DashboardUrl};
 use serde::Deserialize;
 
+use crate::config::ConfigError;
 use crate::error::Error;
 
 pub const USER_CONFIG_FILENAMES: [&str; 3] =
     [".gitguardian", ".gitguardian.yml", ".gitguardian.yaml"];
 const CURRENT_CONFIG_VERSION: i64 = 2;
-
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("could not locate the ggshield config directory")]
-    DirectoryNotFound,
-    #[error("{}", .path.display())]
-    Read {
-        path: PathBuf,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("{}", .path.display())]
-    Parse {
-        path: PathBuf,
-        #[source]
-        source: serde_yaml_ng::Error,
-    },
-    #[error("Don't know how to load config version {0}")]
-    UnsupportedVersion(i64),
-    #[error("{}: line {line}, column {column}: {reason}", .path.display())]
-    DotEnvSyntax {
-        path: PathBuf,
-        line: usize,
-        column: usize,
-        reason: String,
-    },
-}
 
 /// `DEFAULT_API_TIMEOUT` in core/constants.py, and the bounds `_resolve_timeout()`
 /// enforces in core/client.py.
@@ -98,7 +72,7 @@ pub struct SecretConfig {
     /// literal secret value; `is_in_ignored_matches` accepts both.
     pub ignored_matches: Vec<String>,
     pub ignored_detectors: BTreeSet<String>,
-    /// Globs, as written in the file. Compiled by `hook::exclusion`,
+    /// Globs, as written in the file. Compiled by `ai_hook::exclusion`,
     /// which also adds the default wildcards.
     pub ignored_paths: Vec<String>,
     pub ignore_known_secrets: bool,

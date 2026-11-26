@@ -8,7 +8,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::hook::config::Config;
+use crate::subcommands::secret::scan::ai_hook::config::Config;
 use rustls::crypto::CryptoProvider;
 use rustls::crypto::ring::default_provider;
 use rustls::pki_types::pem::PemObject;

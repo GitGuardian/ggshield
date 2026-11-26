@@ -5,9 +5,10 @@
 //! use the `context` vector to add context-specific information to an error.
 use std::error::Error as StdError;
 
-use crate::hook::config::CredentialStoreError;
-use crate::hook::{ApiError, HookInputError, TlsError};
-use crate::user_config::{AiHookFailurePolicy, ConfigError};
+use crate::config::ConfigError;
+use crate::subcommands::secret::scan::ai_hook::config::CredentialStoreError;
+use crate::subcommands::secret::scan::ai_hook::user_config::AiHookFailurePolicy;
+use crate::subcommands::secret::scan::ai_hook::{ApiError, HookInputError, TlsError};
 
 #[derive(Debug, thiserror::Error)]
 pub struct Error {

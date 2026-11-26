@@ -12,21 +12,26 @@
 //! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
 
 mod api;
+mod binary_extensions;
 pub mod config;
 mod debounce;
 pub mod error;
 mod exclusion;
+mod hash;
+mod machine;
 mod message;
 mod notify;
 mod output;
 mod payload;
+mod secure_file;
 mod tls;
+pub mod user_config;
 mod verdict_cache;
 mod vibe;
 
-use crate::binary_extensions;
+use crate::dispatch::delegate_hook;
 use crate::error::{Cause, Error, ExitCode, FailurePolicy};
-use crate::user_config::{self, AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
+use user_config::{AI_HOOK_FAILURE_POLICY_ENV_VAR, AiHookFailurePolicy};
 
 use std::io::Read;
 use std::path::Path;
@@ -42,7 +47,7 @@ pub use tls::TlsError;
 const MAX_READ_SIZE: u64 = 10 * 1024 * 1024;
 
 /// What the dispatcher must do once the hook has run.
-pub enum Outcome {
+enum Outcome {
     /// The event was handled — answered on stdout — and this is the exit code.
     Done(i32),
     /// A configuration the native hook knowingly does not implement: nothing has
@@ -54,6 +59,22 @@ pub enum Outcome {
         stdin: String,
         fallback_warning: Error,
     },
+}
+
+/// The native hook, handing over to `ggshield-py` for the configurations it does
+/// not implement rather than failing open on them. Failing open is kept only for
+/// a bundle whose launcher is missing or unrunnable.
+pub fn run_native_hook() -> i32 {
+    match run_hook() {
+        Outcome::Done(code) => code,
+        Outcome::Delegate {
+            stdin,
+            fallback_warning,
+        } => match delegate_hook(&stdin) {
+            Some(code) => code,
+            None => fail_open(&stdin, fallback_warning),
+        },
+    }
 }
 
 /// Decode the hook event an agent wrote to our stdin.
@@ -68,7 +89,7 @@ fn decode_payload(buffer: &[u8]) -> String {
 }
 
 /// Run the hook end to end; the dispatcher acts on the outcome.
-pub fn run_hook() -> Outcome {
+fn run_hook() -> Outcome {
     let mut buffer = Vec::new();
     let _ = std::io::stdin()
         .lock()
@@ -95,7 +116,7 @@ pub fn run_hook() -> Outcome {
 
 /// Fail open after a hand-over to `ggshield-py` could not happen. Separate from
 /// `run_hook` because only the dispatcher knows whether it worked.
-pub fn fail_open(stdin_content: &str, warning: Error) -> i32 {
+fn fail_open(stdin_content: &str, warning: Error) -> i32 {
     handle_error(stdin_content, warning)
 }
 
@@ -387,13 +408,10 @@ fn scan_payloads(
         return Ok((0, Vec::new(), false));
     }
     // Only once a request is certain: the machine id lookup can be slow.
-    let identity = if payloads
-        .iter()
-        .any(|p| crate::machine::is_setup_warm_up(&p.raw))
-    {
+    let identity = if payloads.iter().any(|p| machine::is_setup_warm_up(&p.raw)) {
         Vec::new()
     } else {
-        crate::machine::headers(config.user.endpoint_registration_opt_out)
+        machine::headers(config.user.endpoint_registration_opt_out)
     };
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
@@ -1326,7 +1344,7 @@ mod tests {
         let (_guard, _dir) = verdict_cache::with_cache_dir();
         let (url, recorded) = mock_api(MockLimits::default());
         let config = test_config(url);
-        let built = || crate::machine::HEADERS_BUILT.with(std::cell::Cell::get);
+        let built = || machine::HEADERS_BUILT.with(std::cell::Cell::get);
 
         let before = built();
         scan_payloads(&config, &mut [text_payload("prompt", "a clean prompt")]).expect("scan");
