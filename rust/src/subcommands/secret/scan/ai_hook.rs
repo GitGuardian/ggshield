@@ -9,7 +9,7 @@
 //! server-side, so this is transport and glue — no rules live here.
 //!
 //! Anything this binary cannot reproduce declines and fails open with a warning
-//! rather than guessing — see `config::dotenv_overrides()` and `user_config`.
+//! rather than guessing — see `user_config`.
 
 mod api;
 mod binary_extensions;

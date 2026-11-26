@@ -5,14 +5,17 @@
 //! `user_config.rs`.
 
 use std::cell::OnceCell;
+use std::env::var;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use clap::ArgMatches;
 use gg_url::{ApiUrl, DashboardUrl};
 use serde::{Deserialize, Serialize};
 
-use crate::config::ConfigError;
+use crate::config::ConfigParameterValue::DotEnv;
+use crate::config::{ConfigError, Setting, Sources};
 use crate::error::{Cause, Error};
 use crate::subcommands::secret::scan::ai_hook::TlsError;
 use crate::subcommands::secret::scan::ai_hook::hash::sha256_hex;
@@ -99,15 +102,6 @@ impl From<TokenReadError> for Error {
         }
     }
 }
-
-const TRACKED_ENV_VARS: [&str; 6] = [
-    user_config::AI_HOOK_FAILURE_POLICY_ENV_VAR,
-    "GITGUARDIAN_INSTANCE",
-    "GITGUARDIAN_API_URL",
-    "GITGUARDIAN_API_KEY",
-    "REQUESTS_CA_BUNDLE",
-    "CURL_CA_BUNDLE",
-];
 
 /// pygitguardian's `DOCUMENT_SIZE_THRESHOLD_BYTES`: the default per-document
 /// ceiling, and the size past which the ai-hook stops caching a verdict.
@@ -277,6 +271,7 @@ pub struct Config {
     token: OnceCell<Result<String, TokenReadError>>,
     pub user: UserConfig,
     pub ca_bundle: Option<String>,
+    pub api_timeout: Option<String>,
     /// Instance limits, resolved at most once per run. The hook's `api` module
     /// owns the resolution order; this is where the answer is memoised.
     pub limits: OnceCell<Limits>,
@@ -322,6 +317,7 @@ impl Config {
             token: OnceCell::new(),
             user,
             ca_bundle: None,
+            api_timeout: None,
             limits: OnceCell::new(),
             agent: OnceCell::new(),
         }
@@ -381,108 +377,19 @@ pub fn cache_dir() -> Option<PathBuf> {
     base
 }
 
-/// The `GITGUARDIAN_*` bindings a `.env` contributes, in file order.
-type DotEnv = Vec<(String, String)>;
-
 /// One variable, `.env` first: `ggshield` loads the file with
 /// `load_dotenv(dot_env_path, override=True)` (`core/env_utils.py`), so a value in
-/// the file replaces the process environment. Last binding wins within the file,
-/// as the file is collected into a dict there.
-fn env_var(dotenv: &DotEnv, key: &str) -> Option<String> {
-    dotenv
+/// the file replaces the process environment.
+fn variable(sources: &Sources, name: &'static str) -> Option<String> {
+    let parameter = sources
+        .setting::<String>(Setting::new().variable(name))
+        .ok()?;
+    let values = parameter.values();
+    values
         .iter()
-        .rev()
-        .find(|(name, _)| name == key)
-        .map(|(_, value)| value.clone())
-        .or_else(|| std::env::var(key).ok())
-}
-
-/// The instance and token settings a `.env` overrides for this run. This binary
-/// has to resolve the *same* instance and token the CLI would: a self-hosted
-/// customer's `.env` names their own instance, so ignoring the file would ship
-/// their content to the SaaS API. `dotenvy`'s `*_iter` API yields the bindings
-/// without exporting them, and only the tracked variables are applied.
-///
-/// Searches the two locations the CLI looks at: the cwd, then the git root (or
-/// `GITGUARDIAN_DOTENV_PATH` when set); `GITGUARDIAN_DONT_LOAD_ENV` disables it.
-///
-/// One accepted difference from the CLI's own parser: `dotenvy` expands an
-/// *unbraced* `$VAR`, where the CLI keeps it literal. Braced `${VAR}` is expanded
-/// by both.
-fn dotenv_overrides() -> Result<DotEnv, Error> {
-    if std::env::var("GITGUARDIAN_DONT_LOAD_ENV")
-        .is_ok_and(|v| !matches!(v.to_lowercase().as_str(), "" | "0" | "false" | "no"))
-    {
-        return Ok(DotEnv::new());
-    }
-    let mut candidates = Vec::new();
-    if let Ok(explicit) = std::env::var("GITGUARDIAN_DOTENV_PATH") {
-        candidates.push(PathBuf::from(explicit));
-    } else {
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        candidates.push(cwd.join(".env"));
-        candidates.push(user_config::project_root().join(".env"));
-    }
-
-    for path in candidates {
-        // The CLI stops at the first `.env` it finds; a candidate that cannot be
-        // opened is not one.
-        let Ok(bindings) = dotenvy::from_path_iter(&path) else {
-            continue;
-        };
-        let mut found = DotEnv::new();
-        // A rejected line does not stop the iterator, and an oddity in a project's
-        // own variables must not cost a scan. Which line was rejected cannot be
-        // read off the error: `dotenvy` reports the whole line for a malformed
-        // name but only the value text for a bad escape.
-        let mut rejected = false;
-        for binding in bindings {
-            match binding {
-                Ok((key, value)) => {
-                    if TRACKED_ENV_VARS.contains(&key.as_str()) {
-                        found.push((key, value));
-                    }
-                }
-                Err(_) => rejected = true,
-            }
-        }
-        // So blame is attributed from the result instead: a file that appears to
-        // bind a tracked variable more times than `dotenvy` yielded it has had
-        // that binding dropped, which selects the wrong server, credential or CA
-        // bundle. Decline, and name the variable.
-        if rejected
-            && let Ok(content) = std::fs::read_to_string(&path)
-            && let Some(var) = TRACKED_ENV_VARS.into_iter().find(|var| {
-                bindings_of(&content, var) > found.iter().filter(|(key, _)| key == var).count()
-            })
-        {
-            return Err(Error::from(Cause::Unsupported(format!(
-                "a {var} binding that is not valid `.env` syntax ({})",
-                path.display()
-            )))
-            .context(format!(
-                "Fix that line, or set {var} in the environment instead."
-            )));
-        }
-        return Ok(found);
-    }
-    Ok(DotEnv::new())
-}
-
-/// How many lines of `content` look like a binding of `key`: the name at the
-/// start of a line, optionally after `export`, then `=`. Deliberately coarse: it
-/// only decides whether a *rejected* line was one of ours, and over-counting can
-/// only add a decline on a file that already has a line `dotenvy` refused.
-fn bindings_of(content: &str, key: &str) -> usize {
-    content
-        .lines()
-        .filter(|line| {
-            let line = line.trim_start();
-            let line = line.strip_prefix("export").map_or(line, str::trim_start);
-            line.strip_prefix(key)
-                .is_some_and(|rest| rest.trim_start().starts_with('='))
-        })
-        .count()
+        .find(|value| matches!(value, DotEnv(_)))
+        .or(values.first())
+        .map(|value| value.get().clone())
 }
 
 fn dashboard_url(url: &str) -> Result<DashboardUrl, Error> {
@@ -499,11 +406,11 @@ fn dashboard_url(url: &str) -> Result<DashboardUrl, Error> {
 /// The instance the scan should talk to, as a *dashboard* URL.
 /// `Config.get_instance_name_and_source()`, in its priority order, minus the
 /// `--instance` flag (the hook is always invoked without arguments).
-fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<DashboardUrl, Error> {
-    if let Some(url) = env_var(dotenv, "GITGUARDIAN_INSTANCE") {
+fn instance_name(user: &UserConfig, sources: &Sources) -> Result<DashboardUrl, Error> {
+    if let Some(url) = variable(sources, "GITGUARDIAN_INSTANCE") {
         return dashboard_url(&url);
     }
-    if let Some(url) = env_var(dotenv, "GITGUARDIAN_API_URL") {
+    if let Some(url) = variable(sources, "GITGUARDIAN_API_URL") {
         return match url.parse::<ApiUrl>() {
             Ok(api_url) => Ok(DashboardUrl::from(api_url)),
             Err(_) => Err(Cause::InvalidUrlScheme { kind: "API", url }.into()),
@@ -515,27 +422,32 @@ fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<DashboardUrl, Err
     Ok(DashboardUrl::default())
 }
 
-/// A tracked variable, `.env` first like everywhere else here. A `.env` that
-/// cannot be read is skipped: this is only consulted once a scan already failed.
-pub fn env_override(key: &str) -> Option<String> {
-    env_var(&dotenv_overrides().unwrap_or_default(), key)
+/// One variable, `.env` first like everywhere else here. Sources that cannot be
+/// read are skipped: this is only consulted once a scan already failed.
+pub fn env_override(key: &'static str) -> Option<String> {
+    match Sources::load(ArgMatches::default()) {
+        Ok(sources) => variable(&sources, key),
+        Err(_) => var(key).ok(),
+    }
 }
 
 pub fn resolve() -> Result<Config, Error> {
-    let dotenv = dotenv_overrides()?;
     let user = user_config::load()?;
+    let sources = Sources::load(ArgMatches::default())?;
 
-    let instance = instance_name(&user, &dotenv)?;
+    let instance = instance_name(&user, &sources)?;
     let api_url = ApiUrl::from(instance.clone()).to_string();
-    let ca_bundle = ca_bundle(&dotenv);
+    let ca_bundle = ca_bundle(&sources);
+    let api_timeout = variable(&sources, "GITGUARDIAN_API_TIMEOUT");
 
     // Env var wins over everything, short-circuiting keychain access as
     // `AuthConfig.load()` does.
-    if let Some(token) = env_var(&dotenv, "GITGUARDIAN_API_KEY")
+    if let Some(token) = variable(&sources, "GITGUARDIAN_API_KEY")
         && !token.is_empty()
     {
         return Ok(Config {
             ca_bundle,
+            api_timeout,
             ..Config::with_token(api_url, token, user)
         });
     }
@@ -547,15 +459,16 @@ pub fn resolve() -> Result<Config, Error> {
         token: OnceCell::new(),
         user,
         ca_bundle,
+        api_timeout,
         limits: OnceCell::new(),
         agent: OnceCell::new(),
     })
 }
 
-fn ca_bundle(dotenv: &DotEnv) -> Option<String> {
+fn ca_bundle(sources: &Sources) -> Option<String> {
     pick_ca_bundle(
-        env_var(dotenv, "REQUESTS_CA_BUNDLE"),
-        env_var(dotenv, "CURL_CA_BUNDLE"),
+        variable(sources, "REQUESTS_CA_BUNDLE"),
+        variable(sources, "CURL_CA_BUNDLE"),
     )
 }
 
@@ -922,24 +835,25 @@ mod tests {
     #[test]
     fn a_dotenv_value_overrides_the_real_environment() {
         let _guard = exclusive();
+        let (_dir, original) = in_a_checkout(&[(".env", "GITGUARDIAN_API_KEY=from-the-dotenv\n")]);
         // SAFETY: serialised by `exclusive()`, removed below.
-        unsafe { std::env::set_var("GITGUARDIAN_API_KEY", "from-the-environment") };
+        unsafe {
+            std::env::set_var("GITGUARDIAN_API_KEY", "from-the-environment");
+            std::env::set_var("REQUESTS_CA_BUNDLE", "/from-the-environment.pem");
+        }
 
-        let dotenv = vec![(
-            "GITGUARDIAN_API_KEY".to_string(),
-            "from-the-dotenv".to_string(),
-        )];
-        assert_eq!(
-            env_var(&dotenv, "GITGUARDIAN_API_KEY").as_deref(),
-            Some("from-the-dotenv")
-        );
+        let sources = Sources::load(ArgMatches::default()).expect("sources");
+        let api_key = variable(&sources, "GITGUARDIAN_API_KEY");
         // ...and a variable the file does not bind still comes from the process.
-        assert_eq!(
-            env_var(&DotEnv::new(), "GITGUARDIAN_API_KEY").as_deref(),
-            Some("from-the-environment")
-        );
+        let ca_bundle = variable(&sources, "REQUESTS_CA_BUNDLE");
 
-        unsafe { std::env::remove_var("GITGUARDIAN_API_KEY") };
+        unsafe {
+            std::env::remove_var("GITGUARDIAN_API_KEY");
+            std::env::remove_var("REQUESTS_CA_BUNDLE");
+        }
+        std::env::set_current_dir(original).expect("chdir back");
+        assert_eq!(api_key.as_deref(), Some("from-the-dotenv"));
+        assert_eq!(ca_bundle.as_deref(), Some("/from-the-environment.pem"));
     }
 
     /// GIVEN REQUESTS_CA_BUNDLE and CURL_CA_BUNDLE values
@@ -966,7 +880,7 @@ mod tests {
         let _guard = exclusive();
         let (_dir, original) = in_a_checkout(&[(".env", "REQUESTS_CA_BUNDLE=/corporate.pem\n")]);
 
-        let resolved = dotenv_overrides().map(|dotenv| ca_bundle(&dotenv));
+        let resolved = Sources::load(ArgMatches::default()).map(|sources| ca_bundle(&sources));
 
         std::env::set_current_dir(original).expect("chdir back");
         assert_eq!(resolved.ok().flatten().as_deref(), Some("/corporate.pem"));
@@ -987,7 +901,7 @@ mod tests {
         (dir, original)
     }
 
-    /// The instance `dotenv_overrides()` resolves with `vars` exported, or `Err`
+    /// The instance resolved with `vars` exported, or `Err`
     /// with the decline message.
     fn resolved_instance(vars: &[(&str, &str)]) -> Result<String, String> {
         // SAFETY: every caller holds `exclusive()`, and the vars are cleared
@@ -997,8 +911,8 @@ mod tests {
                 std::env::set_var(key, value);
             }
         }
-        let resolved = dotenv_overrides()
-            .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
+        let resolved = Sources::load(ArgMatches::default())
+            .and_then(|sources| instance_name(&UserConfig::default(), &sources))
             .map(|instance| instance.to_string())
             .map_err(|error| crate::subcommands::secret::scan::ai_hook::error::warning(&error));
         unsafe {
@@ -1055,11 +969,16 @@ mod tests {
     #[test]
     fn a_cleartext_instance_from_the_user_config_is_refused() {
         let _guard = exclusive();
+        let (_dir, original) = in_a_checkout(&[]);
         let user = UserConfig {
             instance: Some("http://gg.example.com".to_string()),
             ..UserConfig::default()
         };
-        assert!(instance_name(&user, &DotEnv::default()).is_err());
+        let resolved =
+            Sources::load(ArgMatches::default()).and_then(|sources| instance_name(&user, &sources));
+
+        std::env::set_current_dir(original).expect("chdir back");
+        assert!(resolved.is_err());
     }
 
     /// GIVEN a `.env` in the cwd, at the repository root, or named by
@@ -1105,40 +1024,6 @@ mod tests {
             ]),
             Ok("https://cwd".to_string())
         );
-
-        std::env::set_current_dir(original).expect("chdir back");
-    }
-
-    /// GIVEN a `.env` line binding a tracked variable that `dotenvy` rejects
-    /// WHEN the config is resolved
-    /// THEN it declines, naming that variable and the file: guessing the instance
-    /// or the token means posting to the wrong server.
-    #[test]
-    fn an_unparseable_tracked_binding_declines_and_names_the_variable() {
-        let _guard = exclusive();
-        let (dir, original) = in_a_checkout(&[]);
-
-        for (content, var) in [
-            ("GITGUARDIAN_API_KEY=\"a\\tb\"\n", "GITGUARDIAN_API_KEY"),
-            ("GITGUARDIAN_API_KEY='unterminated\n", "GITGUARDIAN_API_KEY"),
-            (
-                "GITGUARDIAN_INSTANCE=https://x junk\n",
-                "GITGUARDIAN_INSTANCE",
-            ),
-            // A rejected *second* binding: the CLI would apply it, so resolving
-            // the earlier one is a wrong answer, not a partial one.
-            (
-                "GITGUARDIAN_INSTANCE=https://cwd\nGITGUARDIAN_INSTANCE=\"a\\tb\"\n",
-                "GITGUARDIAN_INSTANCE",
-            ),
-        ] {
-            std::fs::write(dir.path().join("sub/.env"), content).expect("write");
-            let message = resolved_instance(&[("GITGUARDIAN_INSTANCE", "https://env")])
-                .expect_err(content)
-                .to_string();
-            assert!(message.contains(var), "{content:?}: {message}");
-            assert!(message.contains("NOT scanned"), "{content:?}: {message}");
-        }
 
         std::env::set_current_dir(original).expect("chdir back");
     }
@@ -1572,6 +1457,7 @@ mod tests {
             token: OnceCell::new(),
             user: UserConfig::default(),
             ca_bundle: None,
+            api_timeout: None,
             limits: OnceCell::new(),
             agent: OnceCell::new(),
         };

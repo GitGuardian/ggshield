@@ -32,6 +32,7 @@ impl<T> ConfigParameterValue<T> {
         }
     }
 
+    #[cfg_attr(test, expect(dead_code))]
     pub fn map<U>(self, convert: impl FnOnce(T) -> U) -> ConfigParameterValue<U> {
         match self {
             Self::CommandArg(value) => ConfigParameterValue::CommandArg(convert(value)),

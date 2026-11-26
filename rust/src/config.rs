@@ -14,6 +14,7 @@ use serde_yaml_ng::Error as YamlError;
 
 use crate::cli::GGShield;
 use crate::config::config_parameter::ConfigParameter;
+pub use crate::config::config_parameter::ConfigParameterValue;
 use crate::config::config_parameter::ConfigParameterValue::{
     CommandArg, DefaultValue, DotEnv, ProcessEnv,
 };
@@ -54,6 +55,7 @@ pub enum ConfigError {
 
 /// The configuration of ggshield, consolidated from various sources.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(dead_code)]
 pub struct Config {
     pub config_path: ConfigParameter<PathBuf>,
     pub instance: ConfigParameter<DashboardUrl>,

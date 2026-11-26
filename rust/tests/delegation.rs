@@ -191,8 +191,6 @@ fn the_hook_invocation_is_not_delegated() {
 /// unix symlink. A Windows equivalent would need a compiled `.exe` stand-in.
 #[cfg(unix)]
 mod unix {
-    use std::process::{Command, Stdio};
-
     use super::run;
 
     /// A bundle-shaped directory: the real dispatcher plus a fake `ggshield-py`
@@ -239,94 +237,6 @@ mod unix {
              stdin:payload on stdin\n"
         );
         assert_eq!(out.stderr, "on-stderr\n");
-    }
-
-    /// GIVEN a `.env` the native hook declines to handle, a payload larger than a
-    /// pipe buffer, and a `ggshield-py` that closes stdin without reading it and
-    /// would print a deny a moment later
-    /// WHEN the hook event is handed over and the payload cannot be written
-    /// THEN the stdout the agent reads carries exactly one verdict — the fail-open
-    /// allow — and the launcher that would have contradicted it is already dead.
-    #[test]
-    fn a_launcher_that_never_reads_the_payload_cannot_add_a_second_verdict() {
-        use std::io::Write;
-
-        let (dir, ggshield) = super::bundle_with_dispatcher();
-        let pidfile = dir.path().join("launcher.pid");
-        let launcher = dir.path().join("ggshield-py");
-        std::fs::write(
-            &launcher,
-            format!(
-                "#!/bin/sh\necho $$ > '{}'\nexec 0<&-\nsleep 5\n\
-                 echo '{{\"continue\":false,\"stopReason\":\"DENY\"}}'\nexit 2\n",
-                pidfile.display()
-            ),
-        )
-        .expect("write launcher");
-        let mut permissions = std::fs::metadata(&launcher).expect("stat").permissions();
-        std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
-        std::fs::set_permissions(&launcher, permissions).expect("chmod");
-
-        // The decline: a GITGUARDIAN_API_KEY binding the native hook will not
-        // guess at, found in the cwd it is invoked from.
-        let work = tempfile::tempdir().expect("tempdir");
-        std::fs::write(
-            work.path().join(".env"),
-            "GITGUARDIAN_API_KEY='unterminated\n",
-        )
-        .expect("write .env");
-        let config = tempfile::tempdir().expect("tempdir");
-
-        // A file the agent reads, and it is the agent's stdout the verdicts race
-        // over — so give the dispatcher a real file, the way a pipe to the agent
-        // would be inherited.
-        let seen = dir.path().join("agent-stdout");
-        let mut child = super::spawn_once_written(
-            Command::new(&ggshield)
-                .args(["secret", "scan", "ai-hook"])
-                .current_dir(work.path())
-                .env("GG_CONFIG_DIR", config.path())
-                .env("GG_CACHE_DIR", config.path().join("cache"))
-                .stdin(Stdio::piped())
-                .stdout(Stdio::from(
-                    std::fs::File::create(&seen).expect("create stdout file"),
-                ))
-                .stderr(Stdio::piped()),
-        );
-        // Bigger than any pipe buffer, so the write cannot land in a pipe nobody
-        // reads.
-        let payload = format!(
-            r#"{{"session_id":"abc","transcript_path":"/home/u/.claude/projects/p/t.jsonl","cwd":"/home/u/p","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{{"file_path":"/tmp/{}"}}}}"#,
-            "x".repeat(200 * 1024)
-        );
-        child
-            .stdin
-            .take()
-            .expect("stdin")
-            .write_all(payload.as_bytes())
-            .expect("write payload");
-        let out = child.wait_with_output().expect("wait");
-
-        let verdicts = std::fs::read_to_string(&seen).expect("read stdout file");
-        assert_eq!(out.status.code(), Some(0), "{:?}", verdicts);
-        assert_eq!(
-            verdicts.lines().count(),
-            1,
-            "the agent must read one verdict, got {verdicts:?}"
-        );
-        assert!(verdicts.contains(r#""continue":true"#), "{verdicts:?}");
-
-        let pid = std::fs::read_to_string(&pidfile).expect("launcher never ran");
-        assert!(
-            !Command::new("kill")
-                .args(["-0", pid.trim()])
-                .stderr(Stdio::null())
-                .status()
-                .expect("kill -0")
-                .success(),
-            "launcher {} outlived the dispatcher",
-            pid.trim()
-        );
     }
 
     /// GIVEN a symlink in an unrelated directory pointing at the bundled dispatcher

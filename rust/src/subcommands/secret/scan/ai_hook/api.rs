@@ -40,10 +40,7 @@ const API_PATH_MAX_LENGTH: usize = 256;
 /// Python refuses an unusable value, the hook ignores it and carries on: it
 /// must never block an agent over a mistyped setting.
 fn timeout_secs(config: &Config) -> u64 {
-    resolve_timeout(
-        std::env::var("GITGUARDIAN_API_TIMEOUT").ok().as_deref(),
-        config.user.api_timeout,
-    )
+    resolve_timeout(config.api_timeout.as_deref(), config.user.api_timeout)
 }
 
 fn resolve_timeout(from_env: Option<&str>, configured: u64) -> u64 {

@@ -48,6 +48,10 @@ pub enum Cause {
     #[error("internal error")]
     Internal,
     #[error("the native hook does not support {0}")]
+    #[cfg_attr(
+        any(target_os = "macos", target_os = "linux", windows),
+        allow(dead_code)
+    )]
     Unsupported(String),
 }
 
