@@ -135,7 +135,22 @@ fn passwd_name() -> Option<String> {
     Some(name.to_string_lossy().into_owned()).filter(|n| !n.is_empty())
 }
 
-#[cfg(not(unix))]
+/// `os.getlogin()`, Python's fallback when no variable names the user.
+#[cfg(windows)]
+fn passwd_name() -> Option<String> {
+    use windows_sys::Win32::System::WindowsProgramming::GetUserNameW;
+    let mut buf = [0u16; 257];
+    let mut len = buf.len() as u32;
+    // SAFETY: `len` is the buffer's length in UTF-16 units, as the API expects.
+    if unsafe { GetUserNameW(buf.as_mut_ptr(), &mut len) } == 0 {
+        return None;
+    }
+    // `len` counts the terminating NUL.
+    let name = String::from_utf16_lossy(&buf[..(len as usize).saturating_sub(1)]);
+    Some(name).filter(|n| !n.is_empty())
+}
+
+#[cfg(not(any(unix, windows)))]
 fn passwd_name() -> Option<String> {
     None
 }
@@ -164,7 +179,25 @@ fn system_hostname() -> Option<String> {
     Some(String::from_utf8_lossy(&buf[..end]).into_owned()).filter(|n| !n.is_empty())
 }
 
-#[cfg(not(unix))]
+/// `socket.gethostname()`, which CPython reads with this same call on Windows.
+#[cfg(windows)]
+fn system_hostname() -> Option<String> {
+    use windows_sys::Win32::System::SystemInformation::{
+        ComputerNamePhysicalDnsHostname, GetComputerNameExW,
+    };
+    let mut buf = [0u16; 256];
+    let mut len = buf.len() as u32;
+    // SAFETY: `len` is the buffer's length in UTF-16 units, as the API expects.
+    if unsafe { GetComputerNameExW(ComputerNamePhysicalDnsHostname, buf.as_mut_ptr(), &mut len) }
+        == 0
+    {
+        return None;
+    }
+    // On success `len` excludes the terminating NUL.
+    Some(String::from_utf16_lossy(&buf[..len as usize])).filter(|n| !n.is_empty())
+}
+
+#[cfg(not(any(unix, windows)))]
 fn system_hostname() -> Option<String> {
     None
 }
