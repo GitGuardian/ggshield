@@ -11,6 +11,7 @@ import json
 import os
 import zipfile
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -101,6 +102,63 @@ def test_load_effective_keeps_user_only_plugin_for_root(config_dirs, monkeypatch
     assert cfg.is_plugin_enabled("legacy_root")  # per-user fallback
 
 
+def test_effective_sources_order_and_flags(config_dirs, monkeypatch):
+    user, system = config_dirs
+    _write_config(system, "plugins:\n  machine_scan:\n    enabled: true\n")
+
+    monkeypatch.setattr(ec_mod, "is_root", lambda: False)
+    sources = EnterpriseConfig.effective_sources()
+    assert [(s.scope, s.path, s.exists) for s in sources] == [
+        ("system", system / "enterprise_config.yaml", True),
+        ("user", user / "enterprise_config.yaml", False),
+    ]
+    assert "machine_scan" in sources[0].plugins
+    assert sources[1].plugins == {}
+
+    monkeypatch.setattr(ec_mod, "is_root", lambda: True)
+    assert [s.scope for s in EnterpriseConfig.effective_sources()] == [
+        "user",
+        "system",
+    ]
+
+
+def test_effective_sources_keeps_parse_error_and_load_effective_raises(
+    config_dirs, monkeypatch
+):
+    user, system = config_dirs
+    monkeypatch.setattr(ec_mod, "is_root", lambda: False)
+    _write_config(user, "plugins: [unclosed\n  : :")
+
+    by_scope = {s.scope: s for s in EnterpriseConfig.effective_sources()}
+    assert by_scope["user"].error is not None
+    assert by_scope["user"].plugins == {}
+    with pytest.raises(ValueError):
+        EnterpriseConfig.load_effective()
+
+
+@pytest.mark.parametrize("root", [False, True])
+def test_load_effective_stops_at_system_config_read_error(
+    config_dirs, monkeypatch, root
+):
+    user, system = config_dirs
+    for module in (
+        "ggshield.cmd.plugin.plugin_list",
+        "ggshield.core.config.enterprise_config",
+        "ggshield.core.plugin.loader",
+        "ggshield.core.plugin.downloader",
+    ):
+        monkeypatch.setattr(f"{module}.is_root", lambda: root)
+    _write_config(system, "plugins: [unclosed\n  : :")
+    _write_config(user, "plugins:\n  other: true\n")
+    read_yaml = Mock(wraps=ec_mod.load_yaml_dict)
+    monkeypatch.setattr(ec_mod, "load_yaml_dict", read_yaml)
+
+    with pytest.raises(ValueError, match="is not a valid YAML file"):
+        EnterpriseConfig.load_effective()
+
+    read_yaml.assert_called_once_with(get_enterprise_config_filepath(system=True))
+
+
 def test_load_is_single_file_per_user_when_not_root(config_dirs, monkeypatch):
     user, system = config_dirs
     monkeypatch.setattr(ec_mod, "is_root", lambda: False)
@@ -164,6 +222,7 @@ def test_loader_scans_both_dirs_user_wins_for_non_root(tmp_path, monkeypatch):
         tmp_path / "system-data" / "plugins",
         tmp_path / "user-data" / "plugins",
     ]
+    assert loader.plugin_search_dirs() == scanned
 
 
 def test_loader_scans_both_dirs_system_wins_for_root(tmp_path, monkeypatch):
@@ -181,6 +240,16 @@ def test_loader_scans_both_dirs_system_wins_for_root(tmp_path, monkeypatch):
         tmp_path / "user-data" / "plugins",
         tmp_path / "system-data" / "plugins",
     ]
+    assert loader.plugin_search_dirs() == scanned
+
+
+def test_plugin_search_dirs_deduplicated_when_dirs_are_equal(tmp_path, monkeypatch):
+    shared = tmp_path / "shared"
+    monkeypatch.setenv("GG_DATA_DIR", str(shared))
+    monkeypatch.setenv("GG_SYSTEM_DATA_DIR", str(shared))
+    monkeypatch.setattr("ggshield.core.plugin.loader.is_root", lambda: False)
+
+    assert PluginLoader(EnterpriseConfig()).plugin_search_dirs() == [shared / "plugins"]
 
 
 def test_downloader_installs_to_system_dir_as_root(tmp_path, monkeypatch):

@@ -9,6 +9,7 @@ from ggshield.cmd.utils.lazy_group import PluginAwareLazyGroup
 @click.group(
     cls=PluginAwareLazyGroup,
     plugin_scope="machine",
+    plugin_commands={"scan": "machine_scan"},
     lazy_commands={
         "setup": "ggshield.cmd.machine.setup:setup_cmd",
         "doctor": "ggshield.cmd.machine.doctor:doctor_cmd",

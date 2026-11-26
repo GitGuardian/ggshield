@@ -983,7 +983,7 @@ class PluginDownloader:
                 continue
 
             try:
-                manifest = json.loads(manifest_path.read_text())
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 wheel_filename = manifest.get("wheel_filename", "")
                 wheel_path = plugin_dir / wheel_filename
 

@@ -13,7 +13,7 @@ still resolves from the bundle.
 
 import importlib
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 
@@ -150,10 +150,17 @@ class PluginAwareLazyGroup(LazyGroup):
     """
 
     def __init__(
-        self, *args: Any, plugin_scope: Optional[str] = None, **kwargs: Any
+        self,
+        *args: Any,
+        plugin_scope: Optional[str] = None,
+        plugin_commands: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.plugin_scope = plugin_scope
+        # Commands only a plugin provides: command name -> plugin name. Used to
+        # explain why such a command is unknown.
+        self.plugin_commands: Dict[str, str] = plugin_commands or {}
         self._plugins_merged = False
 
     def _ensure_plugins(self) -> None:
@@ -176,7 +183,7 @@ class PluginAwareLazyGroup(LazyGroup):
             if load_error:
                 warnings.append(
                     f"Failed to load plugins: {load_error}. Plugin commands are "
-                    "unavailable; run `ggshield plugin list` for status."
+                    "unavailable; run `ggshield plugin list -v` for status."
                 )
             for cmd in registry.get_commands():
                 if not cmd.name:
@@ -210,7 +217,7 @@ class PluginAwareLazyGroup(LazyGroup):
         for name, reason in load_failures.items():
             ui.display_warning(
                 f"Plugin '{name}' is enabled but failed to load: {reason}. Its "
-                "commands are unavailable; run `ggshield plugin list` for status."
+                "commands are unavailable; run `ggshield plugin list -v` for status."
             )
         for msg in warnings:
             ui.display_warning(msg)
@@ -225,3 +232,19 @@ class PluginAwareLazyGroup(LazyGroup):
     def list_commands(self, ctx: click.Context) -> List[str]:
         self._ensure_plugins()
         return super().list_commands(ctx)
+
+    def resolve_command(
+        self, ctx: click.Context, args: List[str]
+    ) -> Tuple[Optional[str], Optional[click.Command], List[str]]:
+        try:
+            return super().resolve_command(ctx, args)
+        except click.UsageError:
+            name = args[0] if args else None
+            plugin = self.plugin_commands.get(name) if name else None
+            if name is None or plugin is None or self.get_command(ctx, name):
+                raise
+            ctx.fail(
+                f"No such command {name!r}. It is provided by the {plugin!r} "
+                "plugin, which is not installed, not enabled, or failed to load. "
+                "Run 'ggshield plugin list -v' to see where ggshield looked."
+            )

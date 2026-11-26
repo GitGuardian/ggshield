@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ggshield.core.config.utils import load_yaml_dict, save_yaml_dict
 from ggshield.core.dirs import (
@@ -26,11 +26,30 @@ def get_enterprise_config_filepath(system: bool = False) -> Path:
 
 @dataclass
 class PluginConfig:
-    """Configuration for a single plugin."""
+    """Configuration for a single plugin.
+
+    ``version`` and ``auto_update`` are recorded at install time but are not
+    enforced: nothing pins the plugin to ``version`` and ``plugin update``
+    ignores ``auto_update``.
+    """
 
     enabled: bool = True
     version: Optional[str] = None
     auto_update: bool = True
+
+
+@dataclass
+class EnterpriseConfigSource:
+    """One enterprise config file read by :meth:`EnterpriseConfig.load_effective`."""
+
+    path: Path
+    scope: str  # "system" or "user"
+    exists: bool
+    plugins: Dict[str, PluginConfig] = field(default_factory=dict)
+    error: Optional[Exception] = None
+    # Set when the file may exist but cannot be checked (e.g. an unsearchable
+    # parent); load_effective() then treats it as absent.
+    inaccessible: Optional[OSError] = None
 
 
 @dataclass
@@ -87,12 +106,41 @@ class EnterpriseConfig:
           ``/root/.config`` entry, while a pre-machine-wide root install whose
           enablement lives only per-user stays visible until migrated.
         """
-        system = cls._load_plugins(get_enterprise_config_filepath(system=True))
-        user = cls._load_plugins(get_enterprise_config_filepath(system=False))
+        return cls.from_sources(cls.effective_sources(strict=True))
+
+    @classmethod
+    def effective_sources(cls, *, strict: bool = False) -> List[EnterpriseConfigSource]:
+        """Files merged by :meth:`load_effective`, lowest precedence first
+        (later wins). Strict reads stop at the first error in system-first order."""
+        sources = []
+        for scope in ("system", "user"):
+            path = get_enterprise_config_filepath(system=scope == "system")
+            source = EnterpriseConfigSource(path=path, scope=scope, exists=False)
+            try:
+                source.exists = path.exists()
+                if not source.exists and not strict:
+                    try:
+                        path.stat()
+                    except FileNotFoundError:
+                        pass
+                    except OSError as exc:
+                        source.inaccessible = exc
+                source.plugins = cls._load_plugins(path)
+            except Exception as exc:
+                if strict:
+                    raise
+                source.error = exc
+            sources.append(source)
         if is_root():
-            plugins = {**user, **system}  # system wins for root
-        else:
-            plugins = {**system, **user}  # per-user wins for everyone else
+            sources.reverse()  # system wins for root
+        return sources
+
+    @classmethod
+    def from_sources(cls, sources: List[EnterpriseConfigSource]) -> EnterpriseConfig:
+        """Merge readable sources, lowest precedence first."""
+        plugins: Dict[str, PluginConfig] = {}
+        for source in sources:
+            plugins.update(source.plugins)
         return cls(plugins=plugins)
 
     def save(self) -> None:
