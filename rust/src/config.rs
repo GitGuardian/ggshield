@@ -55,7 +55,6 @@ pub enum ConfigError {
 
 /// The configuration of ggshield, consolidated from various sources.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[expect(dead_code)]
 pub struct Config {
     pub config_path: ConfigParameter<PathBuf>,
     pub instance: ConfigParameter<DashboardUrl>,

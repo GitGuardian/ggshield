@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use clap::{ArgAction, Args, Parser};
 use gg_url::DashboardUrl;
 
+use crate::config::{Config, Sources};
+use crate::error::{Error, ExitCode};
+
 /// ggshield's command-line interface.
 #[derive(Debug, Parser)]
 #[command(
@@ -15,12 +18,18 @@ pub struct GGShield {
     pub global_options: GlobalOptions,
 
     #[command(subcommand)]
-    command: Subcommand,
+    pub command: Subcommand,
 }
 
 /// Subcommands of the ggshield CLI
 #[derive(Debug, clap::Subcommand)]
-enum Subcommand {}
+pub enum Subcommand {}
+
+impl Subcommand {
+    pub fn run(&self, _sources: &Sources, _config: &Config) -> Result<ExitCode, Error> {
+        match *self {}
+    }
+}
 
 #[derive(Debug, Args)]
 pub struct GlobalOptions {
