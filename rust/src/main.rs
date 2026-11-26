@@ -10,6 +10,7 @@ mod dispatch;
 mod error;
 mod hash;
 mod hook;
+mod machine;
 mod secure_file;
 #[cfg(test)]
 mod test_support;

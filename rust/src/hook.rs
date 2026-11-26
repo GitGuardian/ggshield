@@ -382,6 +382,15 @@ fn scan_payloads(
     if pending.is_empty() {
         return Ok((0, Vec::new(), false));
     }
+    // Only once a request is certain: the machine id lookup can be slow.
+    let identity = if payloads
+        .iter()
+        .any(|p| crate::machine::is_setup_warm_up(&p.raw))
+    {
+        Vec::new()
+    } else {
+        crate::machine::headers(config.user.endpoint_registration_opt_out)
+    };
 
     let mut found: Option<(usize, Vec<api::Secret>)> = None;
     let mut valid_elsewhere = false;
@@ -392,7 +401,12 @@ fn scan_payloads(
         // rest. Propagating here instead discarded every secret the earlier
         // chunks had already found and skipped the remaining ones — reachable
         // from a prompt mentioning 21 files.
-        let results = match api::multiscan(config, agent, chunk.iter().map(|item| &item.document)) {
+        let results = match api::multiscan(
+            config,
+            agent,
+            &identity,
+            chunk.iter().map(|item| &item.document),
+        ) {
             Ok(results) => results,
             Err(error) => {
                 failure = failure.or(Some(error));
@@ -748,9 +762,11 @@ mod tests {
         }
     }
 
-    /// Every multiscan batch's filenames, plus the `/v1/metadata` fetch count.
+    /// Every multiscan batch's filenames and whether it carried a machine id,
+    /// plus the `/v1/metadata` fetch count.
     struct Recorded {
         batches: Mutex<Vec<Vec<String>>>,
+        identified: Mutex<Vec<bool>>,
         metadata_hits: AtomicUsize,
     }
 
@@ -761,6 +777,7 @@ mod tests {
         let url = format!("http://{}", listener.local_addr().expect("addr"));
         let recorded = Arc::new(Recorded {
             batches: Mutex::new(Vec::new()),
+            identified: Mutex::new(Vec::new()),
             metadata_hits: AtomicUsize::new(0),
         });
         let served = Arc::clone(&recorded);
@@ -779,14 +796,18 @@ mod tests {
         let mut request_line = String::new();
         reader.read_line(&mut request_line).expect("request line");
         let mut length = 0usize;
+        let mut identified = false;
         loop {
-            let mut header = String::new();
-            if reader.read_line(&mut header).expect("header") == 0 || header == "\r\n" {
+            // Bytes, not a String: a latin-1 username is not UTF-8.
+            let mut raw = Vec::new();
+            if reader.read_until(b'\n', &mut raw).expect("header") == 0 || raw == b"\r\n" {
                 break;
             }
-            if let Some(value) = header.to_ascii_lowercase().strip_prefix("content-length:") {
+            let header = String::from_utf8_lossy(&raw).to_ascii_lowercase();
+            if let Some(value) = header.strip_prefix("content-length:") {
                 length = value.trim().parse().unwrap_or(0);
             }
+            identified |= header.starts_with("ggshield-machine-id:");
         }
 
         let body = if request_line.starts_with("GET") {
@@ -804,6 +825,7 @@ mod tests {
             reader.read_exact(&mut raw).expect("body");
             let documents: Vec<serde_json::Value> =
                 serde_json::from_slice(&raw).expect("documents");
+            recorded.identified.lock().expect("lock").push(identified);
             let mut batches = recorded.batches.lock().expect("lock");
             batches.push(
                 documents
@@ -1257,6 +1279,49 @@ mod tests {
             "tool_input": {"command": command},
         })
         .to_string()
+    }
+
+    /// GIVEN `machine setup`'s warm-up event, then a Claude Code prompt
+    /// WHEN each is scanned
+    /// THEN only the Claude Code prompt carries the machine identity, so the
+    /// warm-up cannot mark Claude Code's hooks as installed.
+    #[test]
+    fn the_setup_warm_up_sends_no_machine_identity() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(MockLimits::default());
+        let config = test_config(url);
+        let event = |session_id: &str, prompt: &str| {
+            serde_json::json!({
+                "hook_event_name": "UserPromptSubmit",
+                "session_id": session_id,
+                "transcript_path": format!("{session_id}/claude-code.jsonl"),
+                "prompt": prompt,
+            })
+            .to_string()
+        };
+
+        scan(&config, &event("ggshield-machine-setup", "warm-up")).expect("warm-up");
+        scan(&config, &event("abc", "a real prompt")).expect("real event");
+
+        assert_eq!(*recorded.identified.lock().expect("lock"), [false, true]);
+    }
+
+    /// GIVEN a prompt already scanned clean
+    /// WHEN it is scanned again and answered from the verdict cache
+    /// THEN the machine identity is not built, as no request is sent.
+    #[test]
+    fn a_verdict_cache_hit_does_not_build_the_machine_identity() {
+        let (_guard, _dir) = verdict_cache::with_cache_dir();
+        let (url, recorded) = mock_api(MockLimits::default());
+        let config = test_config(url);
+        let built = || crate::machine::HEADERS_BUILT.with(std::cell::Cell::get);
+
+        let before = built();
+        scan_payloads(&config, &mut [text_payload("prompt", "a clean prompt")]).expect("scan");
+        assert_eq!(built(), before + 1);
+        scan_payloads(&config, &mut [text_payload("prompt", "a clean prompt")]).expect("scan");
+        assert_eq!(built(), before + 1);
+        assert_eq!(recorded.batches.lock().expect("lock").len(), 1);
     }
 
     /// GIVEN two ggshield hooks configured for one event, so the same payload

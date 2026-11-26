@@ -90,6 +90,9 @@ pub struct UserConfig {
     /// How long to wait for the API to answer, in seconds. `timeout` in
     /// core/constants.py and core/config/user_config.py.
     pub api_timeout: u64,
+    /// `endpoint_registration: false`: the hook sends no hostname, from which the
+    /// server registers hook users.
+    pub endpoint_registration_opt_out: bool,
     pub secret: SecretConfig,
 }
 
@@ -112,6 +115,8 @@ struct RawUserConfig {
     #[serde(alias = "allow_self_signed", alias = "allow-self-signed")]
     insecure: Option<bool>,
     api_timeout: Option<u64>,
+    #[serde(alias = "endpoint-registration")]
+    endpoint_registration: Option<bool>,
     /// `_fix_ignore_known_secrets()`: originally accepted at the root, where it
     /// still works unless `secret` gives its own value.
     #[serde(alias = "ignore-known-secrets")]
@@ -196,6 +201,7 @@ impl From<V1Config> for RawUserConfig {
             exit_zero: v1.exit_zero,
             insecure: v1.allow_self_signed,
             api_timeout: None,
+            endpoint_registration: None,
             ignore_known_secrets: None,
             secret: RawSecretConfig {
                 ignored_matches: v1
@@ -224,6 +230,7 @@ impl RawUserConfig {
         self.exit_zero = later.exit_zero.or(self.exit_zero);
         self.insecure = later.insecure.or(self.insecure);
         self.api_timeout = later.api_timeout.or(self.api_timeout);
+        self.endpoint_registration = later.endpoint_registration.or(self.endpoint_registration);
         self.ignore_known_secrets = later.ignore_known_secrets.or(self.ignore_known_secrets);
 
         let secret = &mut self.secret;
@@ -252,6 +259,7 @@ impl RawUserConfig {
             exit_zero: self.exit_zero.unwrap_or_default(),
             insecure: self.insecure.unwrap_or_default(),
             api_timeout: self.api_timeout.unwrap_or(DEFAULT_API_TIMEOUT),
+            endpoint_registration_opt_out: self.endpoint_registration == Some(false),
             secret: SecretConfig {
                 ignored_matches: self
                     .secret
@@ -399,6 +407,18 @@ mod tests {
         .expect("parses");
         assert!(config.secret.ignored_matches.is_empty());
         assert!(!config.secret.all_secrets);
+    }
+
+    /// GIVEN configs that leave `endpoint_registration` unset, enable it, or disable it
+    /// WHEN they are loaded
+    /// THEN only an explicit `false` opts out, as the Python default is `True`.
+    #[test]
+    fn only_an_explicit_false_opts_out_of_endpoint_registration() {
+        let opt_out = |yaml: &str| parse(yaml).expect("parses").endpoint_registration_opt_out;
+        assert!(!opt_out("version: 2\n"));
+        assert!(!opt_out("version: 2\nendpoint_registration: true\n"));
+        assert!(opt_out("version: 2\nendpoint_registration: false\n"));
+        assert!(opt_out("version: 2\nendpoint-registration: false\n"));
     }
 
     /// GIVEN `secret.ignored_paths`, in v2 and in the v1 `paths_ignore` spelling

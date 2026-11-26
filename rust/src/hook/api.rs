@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use crate::config::{self, Config, Limits, SIZE_METADATA_OVERHEAD};
 use crate::error::Error;
 use crate::hash::sha256_hex;
+use crate::machine::Header;
 use crate::user_config::{DEFAULT_API_TIMEOUT, MAX_API_TIMEOUT, MIN_API_TIMEOUT, SecretConfig};
 
 /// `_API_PATH_MAX_LENGTH` in secret_scanner.py.
@@ -339,6 +340,7 @@ pub fn encoded_size(config: &Config, doc: &Document) -> usize {
 pub fn multiscan<'a>(
     config: &Config,
     agent: crate::hook::payload::Agent,
+    identity: &[Header],
     documents: impl IntoIterator<Item = &'a Document>,
 ) -> Result<Vec<DocumentResult>, Error> {
     let payload: Vec<Value> = documents
@@ -347,7 +349,7 @@ pub fn multiscan<'a>(
         .collect();
     let body = Value::Array(payload).to_string();
 
-    let (status, text) = send_with_retries(config, agent, &body)?;
+    let (status, text) = send_with_retries(config, agent, identity, &body)?;
     if status == 401 || status == 403 {
         return Err(Error::auth());
     }
@@ -373,16 +375,17 @@ pub fn multiscan<'a>(
 fn send_with_retries(
     config: &Config,
     agent: crate::hook::payload::Agent,
+    identity: &[Header],
     body: &str,
 ) -> Result<(u16, String), Error> {
-    let mut answer = send_once(config, agent, body);
+    let mut answer = send_once(config, agent, identity, body);
     for backoff in RETRY_BACKOFF_SECS {
         match &answer {
             Ok((status, _)) if RETRY_STATUSES.contains(status) => {}
             _ => break,
         }
         std::thread::sleep(std::time::Duration::from_secs(backoff));
-        answer = send_once(config, agent, body);
+        answer = send_once(config, agent, identity, body);
     }
     answer
 }
@@ -390,10 +393,11 @@ fn send_with_retries(
 fn send_once(
     config: &Config,
     agent: crate::hook::payload::Agent,
+    identity: &[Header],
     body: &str,
 ) -> Result<(u16, String), Error> {
     let url = format!("{}/v1/multiscan?all_secrets=True", config.api_url);
-    let mut response = crate::hook::tls::agent(config)
+    let request = crate::hook::tls::agent(config)
         .map_err(Error::scan)?
         .post(&url)
         .config()
@@ -413,7 +417,12 @@ fn send_once(
         .header(
             "User-Agent",
             concat!("ggshield-hook/", env!("GGSHIELD_VERSION")),
-        )
+        );
+    let mut response = identity
+        .iter()
+        .fold(request, |request, (name, value)| {
+            request.header(*name, value)
+        })
         .send(body)
         .map_err(|e| Error::scan(e.to_string()))?;
 
@@ -579,6 +588,7 @@ mod tests {
         multiscan(
             config,
             crate::hook::payload::Agent::Claude,
+            &crate::machine::headers(config.user.endpoint_registration_opt_out),
             [&Document {
                 content: content.into(),
                 filename: "a.env".into(),
@@ -639,6 +649,93 @@ mod tests {
         assert_eq!(bodies.lock().expect("lock").len(), 1);
     }
 
+    /// A clean `/v1/multiscan` responder that keeps each request's raw head, as
+    /// bytes: a latin-1 header value is not UTF-8.
+    fn head_api() -> (String, Arc<Mutex<Vec<Vec<u8>>>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let url = format!("http://{}", listener.local_addr().expect("addr"));
+        let heads = Arc::new(Mutex::new(Vec::new()));
+        let recorded = Arc::clone(&heads);
+        std::thread::spawn(move || {
+            for mut stream in listener.incoming().flatten() {
+                let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+                let mut head = Vec::new();
+                let mut length = 0usize;
+                let mut line = Vec::new();
+                while reader.read_until(b'\n', &mut line).is_ok_and(|n| n > 0) {
+                    if line == b"\r\n" {
+                        break;
+                    }
+                    let text = String::from_utf8_lossy(&line).to_ascii_lowercase();
+                    if let Some(value) = text.strip_prefix("content-length:") {
+                        length = value.trim().parse().unwrap_or(0);
+                    }
+                    head.extend_from_slice(&line);
+                    line.clear();
+                }
+                let _ = reader.read_exact(&mut vec![0u8; length]);
+                recorded.lock().expect("lock").push(head);
+                let body = r#"[{"policy_breaks": []}]"#;
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            }
+        });
+        (url, heads)
+    }
+
+    fn header<'a>(head: &'a [u8], name: &str) -> Option<&'a [u8]> {
+        let prefix = format!("{}:", name.to_ascii_lowercase());
+        head.split(|&b| b == b'\n').find_map(|line| {
+            let lower = line.to_ascii_lowercase();
+            lower
+                .starts_with(prefix.as_bytes())
+                .then(|| line[prefix.len()..].trim_ascii())
+        })
+    }
+
+    /// GIVEN a scan from a config that opted out of endpoint registration
+    /// WHEN it reaches the API
+    /// THEN it carries the machine id and username, and no hostname.
+    #[test]
+    fn a_scan_sends_the_machine_identity() {
+        let (url, heads) = head_api();
+        let mut config = config_for(url);
+        config.user.endpoint_registration_opt_out = true;
+
+        scan_one(&config, "nothing to see").expect("scan");
+
+        let head = heads.lock().expect("lock")[0].clone();
+        let id = header(&head, "GGShield-Machine-Id").expect("machine id");
+        assert!(!id.is_empty());
+        assert!(header(&head, "GGShield-Machine-Username").is_some());
+        assert_eq!(header(&head, "GGShield-Machine-Hostname"), None);
+    }
+
+    /// GIVEN a header value with an accent, encoded as latin-1
+    /// WHEN the HTTP client sends it
+    /// THEN the server receives the single latin-1 byte, so it reads `Clément`
+    /// once and spelled right, and the request still succeeds.
+    #[test]
+    fn a_latin1_header_value_reaches_the_server_as_latin1() {
+        let (url, heads) = head_api();
+        let value = ureq::http::HeaderValue::from_bytes(b"Cl\xe9ment").expect("value");
+
+        let response = ureq::get(&url)
+            .header("GGShield-Machine-Username", value)
+            .call()
+            .expect("request");
+
+        assert_eq!(response.status().as_u16(), 200);
+        let head = heads.lock().expect("lock")[0].clone();
+        assert_eq!(
+            header(&head, "GGShield-Machine-Username"),
+            Some(&b"Cl\xe9ment"[..])
+        );
+    }
+
     /// GIVEN a status the API returns for a bad request
     /// WHEN a batch is scanned
     /// THEN its `detail` is reported once, with no retry.
@@ -693,6 +790,7 @@ mod tests {
         multiscan(
             &config,
             crate::hook::payload::Agent::Claude,
+            &[],
             [&Document {
                 content: "nothing here".into(),
                 filename: path.into(),
