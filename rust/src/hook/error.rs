@@ -32,6 +32,9 @@ fn reason(error: &Error) -> String {
         | Cause::Unauthorized
         | Cause::CredentialStore(_)
         | Cause::Config(_)
+        | Cause::FileSystem(_)
+        | Cause::Usage(_)
+        | Cause::InvalidSetting(_)
         | Cause::Unsupported(_) => summary.to_string(),
         Cause::InvalidUrlScheme { .. }
         | Cause::Tls(_)
@@ -43,7 +46,12 @@ fn reason(error: &Error) -> String {
 
 fn remediation(cause: &Cause) -> Option<String> {
     match cause {
-        Cause::HookInput(_) | Cause::Config(_) | Cause::Unsupported(_) => None,
+        Cause::HookInput(_)
+        | Cause::Config(_)
+        | Cause::FileSystem(_)
+        | Cause::Usage(_)
+        | Cause::InvalidSetting(_)
+        | Cause::Unsupported(_) => None,
         Cause::UnrecognizedAgent => {
             Some("Update ggshield, as this agent may need a newer version.".into())
         }

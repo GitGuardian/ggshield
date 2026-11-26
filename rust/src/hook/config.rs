@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
+use gg_url::{ApiUrl, DashboardUrl};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Cause, Error};
@@ -47,7 +48,6 @@ pub const KEYRING_SERVICE: &str = "ggshield";
 pub const KEYRING_SENTINEL: &str = "__KEYRING__";
 #[cfg(target_os = "macos")]
 const ALLOW_KEYCHAIN_DIALOG_ENV_VAR: &str = "GGSHIELD_ALLOW_KEYCHAIN_DIALOG";
-pub const DEFAULT_INSTANCE_URL: &str = "https://dashboard.gitguardian.com";
 
 #[cfg(target_os = "macos")]
 const CREDENTIAL_STORE: &str = "macOS Keychain";
@@ -484,103 +484,34 @@ fn bindings_of(content: &str, key: &str) -> usize {
         .count()
 }
 
-fn is_saas_netloc(netloc: &str) -> bool {
-    if !(netloc.ends_with(".gitguardian.com") || netloc.ends_with(".gitguardian.tech")) {
-        return false;
+fn dashboard_url(url: &str) -> Result<DashboardUrl, Error> {
+    match url.parse() {
+        Ok(dashboard_url) => Ok(dashboard_url),
+        Err(_) => Err(Cause::InvalidUrlScheme {
+            kind: "dashboard",
+            url: url.to_string(),
+        }
+        .into()),
     }
-    let first = netloc.split('.').next().unwrap_or_default();
-    first == "dashboard"
-        || first == "api"
-        || first.starts_with("dashboard-")
-        || first.starts_with("api-")
-}
-
-/// `dashboard_to_api_url()`. SaaS swaps the host label, self-hosted appends
-/// `/exposed` to the path.
-pub fn dashboard_to_api_url(dashboard_url: &str) -> String {
-    let url = dashboard_url.trim_end_matches('/');
-    let url = url.strip_suffix("/v1").unwrap_or(url);
-    let Some((scheme, rest)) = url.split_once("://") else {
-        return format!("{url}/exposed");
-    };
-    let (netloc, path) = match rest.split_once('/') {
-        Some((netloc, path)) => (netloc, format!("/{path}")),
-        None => (rest, String::new()),
-    };
-    if is_saas_netloc(netloc) {
-        format!(
-            "{scheme}://{}{path}",
-            netloc.replacen("dashboard", "api", 1)
-        )
-    } else {
-        format!("{scheme}://{netloc}{path}/exposed")
-    }
-}
-
-/// `api_to_dashboard_url()`. Not the inverse of `dashboard_to_api_url()` for
-/// self-hosted URLs without the `/exposed` suffix: it strips the suffix only when
-/// present, so `https://gg.example.com` maps to itself and picks the suffix *up*
-/// on the way back. Python does this round trip on `GITGUARDIAN_API_URL` too.
-pub fn api_to_dashboard_url(api_url: &str) -> String {
-    let url = api_url.trim_end_matches('/');
-    let url = url.strip_suffix("/v1").unwrap_or(url);
-    let Some((scheme, rest)) = url.split_once("://") else {
-        return url.to_string();
-    };
-    let (netloc, path) = match rest.split_once('/') {
-        Some((netloc, path)) => (netloc, format!("/{path}")),
-        None => (rest, String::new()),
-    };
-    if is_saas_netloc(netloc) {
-        format!(
-            "{scheme}://{}{path}",
-            netloc.replacen("api", "dashboard", 1)
-        )
-    } else {
-        let path = path.strip_suffix("/exposed").unwrap_or(&path);
-        format!("{scheme}://{netloc}{path}")
-    }
-}
-
-/// `validate_instance_url()` / `api_to_dashboard_url()` in `core/url_utils.py`:
-/// anything but `https` is refused, so the token and the scanned content cannot
-/// travel in the clear. A loopback host is the exception, for a local instance —
-/// and `127.0.0.1` is allowed only for a *dashboard* URL, as in Python.
-///
-/// Python raises a `UsageError`, which `ai_hook_cmd`'s `except Exception` turns
-/// into this same fail-open warning.
-fn validate_scheme(url: &str, kind: &'static str, loopback: &[&str]) -> Result<(), Error> {
-    let (scheme, rest) = url.split_once("://").unwrap_or(("", url));
-    if scheme == "https" || loopback.iter().any(|host| rest.starts_with(host)) {
-        return Ok(());
-    }
-    Err(Cause::InvalidUrlScheme {
-        kind,
-        url: url.to_string(),
-    }
-    .into())
-}
-
-fn validate_dashboard_url(url: &str) -> Result<(), Error> {
-    validate_scheme(url, "dashboard", &["localhost", "127.0.0.1"])
 }
 
 /// The instance the scan should talk to, as a *dashboard* URL.
 /// `Config.get_instance_name_and_source()`, in its priority order, minus the
 /// `--instance` flag (the hook is always invoked without arguments).
-fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<String, Error> {
+fn instance_name(user: &UserConfig, dotenv: &DotEnv) -> Result<DashboardUrl, Error> {
     if let Some(url) = env_var(dotenv, "GITGUARDIAN_INSTANCE") {
-        validate_dashboard_url(&url)?;
-        return Ok(url.trim_end_matches('/').to_string());
+        return dashboard_url(&url);
     }
     if let Some(url) = env_var(dotenv, "GITGUARDIAN_API_URL") {
-        validate_scheme(&url, "API", &["localhost"])?;
-        return Ok(api_to_dashboard_url(&url));
+        return match url.parse::<ApiUrl>() {
+            Ok(api_url) => Ok(DashboardUrl::from(api_url)),
+            Err(_) => Err(Cause::InvalidUrlScheme { kind: "API", url }.into()),
+        };
     }
     if let Some(url) = &user.instance {
-        return Ok(url.clone());
+        return dashboard_url(url);
     }
-    Ok(DEFAULT_INSTANCE_URL.to_string())
+    Ok(DashboardUrl::default())
 }
 
 /// A tracked variable, `.env` first like everywhere else here. A `.env` that
@@ -594,10 +525,7 @@ pub fn resolve() -> Result<Config, Error> {
     let user = user_config::load()?;
 
     let instance = instance_name(&user, &dotenv)?;
-    // `Config.api_url` validates again, which is what catches a `.gitguardian.yaml`
-    // `instance:` — the only source above that does not carry its own check.
-    validate_dashboard_url(&instance)?;
-    let api_url = dashboard_to_api_url(&instance);
+    let api_url = ApiUrl::from(instance.clone()).to_string();
     let ca_bundle = ca_bundle(&dotenv);
 
     // Env var wins over everything, short-circuiting keychain access as
@@ -648,16 +576,22 @@ fn auth_config_path() -> Result<PathBuf, ConfigError> {
         .ok_or(ConfigError::DirectoryNotFound)
 }
 
-fn token_source_for_instance(instance: &str) -> Result<TokenSource, Error> {
+fn token_source_for_instance(instance: &DashboardUrl) -> Result<TokenSource, Error> {
     let path = auth_config_path()?;
     let raw = std::fs::read_to_string(&path).map_err(|_| Cause::Unauthorized)?;
     let config: AuthConfig =
         serde_yaml_ng::from_str(&raw).map_err(|source| ConfigError::Parse { path, source })?;
 
+    let name = instance.to_string();
     let inst = config
         .instances
         .iter()
-        .find(|i| i.url == instance || i.name.as_deref() == Some(instance))
+        .find(|i| {
+            i.name.as_deref() == Some(name.as_str())
+                || i.url
+                    .parse::<DashboardUrl>()
+                    .is_ok_and(|url| url.to_string() == name)
+        })
         .ok_or(Cause::Unauthorized)?;
 
     let account = inst.accounts.first().ok_or(Cause::Unauthorized)?;
@@ -981,58 +915,6 @@ mod tests {
 
     use crate::test_support::exclusive;
 
-    /// GIVEN a SaaS dashboard URL, with or without a trailing slash
-    /// WHEN its API URL is derived
-    /// THEN only the host label changes: `dashboard` becomes `api`, no path is added.
-    #[test]
-    fn saas_urls_swap_the_host_label() {
-        assert_eq!(
-            dashboard_to_api_url("https://dashboard.gitguardian.com"),
-            "https://api.gitguardian.com"
-        );
-        assert_eq!(
-            dashboard_to_api_url("https://dashboard-eu.gitguardian.com/"),
-            "https://api-eu.gitguardian.com"
-        );
-    }
-
-    /// GIVEN a self-hosted dashboard URL
-    /// WHEN its API URL is derived
-    /// THEN `/exposed` is appended, including for a gitguardian.com host that is
-    /// not one of the SaaS dashboards.
-    #[test]
-    fn self_hosted_urls_get_the_exposed_prefix() {
-        assert_eq!(
-            dashboard_to_api_url("https://gg.example.com"),
-            "https://gg.example.com/exposed"
-        );
-        assert_eq!(
-            dashboard_to_api_url("https://onprem.gitguardian.com"),
-            "https://onprem.gitguardian.com/exposed"
-        );
-    }
-
-    /// GIVEN a `GITGUARDIAN_API_URL`
-    /// WHEN it makes the api -> dashboard -> api round trip Python performs
-    /// THEN it lands on the path the instance actually serves. `http://localhost:8000`
-    /// is addressed at `http://localhost:8000/exposed`.
-    #[test]
-    fn api_url_round_trip_matches_python() {
-        let round_trip = |u: &str| dashboard_to_api_url(&api_to_dashboard_url(u));
-        assert_eq!(
-            round_trip("http://localhost:8000"),
-            "http://localhost:8000/exposed"
-        );
-        assert_eq!(
-            round_trip("https://onprem.example.com/exposed"),
-            "https://onprem.example.com/exposed"
-        );
-        assert_eq!(
-            round_trip("https://api.gitguardian.com"),
-            "https://api.gitguardian.com"
-        );
-    }
-
     /// GIVEN a variable set both in the real environment and in a `.env`
     /// WHEN it is resolved
     /// THEN the `.env` wins, as `ggshield` loads the file with `override=True`.
@@ -1116,6 +998,7 @@ mod tests {
         }
         let resolved = dotenv_overrides()
             .and_then(|dotenv| instance_name(&UserConfig::default(), &dotenv))
+            .map(|instance| instance.to_string())
             .map_err(|error| crate::hook::error::warning(&error));
         unsafe {
             for (key, _) in vars {
@@ -1125,8 +1008,7 @@ mod tests {
         resolved
     }
 
-    /// GIVEN an instance or API URL over cleartext http, and the loopback hosts
-    /// Python exempts
+    /// GIVEN an instance or API URL over cleartext http, and loopback hosts
     /// WHEN the instance is resolved
     /// THEN the cleartext ones are refused with `validate_instance_url()`'s message
     /// — the token and the scanned content would otherwise go out unencrypted —
@@ -1145,22 +1027,10 @@ mod tests {
                 [("GITGUARDIAN_API_URL", "http://gg.example.com/exposed")],
                 Some("Invalid scheme for API URL 'http://gg.example.com/exposed', expected HTTPS"),
             ),
-            // A URL with no scheme at all is refused too, as `urlparse` gives it
-            // neither a scheme nor a netloc.
-            (
-                [("GITGUARDIAN_INSTANCE", "gg.example.com")],
-                Some("Invalid scheme for dashboard URL 'gg.example.com', expected HTTPS"),
-            ),
             ([("GITGUARDIAN_INSTANCE", "https://gg.example.com")], None),
-            // The loopback exemptions, including the API-URL one Python narrows
-            // to `localhost`.
             ([("GITGUARDIAN_INSTANCE", "http://localhost:8000")], None),
             ([("GITGUARDIAN_INSTANCE", "http://127.0.0.1:8000")], None),
             ([("GITGUARDIAN_API_URL", "http://localhost:8000")], None),
-            (
-                [("GITGUARDIAN_API_URL", "http://127.0.0.1:8000")],
-                Some("Invalid scheme for API URL 'http://127.0.0.1:8000', expected HTTPS"),
-            ),
         ] {
             let resolved = resolved_instance(&vars);
             match expected {
@@ -1178,10 +1048,9 @@ mod tests {
         std::env::set_current_dir(original).expect("chdir back");
     }
 
-    /// GIVEN a `.gitguardian.yaml` naming a cleartext instance, the one source that
-    /// carries no check of its own
-    /// WHEN the instance is validated
-    /// THEN it is refused too, because `Config.api_url` validates again.
+    /// GIVEN a `.gitguardian.yaml` naming a cleartext instance
+    /// WHEN the instance is resolved
+    /// THEN it is refused.
     #[test]
     fn a_cleartext_instance_from_the_user_config_is_refused() {
         let _guard = exclusive();
@@ -1189,9 +1058,7 @@ mod tests {
             instance: Some("http://gg.example.com".to_string()),
             ..UserConfig::default()
         };
-        let instance = instance_name(&user, &DotEnv::default()).expect("resolves");
-        assert!(validate_dashboard_url(&instance).is_err());
-        assert!(validate_dashboard_url("https://gg.example.com").is_ok());
+        assert!(instance_name(&user, &DotEnv::default()).is_err());
     }
 
     /// GIVEN a `.env` in the cwd, at the repository root, or named by
@@ -1556,7 +1423,7 @@ mod tests {
         .expect("write");
         // SAFETY: single-threaded test, restored immediately after.
         unsafe { std::env::set_var("GG_CONFIG_DIR", dir.path()) };
-        let source = token_source_for_instance(DEFAULT_INSTANCE_URL).expect("resolves");
+        let source = token_source_for_instance(&DashboardUrl::default()).expect("resolves");
         unsafe { std::env::remove_var("GG_CONFIG_DIR") };
         let TokenSource::Plain(token) = source else {
             panic!("a plain YAML token must not be looked up in the credential store");
@@ -1570,7 +1437,7 @@ mod tests {
     #[test]
     fn sentinel_token_defers_to_the_credential_store() {
         let _guard = exclusive();
-        let source = with_sentinel_config(|| token_source_for_instance("https://example.invalid"))
+        let source = with_sentinel_config(|| token_source_for_instance(&example_instance()))
             .expect("resolves");
         match source {
             TokenSource::Keyring(url) => assert_eq!(url, "https://example.invalid"),
@@ -1588,8 +1455,7 @@ mod tests {
         for value in ["1", "true", "TRUE", "yes", ""] {
             // SAFETY: single-threaded test section, guarded by `exclusive()`.
             unsafe { std::env::set_var("GGSHIELD_NO_KEYRING", value) };
-            let result =
-                with_sentinel_config(|| token_source_for_instance("https://example.invalid"));
+            let result = with_sentinel_config(|| token_source_for_instance(&example_instance()));
             unsafe { std::env::remove_var("GGSHIELD_NO_KEYRING") };
             assert!(
                 matches!(&result, Err(error) if matches!(error.cause(), Cause::Unauthorized)),
@@ -1598,14 +1464,17 @@ mod tests {
         }
         for value in ["0", "false", "False"] {
             unsafe { std::env::set_var("GGSHIELD_NO_KEYRING", value) };
-            let result =
-                with_sentinel_config(|| token_source_for_instance("https://example.invalid"));
+            let result = with_sentinel_config(|| token_source_for_instance(&example_instance()));
             unsafe { std::env::remove_var("GGSHIELD_NO_KEYRING") };
             assert!(
                 matches!(result, Ok(TokenSource::Keyring(_))),
                 "{value:?} must leave the keyring enabled, got {result:?}"
             );
         }
+    }
+
+    fn example_instance() -> DashboardUrl {
+        "https://example.invalid".parse().expect("valid URL")
     }
 
     /// Run `body` against a throwaway config dir whose only instance stores its
@@ -1640,7 +1509,7 @@ mod tests {
         )
         .expect("write");
         unsafe { std::env::set_var("GG_CONFIG_DIR", dir.path()) };
-        let result = token_source_for_instance("https://example.invalid");
+        let result = token_source_for_instance(&example_instance());
         unsafe { std::env::remove_var("GG_CONFIG_DIR") };
         assert!(
             matches!(&result, Err(error) if matches!(error.cause(), Cause::Unauthorized)),

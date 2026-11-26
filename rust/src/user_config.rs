@@ -17,6 +17,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use gg_url::{ApiUrl, DashboardUrl};
 use serde::Deserialize;
 
 use crate::error::Error;
@@ -43,6 +44,13 @@ pub enum ConfigError {
     },
     #[error("Don't know how to load config version {0}")]
     UnsupportedVersion(i64),
+    #[error("{}: line {line}, column {column}: {reason}", .path.display())]
+    DotEnvSyntax {
+        path: PathBuf,
+        line: usize,
+        column: usize,
+        reason: String,
+    },
 }
 
 /// `DEFAULT_API_TIMEOUT` in core/constants.py, and the bounds `_resolve_timeout()`
@@ -212,9 +220,10 @@ impl From<V1Config> for RawUserConfig {
     fn from(v1: V1Config) -> Self {
         // "api_url" becomes "instance", but never overwrites an explicit one.
         let instance = v1.instance.or_else(|| {
-            v1.api_url
-                .as_deref()
-                .map(crate::hook::config::api_to_dashboard_url)
+            v1.api_url.map(|url| match url.parse::<ApiUrl>() {
+                Ok(api_url) => DashboardUrl::from(api_url).to_string(),
+                Err(_) => url,
+            })
         });
         RawUserConfig {
             instance,

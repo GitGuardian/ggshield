@@ -5,6 +5,8 @@
 //! `doc/dev/os-packages.md`.
 
 mod binary_extensions;
+mod cli;
+mod config;
 mod dispatch;
 mod error;
 mod hash;

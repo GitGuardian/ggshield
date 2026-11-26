@@ -3,11 +3,13 @@
 //! This error is the only error that should be stringified/returned by the CLI.
 //! An error cause should not refer to a specific command. Callers should instead
 //! use the `context` vector to add context-specific information to an error.
+use std::error::Error as StdError;
+
 use crate::hook::config::CredentialStoreError;
 use crate::hook::{ApiError, HookInputError, TlsError};
 use crate::user_config::{AiHookFailurePolicy, ConfigError};
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub struct Error {
     cause: Cause,
     context: Vec<String>,
@@ -30,6 +32,12 @@ pub enum Cause {
     Config(#[from] ConfigError),
     #[error("Invalid scheme for {kind} URL '{url}', expected HTTPS")]
     InvalidUrlScheme { kind: &'static str, url: String },
+    #[error(transparent)]
+    FileSystem(#[from] gg_fs::Error),
+    #[error(transparent)]
+    Usage(#[from] clap::Error),
+    #[error("invalid setting")]
+    InvalidSetting(#[source] Box<dyn StdError + Send + Sync>),
     #[error(transparent)]
     Tls(#[from] TlsError),
     #[error(transparent)]
@@ -107,7 +115,8 @@ impl Error {
                 Cause::Config(
                     ConfigError::Read { .. }
                     | ConfigError::Parse { .. }
-                    | ConfigError::UnsupportedVersion(_),
+                    | ConfigError::UnsupportedVersion(_)
+                    | ConfigError::DotEnvSyntax { .. },
                 ),
                 _,
             ) => ExitCode::GenericFailure,
@@ -116,11 +125,14 @@ impl Error {
             (Cause::Unauthorized | Cause::CredentialStore(_), None) => {
                 ExitCode::AuthenticationFailure
             }
-            (Cause::InvalidUrlScheme { .. }, None) => ExitCode::UsageFailure,
+            (Cause::InvalidUrlScheme { .. } | Cause::Usage(_) | Cause::InvalidSetting(_), None) => {
+                ExitCode::UsageFailure
+            }
             (Cause::ServerUnavailable(_), None) => ExitCode::ServerUnavailable,
             (
                 Cause::UnrecognizedAgent
                 | Cause::Config(ConfigError::DirectoryNotFound)
+                | Cause::FileSystem(_)
                 | Cause::Tls(_)
                 | Cause::UnexpectedResponse(_)
                 | Cause::Internal
