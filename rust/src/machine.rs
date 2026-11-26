@@ -205,7 +205,22 @@ fn system_hostname() -> Option<String> {
 /// `_get_machine_id()`.
 fn machine_id() -> &'static str {
     static ID: OnceLock<String> = OnceLock::new();
-    ID.get_or_init(|| system_id().unwrap_or_else(fallback_id))
+    ID.get_or_init(resolve_machine_id)
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
+fn resolve_machine_id() -> String {
+    system_id().unwrap_or_else(fallback_id)
+}
+
+/// `ioreg` takes about 18 ms and `wmic` can take seconds, so the resolved id is
+/// kept in the cache dir, fallback included: a failed lookup is not retried on
+/// every event. It is resolved again once a day, so a reimaged or cloned machine
+/// soon reports the same id as Python, which resolves it on every run.
+#[cfg(any(target_os = "macos", windows))]
+fn resolve_machine_id() -> String {
+    let cache = crate::config::cache_dir().map(|dir| dir.join("machine_id"));
+    cached_for_a_day(cache.as_deref(), || system_id().unwrap_or_else(fallback_id))
 }
 
 #[cfg(target_os = "linux")]
@@ -217,6 +232,41 @@ fn system_id() -> Option<String> {
     ]
     .iter()
     .find_map(|path| first_nonempty_line(&std::fs::read(path).ok()?))
+}
+
+/// The id cached at `path` if fresh, otherwise `resolve()`'s, cached.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
+fn cached_for_a_day(path: Option<&Path>, resolve: impl FnOnce() -> String) -> String {
+    if let Some(id) = path.and_then(read_fresh_cache) {
+        return id;
+    }
+    let id = resolve();
+    if let Some(path) = path
+        && path
+            .parent()
+            .is_some_and(|dir| crate::secure_file::create_dir_private(dir).is_ok())
+    {
+        let _ = crate::secure_file::write_private(path, &id);
+    }
+    id
+}
+
+const SYSTEM_ID_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
+
+/// The cached id, unless it is older than `SYSTEM_ID_CACHE_TTL` or dated in the
+/// future.
+#[cfg_attr(target_os = "linux", allow(dead_code))]
+fn read_fresh_cache(path: &Path) -> Option<String> {
+    let age = std::fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .elapsed()
+        .ok()?;
+    if age > SYSTEM_ID_CACHE_TTL {
+        return None;
+    }
+    first_nonempty_line(crate::secure_file::read_if_trusted(path)?.as_bytes())
 }
 
 #[cfg(target_os = "macos")]
@@ -580,6 +630,42 @@ mod tests {
         std::os::unix::fs::symlink(&path, &link).expect("symlink");
         assert_eq!(read_trusted_cache_line(&link), None);
         assert_eq!(read_trusted_cache_line(&path).as_deref(), Some("planted"));
+    }
+
+    /// GIVEN a cached hardware id written now, and one last written two days ago
+    /// WHEN the cache is read
+    /// THEN the fresh one is used and the stale one is read again from the system.
+    #[test]
+    fn a_cached_system_id_expires_after_a_day() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("machine_id");
+        crate::secure_file::write_private(&path, "4c4c4544\n").expect("write");
+        assert_eq!(read_fresh_cache(&path).as_deref(), Some("4c4c4544"));
+
+        let two_days_ago = std::time::SystemTime::now() - 2 * SYSTEM_ID_CACHE_TTL;
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .and_then(|file| file.set_modified(two_days_ago))
+            .expect("backdate");
+        assert_eq!(read_fresh_cache(&path), None);
+    }
+
+    /// GIVEN a hardware id lookup that fails, so the fallback id is used
+    /// WHEN the id is resolved twice
+    /// THEN the second answer comes from the cache, without a second lookup.
+    #[test]
+    fn a_resolved_id_is_cached_even_when_it_is_the_fallback() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("cache").join("machine_id");
+        let lookups = std::cell::Cell::new(0);
+        let resolve = || {
+            lookups.set(lookups.get() + 1);
+            "fallback-id".to_string()
+        };
+        assert_eq!(cached_for_a_day(Some(&path), resolve), "fallback-id");
+        assert_eq!(cached_for_a_day(Some(&path), resolve), "fallback-id");
+        assert_eq!(lookups.get(), 1);
     }
 
     /// GIVEN the owner of a fallback file
