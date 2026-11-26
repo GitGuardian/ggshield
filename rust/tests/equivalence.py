@@ -1937,6 +1937,82 @@ def compare_dotenv(tmp):
     return failures
 
 
+def compare_machine_identity(tmp):
+    """Both sides must send the same `GGShield-Machine-*` headers.
+
+    The server joins hook scans and Python scans on these values: a different
+    machine id splits one machine in two on the Endpoints page.
+    """
+    failures = []
+    print("\nMachine identity: the same GGShield-Machine-* headers")
+    log = tmp / "requests-machine.jsonl"
+    mock, port = start_mock("clean", log)
+    payload = agent_payloads()["claude"]["user_prompt"]
+    # One home for both sides, so a machine without a hardware id still
+    # converges on the shared fallback file.
+    home = tmp / "machine-home"
+    home.mkdir(exist_ok=True)
+    cases = {
+        "default": {},
+        "ci": {"CI": "true"},
+        "opted_out": {"GGSHIELD_NO_ENDPOINT_REGISTRATION": "1"},
+        "latin1_username": {"USER": "Clément", "LOGNAME": "Clément"},
+    }
+    try:
+        for name, env_extra in cases.items():
+            sent = {}
+            for side, cmd in (("python", PY_CMD), ("rust", RS_CMD)):
+                workdir = make_workdir(tmp, f"machine-{name}-{side}")
+                before = len(read_requests(log))
+                run(
+                    cmd,
+                    payload,
+                    port,
+                    workdir,
+                    {"GG_USER_HOME_DIR": str(home), **env_extra},
+                )
+                entries = read_requests(log)[before:]
+                sent[side] = entries[0]["machine"] if len(entries) == 1 else None
+            hostname_sent = "ggshield-machine-hostname" in (sent["rust"] or {})
+            ok = (
+                sent["python"] is not None
+                and sent["python"] == sent["rust"]
+                and "ggshield-machine-id" in sent["rust"]
+                and hostname_sent == (name in ("default", "latin1_username"))
+                and (
+                    name != "latin1_username"
+                    or sent["rust"].get("ggshield-machine-username") == "Clément"
+                )
+            )
+            print(f"  {'OK ' if ok else 'BAD'} machine/{name}")
+            if not ok:
+                failures.append(f"machine/{name}")
+                print(
+                    f"        python: {sent['python']}\n        rust:   {sent['rust']}"
+                )
+
+        # `machine setup` runs `_WARM_UP_EVENT` (ggshield/verticals/ai/installation.py)
+        # through the native hook only, so Python is out of scope. Identity there
+        # would mark Claude Code's hooks as installed although no agent ran them.
+        warm_up = {
+            "hook_event_name": "UserPromptSubmit",
+            "session_id": "ggshield-machine-setup",
+            "transcript_path": "ggshield-machine-setup/claude-code.jsonl",
+            "prompt": "ggshield setup: checking the AI hook can read its token.",
+        }
+        before = len(read_requests(log))
+        run(RS_CMD, warm_up, port, make_workdir(tmp, "machine-warm-up-rust"))
+        entries = read_requests(log)[before:]
+        ok = len(entries) == 1 and entries[0]["machine"] == {}
+        print(f"  {'OK ' if ok else 'BAD'} machine/setup_warm_up (rust only)")
+        if not ok:
+            failures.append("machine/setup_warm_up")
+            print(f"        rust: {[entry['machine'] for entry in entries]}")
+    finally:
+        mock.kill()
+    return failures
+
+
 def extra_cases(tmp):
     """Cases that never reach the API: fail-open, and the deliberate declines."""
     failures = []
@@ -2664,6 +2740,7 @@ def main():
         failures += compare_batches(tmp)
         failures += compare_verdict_cache(tmp)
         failures += compare_dotenv(tmp)
+        failures += compare_machine_identity(tmp)
         failures += compare_exclusions(tmp)
         failures += extra_cases(tmp)
         failures += compare_on_error(tmp)
