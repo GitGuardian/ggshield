@@ -117,11 +117,11 @@ class PluginTrustStore:
 
         try:
             data = json.loads(self.path.read_text())
-        except (OSError, json.JSONDecodeError) as e:
+        except (OSError, ValueError) as e:
             logger.warning("Invalid plugin trust store at %s: %s", self.path, e)
             return self._default_data()
 
-        plugins = data.get("plugins")
+        plugins = data.get("plugins") if isinstance(data, dict) else None
         if not isinstance(plugins, dict):
             logger.warning(
                 "Invalid plugin trust store at %s: missing plugins map", self.path

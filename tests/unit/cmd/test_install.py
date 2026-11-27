@@ -808,7 +808,7 @@ class TestSystemDataDir:
         monkeypatch.setenv("GG_SYSTEM_DATA_DIR", str(tmp_path))
         assert get_system_data_dir() == tmp_path
 
-    def test_default_uses_site_data_dir(self, monkeypatch):
+    def test_default_is_fixed_machine_wide_dir(self, monkeypatch):
         from ggshield.core.dirs import get_system_data_dir
 
         monkeypatch.delenv("GG_SYSTEM_DATA_DIR", raising=False)

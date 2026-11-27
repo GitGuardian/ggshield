@@ -22,12 +22,17 @@ from __future__ import annotations
 
 import enum
 import functools
+import json
 import logging
+import os
+import stat
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from ggshield.core.dirs import is_safe_system_path
 from ggshield.core.plugin._sigstore_trusted_root import TRUSTED_ROOT_JSON
 
 
@@ -40,6 +45,8 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+_BUNDLE_EXTENSIONS = (".sigstore", ".sigstore.json")
 
 
 class SignatureVerificationMode(enum.Enum):
@@ -103,11 +110,103 @@ def get_bundle_path(wheel_path: Path) -> Optional[Path]:
     Checks for `.sigstore` first, then `.sigstore.json` (sigstore-python 3.x
     default) so that both old and new naming conventions are supported.
     """
-    for ext in (".sigstore", ".sigstore.json"):
+    for ext in _BUNDLE_EXTENSIONS:
         p = wheel_path.parent / (wheel_path.name + ext)
         if p.exists():
             return p
     return None
+
+
+def read_plugin_wheel(
+    plugin_dir: Path,
+    *,
+    secondary: bool,
+    allow_missing_wheel: bool = False,
+    warn_invalid_manifest: bool = False,
+    skip_reasons: Optional[List[str]] = None,
+) -> Optional[Tuple[Dict[str, Any], Optional[Path]]]:
+    """Read an eligible plugin manifest and its wheel path.
+
+    When the plugin is skipped, the reason is appended to ``skip_reasons``
+    (for ``plugin list -v``)."""
+
+    def skip(reason: str) -> None:
+        if skip_reasons is not None:
+            skip_reasons.append(reason)
+
+    unsafe = "not owned by root, or writable by others (XDG_DATA_DIRS entry)"
+    manifest_path = plugin_dir / "manifest.json"
+    if secondary and not is_safe_system_path(plugin_dir, directory=True):
+        skip(f"folder {unsafe}")
+        return None
+    try:
+        if not plugin_dir.is_dir():
+            return None
+        try:
+            manifest_path.lstat()
+        except FileNotFoundError:
+            skip("no manifest.json")
+            return None
+        if secondary and not is_safe_system_path(manifest_path):
+            skip(f"manifest.json {unsafe}")
+            return None
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        # An empty manifest can still identify a stale fixed or user install.
+        if allow_missing_wheel and manifest == {}:
+            return manifest, None
+        if not isinstance(manifest, dict):
+            raise ValueError("expected a JSON object")
+        for key in ("wheel_filename", "plugin_name", "version"):
+            value = manifest.get(key)
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"expected a non-empty {key}")
+        filename = manifest["wheel_filename"]
+        if filename in (".", "..") or any(
+            char in filename for char in ("/", "\\", ":", "\x00")
+        ):
+            raise ValueError(f"invalid wheel filename {filename!r}")
+    except ValueError as e:
+        level = logging.WARNING if warn_invalid_manifest else logging.DEBUG
+        logger.log(level, "Invalid manifest in %s: %s", plugin_dir, e)
+        skip(f"invalid manifest: {e}")
+        return None
+    except OSError as e:
+        logger.debug("Cannot read manifest in %s: %s", plugin_dir, e)
+        skip(f"invalid manifest: {e}")
+        return None
+
+    wheel_path = plugin_dir / filename
+    try:
+        if not stat.S_ISREG(wheel_path.stat().st_mode) or not os.access(
+            wheel_path, os.R_OK
+        ):
+            logger.debug("Ignoring unreadable plugin wheel %s", wheel_path)
+            skip(f"wheel {filename} unreadable")
+            return None
+    except FileNotFoundError:
+        if allow_missing_wheel:
+            return manifest, None
+        skip(f"wheel {filename} missing")
+        return None
+    except (OSError, ValueError) as e:
+        logger.debug("Cannot read plugin wheel %s: %s", wheel_path, e)
+        skip(f"cannot read wheel {filename}: {e}")
+        return None
+
+    if secondary:
+        if not is_safe_system_path(wheel_path) or not all(
+            is_safe_system_path(
+                wheel_path.with_name(filename + ext), allow_missing=True
+            )
+            for ext in _BUNDLE_EXTENSIONS
+        ):
+            skip(f"wheel or signature {unsafe}")
+            return None
+        # A corrupt copy must not shadow a working one in a later XDG entry.
+        if not zipfile.is_zipfile(wheel_path):
+            skip(f"wheel {filename} is not a valid archive")
+            return None
+    return manifest, wheel_path
 
 
 # Only used by the freshness test, to find sigstore's own trusted_root.json

@@ -17,7 +17,12 @@ from ggshield.core.config.enterprise_config import (
     EnterpriseConfigSource,
     PluginConfig,
 )
-from ggshield.core.dirs import is_root
+from ggshield.core.dirs import (
+    IgnoredDirs,
+    get_system_config_dirs,
+    get_system_plugins_dirs,
+    is_root,
+)
 from ggshield.core.plugin.downloader import PluginDownloader
 from ggshield.core.plugin.hooks import load_plugin_registry
 from ggshield.core.plugin.loader import DiscoveredPlugin, PluginLoader
@@ -188,8 +193,26 @@ def _display_diagnostics(
             ui.display_info(f"Overridden by environment: {name}={os.environ[name]}")
 
     _display_plugin_dirs(loader, discovered, found_dirs)
+    ignored_plugin_dirs: IgnoredDirs = []
+    get_system_plugins_dirs(ignored_plugin_dirs)
+    _display_ignored_dirs("XDG_DATA_DIRS", ignored_plugin_dirs)
     _display_config_files(sources)
+    ignored_config_dirs: IgnoredDirs = []
+    get_system_config_dirs(ignored_config_dirs)
+    _display_ignored_dirs(
+        "XDG_CONFIG_DIRS",
+        [(path / "enterprise_config.yaml", why) for path, why in ignored_config_dirs],
+    )
     _display_effective_config(discovered, enterprise_config, sources)
+
+
+def _display_ignored_dirs(variable: str, ignored: IgnoredDirs) -> None:
+    """Show the XDG entries left out of the lists above, and why."""
+    if not ignored:
+        return
+    ui.display_info(f"  Skipped {variable} entries:")
+    for path, reason in ignored:
+        ui.display_info(f"    {path} ({reason})")
 
 
 def _wheel_version(wheel_path: Path) -> str:
@@ -268,6 +291,10 @@ def _display_config_files(sources: List[EnterpriseConfigSource]) -> None:
             ui.display_info(
                 f"    cannot access, ignored by ggshield: {source.inaccessible}"
             )
+            continue
+        if source.ignored is not None:
+            ui.display_info(header)
+            ui.display_info(f"    ignored by ggshield: {source.ignored}")
             continue
         if not source.exists:
             ui.display_info(f"{header} (not found)")

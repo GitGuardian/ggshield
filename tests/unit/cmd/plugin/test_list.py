@@ -230,7 +230,7 @@ def real_list(monkeypatch, cli_fs_runner):
         for module in (
             "ggshield.cmd.plugin.plugin_list",
             "ggshield.core.config.enterprise_config",
-            "ggshield.core.plugin.loader",
+            "ggshield.core.dirs",
             "ggshield.core.plugin.downloader",
         ):
             monkeypatch.setattr(f"{module}.is_root", lambda: root)
@@ -300,9 +300,8 @@ class TestPluginListVerbose:
 
         assert result.exit_code == ExitCode.SUCCESS
         assert "No plugins installed" in result.output
-        loader = PluginLoader(mock.MagicMock())
-        with mock.patch("ggshield.core.plugin.loader.is_root", lambda: root):
-            search_dirs = loader.plugin_search_dirs()
+        with mock.patch("ggshield.core.dirs.is_root", lambda: root):
+            search_dirs = PluginLoader(mock.MagicMock()).plugin_search_dirs()
         printed = [
             line.strip()
             for line in result.output.split("Enterprise config files")[0].splitlines()
@@ -690,9 +689,9 @@ class TestPluginListVerbose:
         result = real_list("-v")
 
         assert result.exit_code == ExitCode.SUCCESS, result.output
-        # The downloader rejects the broken neighbour, so its source label
-        # degrades to "on-disk" rather than hiding the listing.
-        assert "  machine_scan: v0.59.0, disabled, on-disk\n" in result.output
+        # The downloader skips the broken neighbour like discovery does, so
+        # the valid install keeps its source label.
+        assert "  machine_scan: v0.59.0, disabled, platform\n" in result.output
         assert (
             f"  {get_system_plugins_dir()}\n    satori-python: machine_scan v0.59.0\n"
             in result.output

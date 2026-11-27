@@ -11,16 +11,18 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
 
 import requests
 
 from ggshield.core.dirs import (
     get_cache_dir,
+    get_plugin_read_dirs,
     get_plugins_dir,
     get_system_plugins_dir,
     is_root,
+    is_safe_system_path,
     make_tree_world_readable,
     make_world_readable,
 )
@@ -34,6 +36,7 @@ from ggshield.core.plugin.signature import (
     SignatureInfo,
     SignatureStatus,
     SignatureVerificationMode,
+    read_plugin_wheel,
     verify_wheel_signature,
 )
 from ggshield.core.plugin.trust import PluginTrustStore, compute_file_sha256
@@ -115,7 +118,7 @@ def get_signature_label(
 ) -> Optional[str]:
     """Get a human-readable signature status label from a manifest."""
     sig_info = manifest.get("signature")
-    if not sig_info:
+    if not isinstance(sig_info, dict) or not sig_info:
         return None
 
     status = sig_info.get("status", "unknown")
@@ -261,17 +264,13 @@ class PluginDownloader:
             self.plugins_dir = get_plugins_dir(create=True)
         self.trust_store = PluginTrustStore(plugins_dir=self.plugins_dir)
 
-        # Writes target ``plugins_dir`` (privilege-based), but reads merge both
-        # layers (mirroring EnterpriseConfig.load_effective). The install dir is
-        # searched first so it wins on conflict — a user's own copy over a
-        # machine-wide one for a normal user; the fresh machine-wide install
-        # over a stale pre-machine-wide ``/root`` copy for root — while the
-        # other layer stays visible as a fallback (e.g. a non-root user seeing
-        # a root install, or root still seeing a pre-existing per-user install).
-        self._read_dirs: List[Path] = []
-        for read_dir in (self.plugins_dir, get_plugins_dir(), get_system_plugins_dir()):
-            if read_dir not in self._read_dirs:
-                self._read_dirs.append(read_dir)
+        self._read_dirs, self._secondary_system_dirs = get_plugin_read_dirs(
+            get_plugins_dir()
+        )
+        if self._read_dirs[0] != self.plugins_dir:
+            # Favor the write location if the directory settings differ.
+            self._read_dirs = list(dict.fromkeys([self.plugins_dir, *self._read_dirs]))
+            self._secondary_system_dirs.discard(self.plugins_dir)
 
     def _publish_machine_wide_install(self, plugin_dir: Path) -> None:
         """Make a root (machine-wide) install loadable by every user.
@@ -851,8 +850,11 @@ class PluginDownloader:
 
         self._remove_plugin_tree(plugin_dir)
         # Revoke only after the files are gone: revoking first would leave
-        # a failed uninstall installed but untrusted.
-        self.trust_store.revoke_plugin(plugin_dir.name)
+        # a failed uninstall installed but untrusted. The record sits next to
+        # the plugin, which may live in another system dir.
+        store = self._trust_store_for(plugin_dir)
+        if store is not None:
+            store.revoke_plugin(plugin_dir.name)
         self._remove_extract_cache(plugin_dir.name)
 
         logger.info("Uninstalled plugin: %s", plugin_name)
@@ -924,16 +926,22 @@ class PluginDownloader:
         machine-wide install of the same entry point, instead of the
         system direct-name match short-circuiting first).
 
-        Within a layer the direct path is preferred only when it actually
-        looks like a plugin install (``manifest.json`` present). A bare
-        ``<dir>/<name>/`` without a manifest is treated as residue — a stale
-        dir from an aborted install or hand-created — and falls through to
-        the entry-point scan so the real install (which may live under the
-        wheel's distribution-name directory) still resolves.
+        Within a layer, a direct match takes precedence over an entry-point
+        match. Fixed and user installs can resolve by directory name when
+        the wheel is missing so uninstall can clean up a stale install.
         """
         for base in self._read_dirs:
             plugin_dir = base / plugin_name
-            if plugin_dir.is_dir() and (plugin_dir / "manifest.json").exists():
+            secondary = base in self._secondary_system_dirs
+            # Match the loader, which skips secondary dirs it cannot list.
+            if secondary and not os.access(base, os.R_OK):
+                continue
+            if (
+                read_plugin_wheel(
+                    plugin_dir, secondary=secondary, allow_missing_wheel=not secondary
+                )
+                is not None
+            ):
                 return plugin_dir
             found = self._find_entry_point_dir_in(base, plugin_name)
             if found is not None:
@@ -958,8 +966,8 @@ class PluginDownloader:
     def _find_plugin_dir_by_entry_point(self, entry_point_name: str) -> Optional[Path]:
         """Find a plugin directory by its entry point name.
 
-        Scans the per-user dir then the machine-wide system dir so a
-        root-installed plugin resolves for a normal user too.
+        Scans every read dir (see ``get_plugin_read_dirs``) so a root-installed
+        plugin resolves for a normal user too.
         """
         for base in self._read_dirs:
             found = self._find_entry_point_dir_in(base, entry_point_name)
@@ -971,29 +979,25 @@ class PluginDownloader:
         self, base: Path, entry_point_name: str
     ) -> Optional[Path]:
         """Find a plugin dir under a single plugins dir by its entry point name."""
-        if not base.exists():
+        # An unreadable optional dir must not break the lookup in the next one.
+        try:
+            plugin_dirs = list(base.iterdir())
+        except FileNotFoundError:
+            return None
+        except OSError as e:
+            logger.debug("Cannot scan plugins dir %s: %s", base, e)
             return None
 
-        for plugin_dir in base.iterdir():
-            if not plugin_dir.is_dir():
+        secondary = base in self._secondary_system_dirs
+        for plugin_dir in plugin_dirs:
+            candidate = read_plugin_wheel(plugin_dir, secondary=secondary)
+            if candidate is None:
                 continue
-
-            manifest_path = plugin_dir / "manifest.json"
-            if not manifest_path.exists():
-                continue
-
-            try:
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                wheel_filename = manifest.get("wheel_filename", "")
-                wheel_path = plugin_dir / wheel_filename
-
-                if wheel_path.exists():
-                    # Read entry point name from wheel
-                    ep_name = self._read_entry_point_name_from_wheel(wheel_path)
-                    if ep_name == entry_point_name:
-                        return plugin_dir
-            except (json.JSONDecodeError, KeyError):
-                continue
+            _, wheel_path = candidate
+            if wheel_path is not None and (
+                self._read_entry_point_name_from_wheel(wheel_path) == entry_point_name
+            ):
+                return plugin_dir
 
         return None
 
@@ -1010,17 +1014,11 @@ class PluginDownloader:
         if manifest_path is None:
             return None
 
-        try:
-            manifest = json.loads(manifest_path.read_text())
-            wheel_filename = manifest.get("wheel_filename")
-            if wheel_filename:
-                wheel_path = manifest_path.parent / wheel_filename
-                if wheel_path.exists():
-                    return wheel_path
-        except (json.JSONDecodeError, KeyError):
-            pass
-
-        return None
+        candidate = read_plugin_wheel(
+            manifest_path.parent,
+            secondary=manifest_path.parent.parent in self._secondary_system_dirs,
+        )
+        return candidate[1] if candidate is not None else None
 
     def get_manifest(self, plugin_name: str) -> Optional[Dict[str, Any]]:
         """Get the full manifest for an installed plugin."""
@@ -1056,13 +1054,13 @@ class PluginDownloader:
                 # (system store for a machine-wide install, per-user store
                 # otherwise) so status/list match what the loader accepts —
                 # a root --allow-unsigned plugin's record lives system-side.
-                trusted_unsigned = self._trust_store_for(plugin_dir).is_trusted(
-                    plugin_dir.name, disk_sha256
-                )
+                store = self._trust_store_for(plugin_dir)
+                if store is not None:
+                    trusted_unsigned = store.is_trusted(plugin_dir.name, disk_sha256)
 
         return get_signature_label(manifest, trusted_unsigned=trusted_unsigned)
 
-    def _trust_store_for(self, plugin_dir: Path) -> PluginTrustStore:
+    def _trust_store_for(self, plugin_dir: Path) -> Optional[PluginTrustStore]:
         """Trust store living alongside ``plugin_dir``'s plugins directory.
 
         A machine-wide plugin's trust record sits next to the system plugins,
@@ -1070,7 +1068,13 @@ class PluginDownloader:
         store from the plugin's own location keeps reads consistent with where
         the record was written. Equivalent to ``self.trust_store`` for a
         plugin under this downloader's own ``plugins_dir``."""
-        return PluginTrustStore(plugins_dir=plugin_dir.parent)
+        store = PluginTrustStore(plugins_dir=plugin_dir.parent)
+        if (
+            plugin_dir.parent in self._secondary_system_dirs
+            and not is_safe_system_path(store.path)
+        ):
+            return None
+        return store
 
     def get_plugin_source(self, plugin_name: str) -> Optional[PluginSource]:
         """Get the source information for an installed plugin."""
@@ -1085,7 +1089,7 @@ class PluginDownloader:
 
         try:
             return PluginSource.from_dict(source_data)
-        except (KeyError, ValueError):
+        except (AttributeError, KeyError, TypeError, ValueError):
             return None
 
     @staticmethod
