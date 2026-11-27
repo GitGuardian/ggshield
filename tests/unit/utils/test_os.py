@@ -123,3 +123,21 @@ class TestIsRoot:
 
         monkeypatch.delattr(os_utils.os, "geteuid", raising=False)
         assert os_utils.is_root() is False
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="needs os.fork")
+def test_run_as_user_resolves_a_relative_argv0_before_leaving_the_cwd(
+    monkeypatch, tmp_path
+):
+    from ggshield.utils import os as os_utils
+
+    home = tmp_path / "alice"
+    home.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["venv/bin/ggshield", "machine", "setup"])
+    monkeypatch.setattr(os_utils, "_user_credentials", lambda uid: ("alice", 0, []))
+    monkeypatch.setattr(os_utils, "_become_user", lambda *args: os.chdir(args[-1]))
+
+    seen = os_utils.run_as_user(os.getuid() + 1, home, lambda: sys.argv[0])
+
+    assert seen == str(tmp_path / "venv" / "bin" / "ggshield")

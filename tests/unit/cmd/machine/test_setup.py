@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -9,11 +10,13 @@ from pygitguardian.models import HealthCheckResponse
 
 from ggshield.__main__ import cli
 from ggshield.cmd.install import _hook_body, hook_is_outdated
+from ggshield.utils import os as gg_os
 from ggshield.verticals.ai.installation import (
     SetupSummary,
     install_all_agent_hooks,
     select_agents,
 )
+from ggshield.verticals.honeytoken.targets import Target
 from tests.unit.conftest import assert_invoke_ok
 
 
@@ -44,6 +47,30 @@ fi
 
 ggshield secret scan {hook_type} "$@"
 """
+
+
+def fake_root(monkeypatch, module: str, targets) -> Mock:
+    """Run `module` as root over `targets`, with a real fork but a privilege drop that
+    only points GG_USER_HOME_DIR at the user's home. Returns the mock that looks up
+    each forked user's credentials."""
+    monkeypatch.setattr(f"{module}.is_root", lambda: True)
+    monkeypatch.setattr(f"{module}.resolve_targets", lambda user, user_dir: targets)
+    monkeypatch.delenv("VIBE_HOME", raising=False)
+    credentials = Mock(return_value=("someone", 0, []))
+    monkeypatch.setattr(gg_os, "_user_credentials", credentials)
+    monkeypatch.setattr(
+        gg_os,
+        "_become_user",
+        lambda uid, name, gid, groups, home: os.environ.__setitem__(
+            "GG_USER_HOME_DIR", str(home)
+        ),
+    )
+    return credentials
+
+
+def _hook_file(home: Path, agent_dir: str, name: str) -> str:
+    path = home / agent_dir / name
+    return path.read_text() if path.exists() else ""
 
 
 def _raise(error: Exception):
@@ -238,6 +265,111 @@ class TestMachineSetupCommand:
         result = cli_fs_runner.invoke(cli, ["machine", "--help"])
         assert_invoke_ok(result)
         assert "setup" in result.output
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="the root fan-out forks")
+class TestMachineSetupAsRoot:
+    """As root, `machine setup` configures the AI hook in each user's home."""
+
+    SETUP = "ggshield.cmd.machine.setup"
+    ARGS = ["machine", "setup", "--no-git-hooks", "--no-honeytokens"]
+
+    def _users(self, tmp_path, *names):
+        me = os.getuid()
+        return [
+            Target(username=name, home=tmp_path / name, uid=me + 1 + i)
+            for i, name in enumerate(names)
+        ]
+
+    @patch("ggshield.cmd.machine.setup.check_ai_hook_authentication")
+    def test_each_user_gets_their_own_agents(
+        self, mock_preflight, monkeypatch, tmp_path, cli_fs_runner: CliRunner
+    ):
+        alice, bob = self._users(tmp_path, "alice", "bob")
+        (alice.home / ".claude").mkdir(parents=True)
+        (bob.home / ".codex").mkdir(parents=True)
+        credentials = fake_root(monkeypatch, self.SETUP, [alice, bob])
+
+        result = cli_fs_runner.invoke(cli, self.ARGS)
+
+        assert_invoke_ok(result)
+        assert "secret scan ai-hook" in _hook_file(
+            alice.home, ".claude", "settings.json"
+        )
+        assert not (alice.home / ".codex").exists()
+        assert "secret scan ai-hook" in _hook_file(bob.home, ".codex", "hooks.json")
+        assert not (bob.home / ".claude").exists()
+        assert [c.args[0] for c in credentials.call_args_list] == [alice.uid, bob.uid]
+        # The preflight would test root's credentials, not the user's.
+        mock_preflight.assert_not_called()
+
+    def test_current_user_runs_in_process_in_its_own_home(
+        self, monkeypatch, tmp_path, cli_fs_runner: CliRunner
+    ):
+        root = Target(username="root", home=tmp_path / "root", uid=os.getuid())
+        (root.home / ".claude").mkdir(parents=True)
+        # `sudo` can keep the invoking user's HOME.
+        sudo_home = tmp_path / "invoking-user"
+        (sudo_home / ".claude").mkdir(parents=True)
+        monkeypatch.setenv("GG_USER_HOME_DIR", str(sudo_home))
+        monkeypatch.setenv("HOME", str(sudo_home))
+        fake_root(monkeypatch, self.SETUP, [root])
+        monkeypatch.setattr(
+            gg_os.os, "fork", lambda: _raise(AssertionError("forked for root"))
+        )
+
+        result = cli_fs_runner.invoke(cli, self.ARGS)
+
+        assert_invoke_ok(result)
+        assert "secret scan ai-hook" in _hook_file(
+            root.home, ".claude", "settings.json"
+        )
+        assert not (sudo_home / ".claude" / "settings.json").exists()
+        assert os.environ["HOME"] == str(sudo_home)
+
+    def test_one_user_failing_does_not_stop_the_next(
+        self, monkeypatch, tmp_path, cli_fs_runner: CliRunner
+    ):
+        alice, bob = self._users(tmp_path, "alice", "bob")
+        (alice.home / ".claude").mkdir(parents=True)
+        (alice.home / ".claude" / "settings.json").write_text("{")
+        (bob.home / ".claude").mkdir(parents=True)
+        fake_root(monkeypatch, self.SETUP, [alice, bob])
+
+        result = cli_fs_runner.invoke(cli, self.ARGS)
+
+        assert result.exit_code == 1, result.output
+        assert "could not configure AI hooks for alice" in result.output
+        assert "Failed to parse" in result.output
+        assert (alice.home / ".claude" / "settings.json").read_text() == "{"
+        assert "secret scan ai-hook" in _hook_file(bob.home, ".claude", "settings.json")
+
+    @pytest.mark.parametrize(
+        "root_agent_dir, root_configured", [(".claude", True), (".codex", False)]
+    )
+    def test_agent_flag_forces_users_but_only_detects_for_root(
+        self,
+        root_agent_dir,
+        root_configured,
+        monkeypatch,
+        tmp_path,
+        cli_fs_runner: CliRunner,
+    ):
+        (alice,) = self._users(tmp_path, "alice")
+        alice.home.mkdir()
+        root = Target(username="root", home=tmp_path / "root", uid=0)
+        (root.home / root_agent_dir).mkdir(parents=True)
+        fake_root(monkeypatch, self.SETUP, [alice, root])
+
+        result = cli_fs_runner.invoke(cli, [*self.ARGS, "--agent", "claude-code"])
+
+        assert_invoke_ok(result)
+        assert "secret scan ai-hook" in _hook_file(
+            alice.home, ".claude", "settings.json"
+        )
+        root_hook = _hook_file(root.home, ".claude", "settings.json")
+        assert ("secret scan ai-hook" in root_hook) is root_configured
+        assert not (root.home / ".codex" / "hooks.json").exists()
 
 
 class TestMachineSetupOrchestration:

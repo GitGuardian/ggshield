@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,8 +18,9 @@ from ggshield.cmd.machine.doctor import (
     _is_plugin_installed,
 )
 from ggshield.core.errors import GIT_INSTALL_HINT
-from ggshield.verticals.ai.installation import AgentHookStatus
-from tests.unit.cmd.machine.test_setup import _current_hook, _legacy_hook
+from ggshield.verticals.ai.installation import AgentHookStatus, install_hooks
+from ggshield.verticals.honeytoken.targets import Target
+from tests.unit.cmd.machine.test_setup import _current_hook, _legacy_hook, fake_root
 from tests.unit.conftest import assert_invoke_ok
 
 
@@ -184,6 +186,63 @@ class TestCheckAiHooks:
     def test_none_detected_is_ok(self):
         with patch(f"{BASE}.ai_hook_posture", return_value=[]):
             assert _check_ai_hooks().ok is True
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="the root fan-out forks")
+class TestCheckAiHooksAsRoot:
+    """As root, doctor reports the AI hook of every user, read as that user."""
+
+    def _user(self, tmp_path, monkeypatch, name, uid, agent_dir, installed):
+        home = tmp_path / name
+        (home / agent_dir).mkdir(parents=True)
+        if installed:
+            monkeypatch.setenv("GG_USER_HOME_DIR", str(home))
+            install_hooks("claude-code", mode="global")
+        return Target(username=name, home=home, uid=uid)
+
+    def test_reports_each_user(self, tmp_path, monkeypatch):
+        me = os.getuid()
+        alice = self._user(tmp_path, monkeypatch, "alice", me + 1, ".claude", True)
+        bob = self._user(tmp_path, monkeypatch, "bob", me + 2, ".codex", False)
+        fake_root(monkeypatch, BASE, [alice, bob])
+
+        check = _check_ai_hooks()
+
+        assert check.ok is False
+        assert check.detail == (
+            "installed for: alice (Claude Code). not installed for: bob (Codex)"
+        )
+        assert "as root" in check.fix
+
+    def test_ok_when_every_user_is_covered(self, tmp_path, monkeypatch):
+        alice = self._user(
+            tmp_path, monkeypatch, "alice", os.getuid() + 1, ".claude", True
+        )
+        fake_root(monkeypatch, BASE, [alice])
+
+        check = _check_ai_hooks()
+
+        assert check.ok is True
+        assert check.detail == "installed for: alice (Claude Code)"
+
+    def test_a_user_that_cannot_be_read_fails_the_check(self, tmp_path, monkeypatch):
+        me = os.getuid()
+        alice = self._user(tmp_path, monkeypatch, "alice", me + 1, ".claude", True)
+        carol = Target(username="carol", home=tmp_path / "carol", uid=me + 3)
+        credentials = fake_root(monkeypatch, BASE, [alice, carol])
+        credentials.side_effect = lambda uid: (
+            _raise(KeyError("no such uid")) if uid == carol.uid else ("x", 0, [])
+        )
+
+        check = _check_ai_hooks()
+
+        assert check.ok is False
+        assert check.detail.startswith("installed for: alice (Claude Code). ")
+        assert "could not check: carol (" in check.detail
+
+
+def _raise(error: Exception):
+    raise error
 
 
 class TestCheckGitHooks:
