@@ -5,10 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 # Builds the platform wheels carrying the Rust `ggshield` binary, and nothing
-# else: the sdist and the pure-Python `py3-none-any` fallback come from
-# build_release_assets.yml's `build_wheel_sdist` job. Both would otherwise emit
-# the same `ggshield-<version>-py3-none-any.whl`, and PyPI rejects a duplicate
-# file. The two sets meet again in tag.yml's `push_to_pypi`, under artifact names
+# else to publish: the sdist comes from build_release_assets.yml's `build_sdist`
+# job. The two sets meet again in tag.yml's `push_to_pypi`, under artifact names
 # `dist` and `wheel-*`.
 #
 # Each platform wheel is tagged py3-none-<platform>: a native binary but no
@@ -16,7 +14,7 @@ concurrency:
 
 on:
   # Called by tag.yml, so a release actually publishes these. Same run as
-  # `build_wheel_sdist`, which is what lets `push_to_pypi` download both.
+  # `build_sdist`, which is what lets `push_to_pypi` download both.
   workflow_call:
     inputs:
       skip_macos_windows:
@@ -31,7 +29,6 @@ on:
       - '.github/workflows/wheels.yml'
       - '.github/actions/build-wheel/**'
       - 'hatch_build.py'
-      - 'hatch_meta.py'
       - 'pyproject.toml'
       - 'scripts/smoke-test-wheel'
       - 'rust/**'
@@ -136,3 +133,67 @@ jobs:
         with:
           name: wheel-${{ matrix.tag }}
           path: dist/*.whl
+
+  sdist:
+    name: sdist
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - name: Build the sdist
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist --outdir dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdist-under-test
+          path: dist/*.tar.gz
+
+  from_sdist:
+    name: from sdist (${{ matrix.case }})
+    needs: sdist
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { case: linux, runs-on: ubuntu-latest, hide-cargo: false }
+          - {
+              case: linux without cargo,
+              runs-on: ubuntu-latest,
+              hide-cargo: true,
+            }
+          - { case: macos, runs-on: macos-26, hide-cargo: false }
+          - { case: windows, runs-on: windows-latest, hide-cargo: false }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdist-under-test
+          path: dist
+      - name: Build a wheel from the sdist
+        shell: bash
+        env:
+          HIDE_CARGO: ${{ matrix.hide-cargo }}
+        run: |
+          if [ "$HIDE_CARGO" = "true" ] ; then
+            PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '/\.cargo/bin$' | paste -sd: -)
+            if command -v cargo ; then
+              echo "cargo is still on PATH" >&2
+              exit 1
+            fi
+          fi
+          python -m pip wheel --no-deps --wheel-dir out dist/*.tar.gz
+      - name: Smoke test the wheel
+        shell: bash
+        run: scripts/smoke-test-wheel out/*.whl
