@@ -8,6 +8,7 @@ name = "ggshield"
 # time by build.rs.
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.89"
 resolver = "2"
 publish = false
 description = "The `ggshield` front door: `secret scan ai-hook` natively, everything else to `ggshield-py`."

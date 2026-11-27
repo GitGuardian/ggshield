@@ -1,10 +1,10 @@
 """Embed the Rust ``ggshield`` dispatcher into a platform-specific wheel.
 
-Active only when ``GGSHIELD_BUILD_RUST=1`` (set by the wheel CI matrix);
-otherwise the build is the pure-Python ``py3-none-any`` fallback wheel. When
-active the wheel installs both ``ggshield`` (the dispatcher) and ``ggshield-py``
-(the Python entry point, renamed by hatch_meta.py), the layout the dispatcher
-expects to exec its sibling from.
+``GGSHIELD_BUILD_RUST=1`` (set by the wheel CI matrix) selects the release
+build. Otherwise a build from the source distribution compiles the dispatcher
+for the host, and a build from a git checkout has no dispatcher. The wheel
+installs both ``ggshield`` (the dispatcher) and ``ggshield-py`` (the Python
+entry point), the layout the dispatcher expects to exec its sibling from.
 """
 
 import os
@@ -29,6 +29,10 @@ MACOS_ARCHS = {"arm64", "x86_64"}
 ELF_MACHINES = {62: "x86_64", 183: "aarch64"}
 
 
+def built_from_sdist(root: str) -> bool:
+    return os.path.isfile(os.path.join(root, "PKG-INFO"))
+
+
 class WrongBinaryError(Exception):
     """The built binary does not match the platform tag we are about to write."""
 
@@ -37,28 +41,48 @@ class SigningError(Exception):
     """A signing script failed, with whatever it printed about why."""
 
 
+class RustBuildError(Exception):
+    pass
+
+
 class RustDispatcherBuildHook(BuildHookInterface):
     PLUGIN_NAME = "ggshield-rust"
 
-    def initialize(self, version, build_data):
-        if os.environ.get("GGSHIELD_BUILD_RUST") != "1":
-            return
+    def dependencies(self):
+        if (
+            os.environ.get("GGSHIELD_BUILD_RUST") != "1"
+            and built_from_sdist(self.root)
+            and shutil.which("cargo") is None
+        ):
+            return ["puccinialin==0.1.14"]
+        return []
 
+    def initialize(self, version, build_data):
         crate = Path(self.root) / "rust"
         name = "ggshield" + (".exe" if sys.platform == "win32" else "")
         binary = crate / "target" / "release" / name
 
-        # Unconditionally, never `if not binary.exists()`: a leftover
-        # target/release/ggshield from another arch -- or another OS -- is
-        # indistinguishable from a fresh one by existence alone, and cargo is
-        # nearly free when the artifact is already current.
-        self._build(crate, binary)
+        if os.environ.get("GGSHIELD_BUILD_RUST") == "1":
+            # Unconditionally, never `if not binary.exists()`: a leftover
+            # target/release/ggshield from another arch -- or another OS -- is
+            # indistinguishable from a fresh one by existence alone, and cargo is
+            # nearly free when the artifact is already current.
+            self._build(crate, binary)
+            platform_tag = self._platform_tag(binary)
+        elif version == "editable" or not built_from_sdist(self.root):
+            return
+        else:
+            self._build_for_host(crate, binary)
+            platform_tag = sysconfig.get_platform().replace("-", "_").replace(".", "_")
+
+        scripts = self.metadata.core.scripts
+        scripts["ggshield-py"] = scripts.pop("ggshield")
 
         # A native binary but no Python extension module: platform-specific yet
         # valid for any Python 3 -> py3-none-<platform>. (Linux relabels the raw
         # linux_* tag to manylinux/musllinux in CI.)
         build_data["pure_python"] = False
-        build_data["tag"] = f"py3-none-{self._platform_tag(binary)}"
+        build_data["tag"] = f"py3-none-{platform_tag}"
         build_data["shared_scripts"][str(binary)] = name
 
     def _platform_tag(self, binary: Path) -> str:
@@ -187,6 +211,39 @@ class RustDispatcherBuildHook(BuildHookInterface):
             raise SigningError(
                 f"{argv[0]} exited {signer.returncode}\n{signer.stdout}{signer.stderr}"
             )
+
+    def _build_for_host(self, crate: Path, binary: Path) -> None:
+        env = dict(os.environ)
+        try:
+            if shutil.which("cargo") is None:
+                from puccinialin import setup_rust
+
+                env.update(setup_rust())
+            subprocess.run(
+                [
+                    shutil.which("cargo", path=env.get("PATH")),
+                    "build",
+                    "--release",
+                    "--locked",
+                    "--bin",
+                    "ggshield",
+                    "--target-dir",
+                    str(crate / "target"),
+                ],
+                cwd=crate,
+                env=env,
+                check=True,
+            )
+            if not binary.is_file():
+                raise FileNotFoundError(
+                    f"cargo did not write {binary}. CARGO_BUILD_TARGET or a "
+                    "build.target setting of cargo moves the output."
+                )
+        except Exception as error:
+            raise RustBuildError(
+                "Building the ggshield executable failed. This build needs a Rust "
+                f"toolchain and a C compiler. Cause: {error}"
+            ) from error
 
     def _build(self, crate: Path, binary: Path) -> None:
         # --locked: build the dependency versions committed in rust/Cargo.lock,

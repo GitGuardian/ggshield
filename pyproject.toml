@@ -1,6 +1,6 @@
 [project]
 name = "ggshield"
-dynamic = ["version", "scripts"]
+dynamic = ["version"]
 description = "Detect secrets from all sources using GitGuardian's brains"
 keywords = [
     "cli",
@@ -74,8 +74,11 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/GitGuardian/ggshield"
 
+[project.scripts]
+ggshield = "ggshield.__main__:main"
+
 # Pinned: uv.lock does not cover the build backend, and hatchling runs
-# hatch_build.py / hatch_meta.py. Split because 1.28.0 dropped Python 3.9.
+# hatch_build.py. Split because 1.28.0 dropped Python 3.9.
 [build-system]
 requires = [
     "hatchling==1.33.0; python_version >= '3.10'",
@@ -86,19 +89,11 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "ggshield/__init__.py"
 
-# `ggshield` is the Rust dispatcher and the Python entry point is `ggshield-py`
-# when GGSHIELD_BUILD_RUST=1 (the wheel CI matrix); otherwise `ggshield` is the
-# Python entry point. See hatch_meta.py / hatch_build.py.
-[tool.hatch.metadata.hooks.custom]
-path = "hatch_meta.py"
-
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "hatch_build.py"
 
-# The Rust sources are needed only to build the platform wheels (from the repo,
-# in CI); keep them out of the sdist so an sdist install stays pure Python.
 [tool.hatch.build.targets.sdist]
-exclude = ["rust"]
+exclude = ["rust/rust-toolchain.toml"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
