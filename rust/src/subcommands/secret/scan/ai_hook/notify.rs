@@ -11,7 +11,7 @@
 /// lands on whoever is at the keyboard, and the equivalence gate runs both hooks
 /// against payloads carrying secrets.
 pub fn send(title: &str, body: &str) {
-    if crate::config::getenv_bool("GGSHIELD_NO_NOTIFICATION") {
+    if crate::subcommands::secret::scan::ai_hook::config::getenv_bool("GGSHIELD_NO_NOTIFICATION") {
         return;
     }
     imp::send(title, body);
@@ -36,7 +36,7 @@ mod imp {
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
 
-    const ICNS: &[u8] = include_bytes!("../../assets/ggshield.icns");
+    const ICNS: &[u8] = include_bytes!("../../../../../assets/ggshield.icns");
     /// Deliberately not `com.gitguardian.ggshield`: that identity belongs to the
     /// signed CLI, and the Keychain ACL keys on its designated requirement.
     const BUNDLE_ID: &str = "com.gitguardian.ggshield.notifier";
@@ -58,7 +58,7 @@ mod imp {
 end run"#;
 
     pub fn send(title: &str, body: &str) {
-        let Some(dir) = crate::config::cache_dir() else {
+        let Some(dir) = crate::subcommands::secret::scan::ai_hook::config::cache_dir() else {
             return;
         };
         // Without a bundle there is still a notification to raise; it just wears
@@ -88,7 +88,7 @@ end run"#;
         let want = fingerprint();
         if app.is_dir()
             && std::fs::read_to_string(&stamp).ok().as_deref() == Some(want.as_str())
-            && crate::secure_file::is_private_dir(dir)
+            && crate::subcommands::secret::scan::ai_hook::secure_file::is_private_dir(dir)
         {
             return Some(app);
         }
@@ -375,7 +375,7 @@ $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
 "#;
 
     pub fn send(title: &str, body: &str) {
-        let Some(dir) = crate::config::cache_dir() else {
+        let Some(dir) = crate::subcommands::secret::scan::ai_hook::config::cache_dir() else {
             return;
         };
         let script = dir.join("toast.ps1");
@@ -442,8 +442,8 @@ mod imp {
 /// executable with no data directory of its own to point at.
 #[cfg(any(target_os = "linux", windows))]
 fn icon_file() -> Option<std::path::PathBuf> {
-    const PNG: &[u8] = include_bytes!("../../assets/ggshield.png");
-    let dir = crate::config::cache_dir()?;
+    const PNG: &[u8] = include_bytes!("../../../../../assets/ggshield.png");
+    let dir = crate::subcommands::secret::scan::ai_hook::config::cache_dir()?;
     let path = dir.join("ggshield.png");
     // Compared whole, not by length: an icon swapped for another of the same
     // size would otherwise never be put back. It is 28 KB, on a path that only
@@ -484,7 +484,8 @@ mod tests {
         // Not a mutex of its own: `GG_CACHE_DIR` is process-wide, and `send`
         // builds under it, so this test has to hold the lock the cache tests
         // hold or it redirects theirs out from under them.
-        let (_guard, dir) = crate::hook::verdict_cache::with_cache_dir();
+        let (_guard, dir) =
+            crate::subcommands::secret::scan::ai_hook::verdict_cache::with_cache_dir();
         for value in ["1", "true", "TRUE", "yes", ""] {
             // SAFETY: serialised by the cache lock above.
             unsafe { std::env::set_var("GGSHIELD_NO_NOTIFICATION", value) };

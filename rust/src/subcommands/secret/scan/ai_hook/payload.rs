@@ -8,9 +8,21 @@ use std::sync::OnceLock;
 use regex::Regex;
 use serde_json::Value;
 
-use crate::error::Error;
+use crate::error::{Cause, Error};
 
-pub use crate::hash::sha256_hex;
+pub use crate::subcommands::secret::scan::ai_hook::hash::sha256_hex;
+
+#[derive(Debug, thiserror::Error)]
+pub enum HookInputError {
+    #[error("No input received on stdin")]
+    Empty,
+    #[error("Failed to parse JSON from stdin")]
+    Json(#[source] serde_json::Error),
+    #[error("couldn't find event type")]
+    MissingEventType,
+    #[error("no payloads to scan")]
+    NoPayload,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EventType {
@@ -522,16 +534,15 @@ fn read_payload(identifier: String, agent: Agent, cwd: &str) -> Payload {
 /// `_scan_payloads` returns on the *first* blocking payload.
 pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
     if raw_content.trim().is_empty() {
-        return Err(Error::Invalid("Error: No input received on stdin".into()));
+        return Err(HookInputError::Empty.into());
     }
-    let data: Value = serde_json::from_str(raw_content)
-        .map_err(|e| Error::Invalid(format!("Error: Failed to parse JSON from stdin: {e}")))?;
+    let data: Value = serde_json::from_str(raw_content).map_err(HookInputError::Json)?;
 
-    let agent = Agent::detect(&data).ok_or(Error::UnrecognizedAgent)?;
+    let agent = Agent::detect(&data).ok_or(Cause::UnrecognizedAgent)?;
 
     let event_name = lookup(&data, &["hook_event_name", "hookEventName"])
         .and_then(Value::as_str)
-        .ok_or_else(|| Error::Invalid("Error: couldn't find event type".into()))?;
+        .ok_or(HookInputError::MissingEventType)?;
     let event_type = event_type_from_name(event_name);
 
     // Resolved once: see `abs_read_path`.
@@ -661,7 +672,7 @@ pub fn parse(raw_content: &str) -> Result<Vec<Payload>, Error> {
         // can distinguish. See `vibe::post_process`.
         Agent::Vibe => {
             for payload in &mut payloads {
-                crate::hook::vibe::post_process(payload);
+                crate::subcommands::secret::scan::ai_hook::vibe::post_process(payload);
             }
         }
         _ => {}
@@ -1186,7 +1197,10 @@ mod tests {
     #[test]
     fn rejects_a_payload_from_no_known_agent() {
         let raw = json!({"hook_event_name": "somethingElse", "prompt": "hi"}).to_string();
-        assert!(matches!(parse(&raw), Err(Error::UnrecognizedAgent)));
+        assert!(matches!(
+            parse(&raw),
+            Err(error) if matches!(error.cause(), Cause::UnrecognizedAgent)
+        ));
     }
 
     /// GIVEN a Copilot tool call named `<server>-<tool>` and one in snake_case
@@ -1215,8 +1229,12 @@ mod tests {
     /// THEN both come back as invalid rather than panicking.
     #[test]
     fn rejects_empty_and_malformed_input() {
-        assert!(matches!(parse("   "), Err(Error::Invalid(_))));
-        assert!(matches!(parse("{not json"), Err(Error::Invalid(_))));
+        for input in ["   ", "{not json"] {
+            assert!(matches!(
+                parse(input),
+                Err(error) if matches!(error.cause(), Cause::HookInput(_))
+            ));
+        }
     }
 
     /// GIVEN a Claude PreToolUse for `Bash`

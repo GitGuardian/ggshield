@@ -52,7 +52,8 @@ class Kiro(Agent):
     """Behavior specific to Amazon Kiro, both the IDE and the CLI.
 
     Installation, MCP discovery and activity only: the hook itself is served by
-    `rust/src/hook/`, so nothing here parses a payload or emits a verdict.
+    `rust/src/subcommands/secret/scan/ai_hook/`, so nothing here parses a payload
+    or emits a verdict.
 
     One adapter for two surfaces: they share the settings file and the session
     store, and differ only in the spelling of a few tool names, which are
@@ -76,8 +77,9 @@ class Kiro(Agent):
     def is_caller(self, hook_payload: Dict[str, Any]) -> bool:
         """Never: the Rust hook answers Kiro's payloads.
 
-        Detection, verdicts and read ranges all live in `rust/src/hook/`, which is
-        what `ggshield secret scan ai-hook` runs. This adapter carries only what
+        Detection, verdicts and read ranges all live in
+        `rust/src/subcommands/secret/scan/ai_hook/`, which is what
+        `ggshield secret scan ai-hook` runs. This adapter carries only what
         the Rust hook does not do: installation, MCP discovery and activity.
         """
         return False

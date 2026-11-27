@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use regex::{Regex, RegexSet};
 
-use crate::user_config::SecretConfig;
+use crate::subcommands::secret::scan::ai_hook::user_config::SecretConfig;
 
 /// `IGNORED_DEFAULT_WILDCARDS`, in `cmd/secret/scan/secret_scan_common_options.py`.
 const IGNORED_DEFAULT_WILDCARDS: [&str; 13] = [

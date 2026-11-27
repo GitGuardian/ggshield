@@ -17,8 +17,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use gg_url::{ApiUrl, DashboardUrl};
 use serde::Deserialize;
 
+use crate::config::ConfigError;
 use crate::error::Error;
 
 pub const USER_CONFIG_FILENAMES: [&str; 3] =
@@ -70,7 +72,7 @@ pub struct SecretConfig {
     /// literal secret value; `is_in_ignored_matches` accepts both.
     pub ignored_matches: Vec<String>,
     pub ignored_detectors: BTreeSet<String>,
-    /// Globs, as written in the file. Compiled by `hook::exclusion`,
+    /// Globs, as written in the file. Compiled by `ai_hook::exclusion`,
     /// which also adds the default wildcards.
     pub ignored_paths: Vec<String>,
     pub ignore_known_secrets: bool,
@@ -192,9 +194,10 @@ impl From<V1Config> for RawUserConfig {
     fn from(v1: V1Config) -> Self {
         // "api_url" becomes "instance", but never overwrites an explicit one.
         let instance = v1.instance.or_else(|| {
-            v1.api_url
-                .as_deref()
-                .map(crate::config::api_to_dashboard_url)
+            v1.api_url.map(|url| match url.parse::<ApiUrl>() {
+                Ok(api_url) => DashboardUrl::from(api_url).to_string(),
+                Err(_) => url,
+            })
         });
         RawUserConfig {
             instance,
@@ -323,19 +326,24 @@ pub fn local_config_path() -> Option<PathBuf> {
 }
 
 /// An empty document deserializes as `None`, which is the default config.
-fn parse_yaml<T>(raw: &str, path: &Path) -> Result<T, Error>
+fn parse_yaml<T>(raw: &str, path: &Path) -> Result<T, ConfigError>
 where
     T: Default + serde::de::DeserializeOwned,
 {
     serde_yaml_ng::from_str::<Option<T>>(raw)
         .map(Option::unwrap_or_default)
-        .map_err(|e| Error::fatal(format!("{}: {e}", path.display())))
+        .map_err(|source| ConfigError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })
 }
 
 /// `_load_config_dict()` for one file.
-fn load_config_file(path: &Path) -> Result<RawUserConfig, Error> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| Error::fatal(format!("{}: {e}", path.display())))?;
+fn load_config_file(path: &Path) -> Result<RawUserConfig, ConfigError> {
+    let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Read {
+        path: path.to_path_buf(),
+        source,
+    })?;
     // A missing `version` means 1: Python warns and converts rather than reject,
     // so declining here would disable scanning for every pre-`version` config.
     let version = parse_yaml::<ConfigVersion>(&raw, path)?
@@ -345,9 +353,7 @@ fn load_config_file(path: &Path) -> Result<RawUserConfig, Error> {
         CURRENT_CONFIG_VERSION => parse_yaml(&raw, path),
         1 => parse_yaml::<V1Config>(&raw, path).map(Into::into),
         // `raise UnexpectedError`, which reaches the hook's fail-open handler.
-        other => Err(Error::fatal(format!(
-            "Don't know how to load config version {other}"
-        ))),
+        other => Err(ConfigError::UnsupportedVersion(other)),
     }
 }
 
@@ -366,6 +372,7 @@ pub fn load() -> Result<UserConfig, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::Cause;
 
     fn parse(yaml: &str) -> Result<UserConfig, Error> {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -526,9 +533,11 @@ mod tests {
     /// THEN it is fatal rather than fail-open, matching Python's UnexpectedError.
     #[test]
     fn unknown_config_version_is_an_error_in_both_implementations() {
-        let Err(Error::Fatal(msg)) = parse("version: 3\n") else {
+        let Err(error) = parse("version: 3\n") else {
             panic!("an unknown version must be fatal, not fail-open");
         };
+        assert!(matches!(error.cause(), Cause::Config(_)), "{error:?}");
+        let msg = error.summary();
         assert!(
             msg.contains("Don't know how to load config version 3"),
             "{msg}"
@@ -547,7 +556,7 @@ mod tests {
             "version: 2\nsecret:\n  ignored_detectors: nope\n",
         ] {
             assert!(
-                matches!(parse(yaml), Err(Error::Fatal(_))),
+                matches!(parse(yaml), Err(error) if matches!(error.cause(), Cause::Config(_))),
                 "{yaml:?} must be fatal"
             );
         }
@@ -652,7 +661,7 @@ mod tests {
         for bad in ["deny", "Block", "true"] {
             let yaml = format!("version: 2\nsecret:\n  ai_hook_failure_policy: {bad}\n");
             assert!(
-                matches!(of(&yaml), Err(Error::Fatal(_))),
+                matches!(of(&yaml), Err(error) if matches!(error.cause(), Cause::Config(_))),
                 "{bad} must be fatal"
             );
         }

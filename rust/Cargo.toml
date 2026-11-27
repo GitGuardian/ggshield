@@ -44,9 +44,12 @@ dirs = "7"
 # RFC 3339 parsing for the stored token's expiry date.
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
-# `.env` parsing (GITGUARDIAN_* overrides). Only the `*_iter` API is used: it
-# yields pairs without touching the process environment.
-dotenvy = "0.15"
+thiserror = "2.0.21"
+gg_url = "0.2.0"
+gg_fs = "0.4.0"
+dotenv = { package = "dotenv-ng", version = "1.0.0" }
+log = "0.4.35"
+clap = { version = "4.6.10", features = ["derive"] }
 
 # O_NOFOLLOW and getuid for the cache files' ownership checks, flock for the
 # keyring lock. Already in the tree transitively; std exposes none of them.
@@ -87,11 +90,11 @@ tempfile = "3"
 rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 
 [lints.clippy]
-unwrap_used = "warn"
+unwrap_used = "deny"
 
 [profile.release]
 lto = true
 codegen-units = 1
 strip = true
 # NOT panic = "abort": `run_hook()` catches unwinds so a bug still fails open
-# with a warning instead of killing the hook. See src/hook.rs.
+# with a warning instead of killing the hook. See src/subcommands/secret/scan/ai_hook.rs.
