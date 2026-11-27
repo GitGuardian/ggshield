@@ -36,12 +36,8 @@ if [ -f "$_ggshield_local_hook" ]; then
 fi
 """
 
-# Pre-push variant of the snippet above. git hands the list of pushed refs to the
-# hook on stdin, and a repository hook that reads it (pre-commit's shim, Husky,
-# lefthook, a hand-written script) consumes it: ggshield then reads an empty stdin
-# and reports "nothing to scan", so the push goes through unscanned. Buffering the
-# refs once and replaying them to both hooks fixes that by construction, and it
-# also keeps the refs when several branches are pushed at once.
+# Pre-push variant: git passes the pushed refs on stdin, so buffer them and replay
+# them to both the repository's own hook and ggshield.
 LOCAL_HOOK_PUSH_SNIPPET = """
 _ggshield_local_hook=$(git rev-parse --git-common-dir)/hooks/{hook_type}
 if [ -f "$_ggshield_local_hook" ]; then
@@ -282,30 +278,29 @@ def _hook_body(hook_type: str, local_hook_support: bool) -> str:
     return stamp + snippet + f'ggshield secret scan {hook_type} "$@"\n'
 
 
+# The stamp line a hook carries, whatever version it names. Repairing a hook matches
+# it as optional context, so the stamp it replaces disappears with the body instead of
+# being left above the new one.
+_HOOK_STAMP_LINE = r"\n# ggshield-hook-version: *\d+\n"
+
+
 def _legacy_hook_bodies(hook_type: str) -> List[str]:
-    bodies: List[str] = []
-    previous_version = GGSHIELD_HOOK_VERSION - 1
-    for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS:
-        body = (
-            snippet.format(hook_type=hook_type)
-            + "\n"
-            + f'ggshield secret scan {hook_type} "$@"\n'
-        )
-        # The stamped body contains the unstamped one, so it has to be offered
-        # first: matching the inner body would rewrite it in place and leave the
-        # old stamp above the new one, and a doubly-stamped hook reads as outdated
-        # forever.
-        bodies.append(f"\n# ggshield-hook-version: {previous_version}\n{body}")
-        bodies.append(body)
+    """Bodies earlier ggshield versions wrote into a hook script, stamp excluded."""
+    bodies = [
+        snippet.format(hook_type=hook_type)
+        + "\n"
+        + f'ggshield secret scan {hook_type} "$@"\n'
+        for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS
+    ]
+    if hook_type == "pre-push":
+        # Shipped once the replay snippet existed. It ends with the scan itself, so
+        # it never carried the separate scan line the bodies above end with.
+        bodies.append(LOCAL_HOOK_PUSH_SNIPPET.format(hook_type=hook_type))
     return bodies
 
 
 def hook_is_outdated(hook_path: Path) -> bool:
-    """Whether ``hook_path`` is ggshield's own hook, rendered by an older template.
-
-    Presence of the marker is not currency: a hook installed before the stamp existed
-    carries a template that skips the repository's own hook in linked worktrees.
-    """
+    """Whether ``hook_path`` is ggshield's own hook, rendered by an older template."""
     if not hook_invokes_ggshield(hook_path):
         return False
     try:
@@ -328,9 +323,14 @@ def upgrade_hook(hook_path: Path, hook_type: str) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     for legacy in _legacy_hook_bodies(hook_type):
-        if legacy in text:
+        pattern = re.compile(f"(?:{_HOOK_STAMP_LINE})?{re.escape(legacy)}")
+        if pattern.search(text):
             hook_path.write_text(
-                text.replace(legacy, _hook_body(hook_type, local_hook_support=True), 1)
+                pattern.sub(
+                    lambda _: _hook_body(hook_type, local_hook_support=True),
+                    text,
+                    count=1,
+                )
             )
             return True
     return False

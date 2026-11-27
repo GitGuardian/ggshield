@@ -10,9 +10,11 @@ import pytest
 from click.testing import CliRunner
 from pygitguardian.models import HealthCheckResponse
 
+import ggshield.cmd.install as install_module
 from ggshield.__main__ import cli
 from ggshield.cmd.install import (
     GGSHIELD_HOOK_VERSION,
+    LOCAL_HOOK_PUSH_SNIPPET,
     LOCAL_HOOK_SNIPPET,
     create_hook,
     get_default_global_hook_dir_path,
@@ -1141,15 +1143,7 @@ class TestInstallWithoutGit:
     sys.platform == "win32", reason="the global hook is a POSIX /bin/sh script"
 )
 class TestGlobalPrePushStdinReplay:
-    """Behavior of ``LOCAL_HOOK_PUSH_SNIPPET``, the pre-push variant of the global
-    hook body.
-
-    Regression coverage for the unscanned-push bug: git hands the pushed refs to the
-    hook on stdin, and the repository's own pre-push hook (pre-commit's shim, Husky,
-    lefthook, any script reading stdin) consumed them, so the ggshield command that
-    ran afterwards read an empty stdin and reported "Deletion event or nothing to
-    scan" while the push went through unscanned.
-    """
+    """The global pre-push hook replays git's stdin to both the local hook and ggshield."""
 
     REFS = (
         "refs/heads/main 1111111111111111111111111111111111111111 "
@@ -1218,8 +1212,8 @@ class TestGlobalPrePushStdinReplay:
         result = self._run_hook(hook, repo.path, self.REFS, tmp_path / "bin")
 
         assert result.returncode == 0, result.stderr
-        assert local_stdin.read_text().strip() == self.REFS.strip()
-        assert ggshield_stdin.read_text().strip() == self.REFS.strip()
+        assert local_stdin.read_text() == self.REFS
+        assert ggshield_stdin.read_text() == self.REFS
 
     def test_every_pushed_ref_survives_to_ggshield(self, tmp_path):
         """
@@ -1254,7 +1248,29 @@ class TestGlobalPrePushStdinReplay:
         result = self._run_hook(hook, repo.path, self.REFS, tmp_path / "bin")
 
         assert result.returncode == 0, result.stderr
-        assert ggshield_stdin.read_text().strip() == self.REFS.strip()
+        assert ggshield_stdin.read_text() == self.REFS
+
+    def test_local_hook_failure_stops_the_push(self, tmp_path):
+        """
+        GIVEN a repository pre-push hook that fails
+        WHEN the global ggshield pre-push hook runs
+        THEN the push is rejected and ggshield is never run
+        """
+        repo = Repository.create(tmp_path / "repo")
+        repo.create_commit()
+        ggshield_stdin = tmp_path / "ggshield-stdin"
+        local_hook = repo.path / ".git" / "hooks" / "pre-push"
+        local_hook.parent.mkdir(parents=True, exist_ok=True)
+        local_hook.write_text("#!/bin/sh\ncat > /dev/null\nexit 1\n")
+        local_hook.chmod(0o755)
+        self._fake_ggshield(tmp_path / "bin", ggshield_stdin)
+        hook = self._install_global_push_hook(tmp_path)
+
+        result = self._run_hook(hook, repo.path, self.REFS, tmp_path / "bin")
+
+        assert result.returncode == 1
+        assert "Local pre-push hook failed" in result.stdout
+        assert not ggshield_stdin.exists()
 
     def test_pre_commit_body_never_reads_stdin(self, tmp_path):
         """
@@ -1319,3 +1335,144 @@ class TestHookUpgradeToVersion2:
         assert text.count("# ggshield-hook-version:") == 1
         assert f"# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}" in text
         assert hook_is_outdated(hook) is False
+
+
+class TestHookUpgradeHistory:
+    """Every body ggshield has shipped must be repairable, once, leaving one stamp."""
+
+    # Bodies as the released versions wrote them, without the stamp they added later.
+    OLDEST_BODY = """
+if [[ -f .git/hooks/{hook_type} ]]; then
+    if ! .git/hooks/{hook_type} $@; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+fi
+"""
+
+    def _hook(self, hook_type: str, body: str, version: int | None) -> str:
+        stamp = f"\n# ggshield-hook-version: {version}\n" if version else ""
+        return (
+            f"#!/bin/sh\n{stamp}{body}\n" + f'ggshield secret scan {hook_type} "$@"\n'
+        )
+
+    def test_upgrades_the_oldest_template(self, tmp_path):
+        """
+        GIVEN a hook from the bash-only template, stamped v1
+        WHEN it is upgraded
+        THEN the body is replaced and a single stamp remains
+        """
+        hook = tmp_path / "pre-commit"
+        hook.write_text(
+            self._hook("pre-commit", self.OLDEST_BODY.format(hook_type="pre-commit"), 1)
+        )
+
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        text = hook.read_text()
+        assert text.count("# ggshield-hook-version:") == 1
+        assert "[[ -f .git/hooks" not in text
+        assert hook_is_outdated(hook) is False
+
+    def test_upgrades_a_hook_without_a_stamp(self, tmp_path):
+        """
+        GIVEN a hook written before the stamp existed
+        WHEN it is upgraded
+        THEN it gains the current body and stamp
+        """
+        hook = tmp_path / "pre-push"
+        hook.write_text(
+            self._hook(
+                "pre-push", LOCAL_HOOK_SNIPPET.format(hook_type="pre-push"), None
+            )
+        )
+
+        assert upgrade_hook(hook, "pre-push") is True
+
+        text = hook.read_text()
+        assert text.count("# ggshield-hook-version:") == 1
+        assert "_ggshield_stdin" in text
+        assert hook_is_outdated(hook) is False
+
+    def test_upgrades_a_stamped_hook_from_the_next_bump(self, tmp_path, monkeypatch):
+        """
+        GIVEN the replay hook this version ships, stamped by the version after it
+        WHEN the version is bumped again and the hook is repaired
+        THEN the replay body is recognized instead of being read as hand-edited
+        """
+        hook = tmp_path / "pre-push"
+        hook.write_text(
+            "#!/bin/sh\n\n# ggshield-hook-version: 2\n"
+            + LOCAL_HOOK_PUSH_SNIPPET.format(hook_type="pre-push")
+        )
+        monkeypatch.setattr(install_module, "GGSHIELD_HOOK_VERSION", 3)
+
+        assert hook_is_outdated(hook) is True
+        assert upgrade_hook(hook, "pre-push") is True
+
+        text = hook.read_text()
+        assert text.count("# ggshield-hook-version:") == 1
+        assert "# ggshield-hook-version: 3" in text
+        assert hook_is_outdated(hook) is False
+
+    def test_repeated_upgrade_leaves_one_stamp(self, tmp_path):
+        """
+        GIVEN a hook already repaired by this version
+        WHEN a repair runs again over it
+        THEN no second stamp or body is added
+        """
+        hook = tmp_path / "pre-commit"
+        hook.write_text(
+            self._hook(
+                "pre-commit", LOCAL_HOOK_SNIPPET.format(hook_type="pre-commit"), 1
+            )
+        )
+        assert upgrade_hook(hook, "pre-commit") is True
+        upgraded = hook.read_text()
+
+        upgrade_hook(hook, "pre-commit")
+
+        assert hook.read_text() == upgraded
+        assert hook.read_text().count("# ggshield-hook-version:") == 1
+
+    def test_keeps_the_lines_around_a_repaired_block(self, tmp_path):
+        """
+        GIVEN an `install --append` hook with the user's own lines around ours
+        WHEN it is upgraded
+        THEN only the ggshield block changes
+        """
+        hook = tmp_path / "pre-commit"
+        before = "#!/bin/sh\necho before\n"
+        after = "echo after\n"
+        body = LOCAL_HOOK_SNIPPET.format(hook_type="pre-commit")
+        hook.write_text(
+            before
+            + "\n# ggshield-hook-version: 1\n"
+            + body
+            + "\n"
+            + 'ggshield secret scan pre-commit "$@"\n'
+            + after
+        )
+
+        assert upgrade_hook(hook, "pre-commit") is True
+
+        text = hook.read_text()
+        assert text.startswith(before)
+        assert text.endswith(after)
+        assert hook_is_outdated(hook) is False
+
+    def test_leaves_a_hand_edited_hook_alone(self, tmp_path):
+        """
+        GIVEN a hook whose ggshield block was edited by hand
+        WHEN a repair is attempted
+        THEN nothing is written
+        """
+        hook = tmp_path / "pre-commit"
+        original = (
+            "#!/bin/sh\n\n# ggshield-hook-version: 1\n"
+            "ggshield secret scan pre-commit --custom-flag\n"
+        )
+        hook.write_text(original)
+
+        assert upgrade_hook(hook, "pre-commit") is False
+        assert hook.read_text() == original
