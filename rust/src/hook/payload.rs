@@ -384,12 +384,15 @@ fn event_type_from_name(name: &str) -> EventType {
 
 fn parse_tool(data: &Value) -> Tool {
     let name = lookup_str(data, &["tool_name"]).to_lowercase();
+    // Vibe 3 hands hooks its built-in tools as `file_system.read_file` and
+    // `file_system.bash`, while the model sees the bare names.
+    let name = name.strip_prefix("file_system.").unwrap_or(&name);
     // The Kiro IDE's `mcp_{server}_{tool}` already matches the prefix rule; the
     // Kiro CLI writes the same call as `@{server}/{tool}`.
     if name.starts_with("mcp") || name.starts_with('@') {
         return Tool::Mcp;
     }
-    match name.as_str() {
+    match name {
         // `git_bash` and `powershell` are Vibe's other two shells; mapping them to
         // Bash is what gets their command parsed for file reads.
         // `execute_bash`, its `execute_cmd` alias and `execute_pwsh` are Kiro's.
@@ -952,6 +955,37 @@ mod tests {
         assert_eq!(payloads[0].content, r#"{"content":"file content"}"#);
         // Vibe's read_file carries no range: the whole file is scanned.
         assert_eq!(payloads[0].read_range, None);
+    }
+
+    /// GIVEN Vibe 3.1.4's pre_tool payloads, which prefix the tool name with
+    /// `file_system.` and name the read file in `file_path`
+    /// WHEN each is parsed
+    /// THEN they are classified like the bare names, so the file is read and
+    /// scanned before the tool runs.
+    #[test]
+    fn vibe_namespaced_tool_names_map_like_the_bare_names() {
+        let read = vibe(json!({
+            "hook_event_name": "pre_tool",
+            "tool_name": "file_system.read_file",
+            "tool_call_id": "call_1",
+            "tool_input": {"file_path": "/tmp/secret.txt"},
+        }))
+        .to_string();
+        let payloads = parse(&read).expect("parses");
+        assert_eq!(payloads[0].tool, Some(Tool::Read));
+        assert_eq!(payloads[0].identifier, native("/tmp/secret.txt"));
+
+        let bash = vibe(json!({
+            "hook_event_name": "pre_tool",
+            "tool_name": "file_system.bash",
+            "tool_call_id": "call_1",
+            "tool_input": {"command": "cat /tmp/secret.txt", "timeout": 120},
+        }))
+        .to_string();
+        let payloads = parse(&bash).expect("parses");
+        assert_eq!(payloads.last().expect("one payload").tool, Some(Tool::Bash));
+        // The command names a file, so that file is scanned as a read too.
+        assert!(payloads.iter().any(|p| p.tool == Some(Tool::Read)));
     }
 
     /// GIVEN a file edit as Codex 0.170, Copilot CLI 1.0.104, Vibe 2.25.1 and

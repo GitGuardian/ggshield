@@ -2525,6 +2525,33 @@ class TestAIHookScannerParseInput:
         # The command references a file, so it is also scanned as a read.
         assert Tool.READ in {payload.tool for payload in payloads}
 
+    @pytest.mark.parametrize(
+        "tool_name, tool_input, expected",
+        [
+            ("file_system.read_file", {"file_path": "/tmp/secret.txt"}, Tool.READ),
+            ("file_system.bash", {"command": "cat /tmp/secret.txt"}, Tool.BASH),
+        ],
+    )
+    def test_vibe_namespaced_tools_map_like_the_bare_names(
+        self, tool_name: str, tool_input: Dict[str, Any], expected: Tool
+    ):
+        """Vibe 3.1.4 prefixes its tool names with `file_system.` in hook
+        payloads; the file must still be read and scanned before the tool runs."""
+        data = {
+            "session_id": "session-123",
+            "transcript_path": "/home/user/.vibe/logs/session-123.jsonl",
+            "cwd": "/home/user/project",
+            "hook_event_name": "pre_tool",
+            "tool_name": tool_name,
+            "tool_call_id": "call-123",
+            "tool_input": tool_input,
+        }
+
+        payloads = parse_hook_input(json.dumps(data))
+
+        assert payloads[-1].tool == expected
+        assert Tool.READ in {payload.tool for payload in payloads}
+
     def test_vibe_wins_over_claude_when_path_contains_claude(self):
         """Vibe's event names are unambiguous, so they take precedence over
         Claude's transcript_path substring heuristic."""
