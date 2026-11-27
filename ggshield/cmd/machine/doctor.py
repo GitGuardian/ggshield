@@ -30,7 +30,7 @@ _GIT_HOOK_TYPES = ("pre-commit", "pre-push")
 
 # Scopes the configured protections need.
 _SCAN_SCOPE = "scan"  # the AI and git hooks run `ggshield secret scan`
-_HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (granted only to Business)
+HONEYTOKEN_SCOPE = "honeytokens:write"  # plant honeytokens (Managers, paid plans only)
 _ENDPOINT_SCOPE = "endpoints:send"  # the machine_scan plugin uploads endpoint data
 _AI_DISCOVER_SCOPE = "ai-discover:send"  # `ai discover` uploads AI agent discovery
 
@@ -52,6 +52,10 @@ class Check:
     ok: Optional[bool]
     detail: str = ""
     fix: str = ""
+    # An optional check reports a protection that is unavailable rather than a machine
+    # that is misconfigured, so a failure is a warning: it is printed with its fix but
+    # does not fail the run. Nothing the user can do on this machine would turn it green.
+    optional: bool = False
 
     @classmethod
     def skip(cls, name: str, reason: str, fix: str) -> "Check":
@@ -59,7 +63,11 @@ class Check:
 
     @property
     def failed(self) -> bool:
-        return self.ok is False
+        return self.ok is False and not self.optional
+
+    @property
+    def unavailable(self) -> bool:
+        return self.ok is False and self.optional
 
     @property
     def skipped(self) -> bool:
@@ -91,7 +99,8 @@ def doctor_cmd(ctx: click.Context, **kwargs: Any) -> int:
     shadowing `core.hooksPath`, which git precedence means must be integrated into
     that hook manager or unset; scopes via a token that carries them; the plugin via
     `ggshield plugin install`). Exits non-zero if any check fails, so it can gate an
-    MDM rollout.
+    MDM rollout — except checks marked `!`, which report a protection the workspace
+    does not offer (honeytokens on a plan without them) rather than a machine to fix.
     """
     config = ContextObj.get(ctx).config
 
@@ -235,9 +244,24 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
     # server-side on a paid plan (Business or Enterprise).
     def _scope_fix(scope: str, *, paid_plan: bool = False) -> str:
         account = " from a Business or Enterprise account" if paid_plan else ""
+        # `--scopes` matters: plain `auth login` reuses a still-valid token and would
+        # report "already authenticated" without ever asking for the missing scope.
         return (
             f"use a token{account} that has the `{scope}` scope "
-            f"(re-run `ggshield auth login` or create a service-account token)"
+            f"(run `ggshield auth login --scopes {scope}` or create a "
+            "service-account token)"
+        )
+
+    def _unavailable_fix(scope: str, granted_to: str) -> str:
+        # The server grants what the plan and role allow and silently drops the rest,
+        # so pointing everyone at `--scopes` sends an ineligible member into a loop
+        # that mints a token per attempt. Lead with who can get the scope, and say
+        # what it means when that is not the reader.
+        return (
+            f"only {granted_to} can get the `{scope}` scope. If that is you, run "
+            f"`ggshield auth login --scopes {scope}` (or use a service-account "
+            "token); otherwise your plan or role cannot grant it, and there is "
+            "nothing to fix on this machine"
         )
 
     checks = [
@@ -247,17 +271,28 @@ def _check_scopes(scopes: Optional[List[str]], plugin_installed: bool) -> List[C
             "required by the AI and git hooks",
             fix=_scope_fix(_SCAN_SCOPE),
         ),
+        # Both plan-gated: a workspace whose plan does not offer them can never be
+        # granted them, so failing the run would gate an MDM rollout on something out
+        # of the fleet's reach. Neither is needed by a `machine setup` protection that
+        # is already in place — honeytoken planting skips without its scope, and
+        # `ai discover` is a separate command.
         Check(
-            f"Scope `{_HONEYTOKEN_SCOPE}`",
-            _HONEYTOKEN_SCOPE in scopes,
-            "honeytoken protection — Business or Enterprise plans only",
-            fix=_scope_fix(_HONEYTOKEN_SCOPE, paid_plan=True),
+            f"Scope `{HONEYTOKEN_SCOPE}`",
+            HONEYTOKEN_SCOPE in scopes,
+            "honeytoken protection — Managers on Business or Enterprise plans only",
+            fix=_unavailable_fix(
+                HONEYTOKEN_SCOPE, "a Manager on a Business or Enterprise plan"
+            ),
+            optional=True,
         ),
         Check(
             f"Scope `{_AI_DISCOVER_SCOPE}`",
             _AI_DISCOVER_SCOPE in scopes,
             "AI agent discovery upload — Business or Enterprise plans only",
-            fix=_scope_fix(_AI_DISCOVER_SCOPE, paid_plan=True),
+            fix=_unavailable_fix(
+                _AI_DISCOVER_SCOPE, "members of a Business or Enterprise workspace"
+            ),
+            optional=True,
         ),
     ]
     if plugin_installed:
@@ -309,14 +344,17 @@ def _render(checks: List[Check]) -> None:
             mark = click.style("-", fg="yellow")
         elif check.ok:
             mark = click.style("✓", fg="green")
+        elif check.unavailable:
+            mark = click.style("!", fg="yellow")
         else:
             mark = click.style("✗", fg="red")
         detail = f" — {check.detail}" if check.detail else ""
         click.echo(f"  {mark} {check.name}{detail}")
-        if (check.failed or check.skipped) and check.fix:
+        if not check.ok and check.fix:
             click.echo(f"      {click.style('↳ fix:', fg='yellow')} {check.fix}")
     failed = [check for check in checks if check.failed]
     skipped = [check.name for check in checks if check.skipped]
+    unavailable = [check for check in checks if check.unavailable]
     click.echo()
     if failed:
         click.echo(
@@ -326,16 +364,18 @@ def _render(checks: List[Check]) -> None:
                 bold=True,
             )
         )
-    elif skipped:
-        click.echo(
-            click.style(
-                "This machine is correctly set up, except for the skipped checks: "
-                f"{', '.join(skipped)}.",
-                fg="yellow",
-                bold=True,
-            )
-        )
     else:
-        click.echo(
-            click.style("This machine is correctly set up.", fg="green", bold=True)
-        )
+        if skipped:
+            message = (
+                "This machine is correctly set up, except for the skipped checks: "
+                f"{', '.join(skipped)}."
+            )
+        else:
+            message = "This machine is correctly set up."
+        if unavailable:
+            message += (
+                f" {len(unavailable)} optional protection(s) unavailable on this"
+                " workspace (marked !)."
+            )
+        color = "yellow" if skipped else "green"
+        click.echo(click.style(message, fg=color, bold=True))

@@ -353,6 +353,9 @@ def test_api_auth_error_exits_authentication(
     result = cli_fs_runner.invoke(cli, ["honeytoken", "plant", "--user-dir", "home"])
     assert_invoke_exited_with(result, ExitCode.AUTHENTICATION_ERROR)
     assert not Path("home/.aws/credentials").exists()
+    # The raw API body never says which prerequisite is missing — name all three.
+    assert "honeytokens:write" in result.output
+    assert "honeytoken module is enabled" in result.output
 
 
 def test_remove_only_foreign_profile_is_kept(
@@ -981,6 +984,8 @@ def test_all_fails_when_no_type_reconciles(
     assert_invoke_exited_with(result, ExitCode.AUTHENTICATION_ERROR)
     mock.assert_all_requests_happened()
     assert not Path("home/.aws/credentials").exists()
+    assert "honeytoken module is enabled" in result.output
+    assert "honeytokens:write" in result.output
 
 
 @pytest.mark.parametrize(
