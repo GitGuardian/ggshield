@@ -92,7 +92,30 @@ def build_hook_command() -> str:
     (``/usr/local/bin/ggshield``, ``/usr/bin/ggshield``) is therefore preferred
     when it resolves to that same binary, so the hook survives upgrades.
     """
-    return f"{_quote_executable(hook_executable())} {_HOOK_ARGS}"
+    executable = hook_executable()
+    if _is_module_invocation(executable):
+        # ``python -m ggshield install`` leaves sys.argv[0] at the package's
+        # __main__.py. That is a module, not an executable: the file is not
+        # marked executable and is not run through the interpreter by the agent,
+        # so writing it into the settings produced a hook that never starts -
+        # and nothing reported it. Rebuild the command the way the install
+        # itself was started.
+        return f"{_quote_executable(sys.executable)} -m ggshield {_HOOK_ARGS}"
+    return f"{_quote_executable(executable)} {_HOOK_ARGS}"
+
+
+def _is_module_invocation(executable: str) -> bool:
+    """Whether `executable` is the ``__main__.py`` of a ``python -m ggshield`` run.
+
+    The package name is checked too: other tools' ``__main__.py`` reaching this
+    point (a test runner, say) must keep the old behaviour rather than be
+    rewritten into a ``-m ggshield`` command.
+    """
+    return (
+        not getattr(sys, "frozen", False)
+        and os.path.basename(executable) == "__main__.py"
+        and os.path.basename(os.path.dirname(executable)) == "ggshield"
+    )
 
 
 def hook_executable() -> str:
