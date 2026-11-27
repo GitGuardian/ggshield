@@ -31,7 +31,7 @@ CI_VARS = (
     "TEAMCITY_VERSION",
     "bamboo_buildNumber",
 )
-NO_FEATURES = ["--no-ai-hooks", "--no-git-hooks", "--no-honeytokens"]
+NO_FEATURES = ["--no-ai-hooks", "--no-git-hooks", "--no-honeytokens", "--no-plugins"]
 
 
 @pytest.fixture(autouse=True)
@@ -240,6 +240,9 @@ def test_setup_runs_registration_last_even_after_failure(cli_fs_runner):
         f"{SETUP}._setup_git_hooks",
         side_effect=lambda *args: calls.append("git") or True,
     ), patch(
+        f"{SETUP}._setup_plugins",
+        side_effect=lambda *args: calls.append("plugins") or True,
+    ), patch(
         f"{SETUP}._setup_honeytokens",
         side_effect=lambda *args: calls.append("honeytokens") or False,
     ), patch(
@@ -249,7 +252,7 @@ def test_setup_runs_registration_last_even_after_failure(cli_fs_runner):
     ):
         result = cli_fs_runner.invoke(cli, ["machine", "setup"])
     assert result.exit_code == 1
-    assert calls == ["ai", "git", "honeytokens", "registration"]
+    assert calls == ["ai", "git", "plugins", "honeytokens", "registration"]
     assert result.output.splitlines() == ["Endpoints: registered 2 user(s)"]
 
 
@@ -293,12 +296,15 @@ def test_help_documents_registration(cli_fs_runner):
 
 
 @pytest.mark.parametrize(
-    "step", ["_setup_ai_hooks", "_setup_git_hooks", "_setup_honeytokens"]
+    "step",
+    ["_setup_ai_hooks", "_setup_git_hooks", "_setup_plugins", "_setup_honeytokens"],
 )
 def test_a_step_raising_skips_registration(step, cli_fs_runner):
     with patch(f"{SETUP}._setup_ai_hooks", return_value=True), patch(
         f"{SETUP}._setup_git_hooks", return_value=True
-    ), patch(f"{SETUP}._setup_honeytokens", return_value=True), patch(
+    ), patch(f"{SETUP}._setup_plugins", return_value=True), patch(
+        f"{SETUP}._setup_honeytokens", return_value=True
+    ), patch(
         f"{SETUP}.{step}", side_effect=RuntimeError("setup failed")
     ), patch(
         f"{SETUP}.register_endpoint", return_value="registered 1 user(s)"

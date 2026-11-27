@@ -176,6 +176,10 @@ class PluginInfo:
     available: bool
     latest_version: Optional[str]
     reason: Optional[str] = None
+    # False when the latest release has no build for this machine. The catalog
+    # is fetched for this platform and arch, and the server keeps only the
+    # artifacts that match, so an empty list means a download would 404.
+    has_artifact_for_platform: bool = True
 
 
 @dataclass
@@ -241,6 +245,18 @@ def _extract_server_detail(response: "requests.Response") -> Optional[str]:
     return None
 
 
+def _latest_release_has_artifact(plugin_data: Dict[str, Any]) -> bool:
+    """Whether the catalog lists a build of the latest release for this machine.
+
+    Only an explicit empty ``artifacts`` list says no: a plugin without
+    releases, or a release without the field, is left to the download to judge.
+    """
+    releases = plugin_data.get("releases")
+    if not releases or "artifacts" not in releases[0]:
+        return True
+    return bool(releases[0]["artifacts"])
+
+
 class PluginAPIClient:
     """Client for GitGuardian plugin API."""
 
@@ -287,6 +303,7 @@ class PluginAPIClient:
                         p["releases"][0]["version"] if p.get("releases") else None
                     ),
                     reason=p.get("reason"),
+                    has_artifact_for_platform=_latest_release_has_artifact(p),
                 )
                 for p in plugins_data
             ]

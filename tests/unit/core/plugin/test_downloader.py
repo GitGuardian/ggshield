@@ -957,6 +957,48 @@ class TestPluginDownloader:
         # temp file must be cleaned up
         assert not list((tmp_path / "testplugin").glob("*.tmp"))
 
+    def test_download_and_install_is_found_by_its_catalog_reference(
+        self, tmp_path: Path
+    ) -> None:
+        """
+        GIVEN a catalog plugin whose wheel has another distribution name and no
+        entry point matching the catalog reference
+        WHEN it is installed from the platform
+        THEN a later lookup by the catalog reference still finds it
+        """
+        wheel_bytes = b"not a zip: no entry point can be read"
+        download_info = PluginDownloadInfo(
+            filename="satori_python-1.0.0-py3-none-any.whl",
+            sha256=hashlib.sha256(wheel_bytes).hexdigest(),
+            version="1.0.0",
+            size_bytes=len(wheel_bytes),
+        )
+
+        with patch(
+            "ggshield.core.plugin.downloader.get_plugins_dir", return_value=tmp_path
+        ), patch("ggshield.core.plugin.downloader.is_root", return_value=False), patch(
+            "ggshield.core.plugin.downloader.verify_wheel_signature",
+            return_value=MOCK_SIG_INFO,
+        ):
+            downloader = PluginDownloader()
+            wheel_path = downloader.download_and_install(
+                download_info, iter([wheel_bytes]), "machine_scan"
+            )
+
+        assert wheel_path.parent == tmp_path / "satori-python"
+        manifest = json.loads((wheel_path.parent / "manifest.json").read_text())
+        assert manifest["catalog_reference"] == "machine_scan"
+        assert (
+            downloader.get_installed_version("machine_scan", by_catalog_reference=True)
+            == "1.0.0"
+        )
+        assert (
+            downloader.get_wheel_path("machine_scan", by_catalog_reference=True)
+            == wheel_path
+        )
+        # Opt-in: a user-given name (plugin enable/uninstall) is not matched.
+        assert downloader.get_installed_version("machine_scan") is None
+
 
 class TestChecksumMismatchError:
     """Tests for ChecksumMismatchError."""
@@ -2317,6 +2359,33 @@ class TestResolvePluginDirFallback:
     def test_no_direct_no_entry_point_returns_none(self, tmp_path: Path) -> None:
         downloader = self._downloader(tmp_path)
         assert downloader._resolve_plugin_dir("absent") is None
+
+    def test_matches_catalog_reference_recorded_in_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        """The catalog can name a plugin differently from both its directory
+        (the distribution name) and its entry point: the manifest records it."""
+        downloader = self._downloader(tmp_path)
+        other = tmp_path / "unrelated"
+        other.mkdir()
+        (other / "manifest.json").write_text(json.dumps({"plugin_name": "unrelated"}))
+        real_dir = tmp_path / "satori-python"
+        real_dir.mkdir()
+        (real_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "plugin_name": "satori-python",
+                    "catalog_reference": "machine_scan",
+                    "wheel_filename": "satori_python-1.0.0.whl",
+                }
+            )
+        )
+
+        assert (
+            downloader._resolve_plugin_dir("machine_scan", by_catalog_reference=True)
+            == real_dir
+        )
+        assert downloader._resolve_plugin_dir("machine_scan") is None
 
 
 class TestWheelDistributionName:

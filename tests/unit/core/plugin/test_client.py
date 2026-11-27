@@ -99,6 +99,65 @@ class TestPluginAPIClient:
         assert catalog.plugins[0].name == "tokenscanner"
         assert catalog.plugins[0].latest_version == "1.0.0"
 
+    @pytest.mark.parametrize(
+        ("releases", "expected"),
+        [
+            ([{"version": "2.0.0", "artifacts": []}], False),
+            (
+                [
+                    {
+                        "version": "2.0.0",
+                        "artifacts": [{"platform": "linux", "arch": "x86_64"}],
+                    },
+                    {"version": "1.0.0", "artifacts": []},
+                ],
+                True,
+            ),
+            # The latest release decides: an older build does not help.
+            (
+                [
+                    {"version": "2.0.0", "artifacts": []},
+                    {
+                        "version": "1.0.0",
+                        "artifacts": [{"platform": "linux", "arch": "x86_64"}],
+                    },
+                ],
+                False,
+            ),
+            # No artifacts field, or no release: leave it to the download.
+            ([{"version": "2.0.0"}], True),
+            ([], True),
+        ],
+    )
+    @patch("ggshield.core.plugin.client.get_platform_info")
+    def test_get_available_plugins_reports_artifact_for_platform(
+        self,
+        mock_platform: MagicMock,
+        mock_gg_client: MagicMock,
+        releases: list,
+        expected: bool,
+    ) -> None:
+        """The catalog is filtered for this platform: an empty artifact list on
+        the latest release means there is no build for this machine."""
+        mock_platform.return_value = PlatformInfo(
+            os="win", arch="arm64", python_abi="cp311"
+        )
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "reference": "machine_scan",
+                "available": True,
+                "reason": None,
+                "releases": releases,
+            }
+        ]
+        mock_gg_client.session.get.return_value = mock_response
+
+        catalog = PluginAPIClient(mock_gg_client).get_available_plugins()
+
+        assert catalog.plugins[0].has_artifact_for_platform is expected
+
     @patch("ggshield.core.plugin.client.get_platform_info")
     def test_get_available_plugins_request_error(
         self, mock_platform: MagicMock, mock_gg_client: MagicMock

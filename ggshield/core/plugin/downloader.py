@@ -402,6 +402,7 @@ class PluginDownloader:
                 sha256=download_info.sha256,
                 source=source,
                 signature_info=sig_info,
+                catalog_reference=plugin_name,
             )
 
             # Sweep older wheels left behind by previous installs of
@@ -903,9 +904,17 @@ class PluginDownloader:
                 "Failed to remove plugin extraction cache %s: %s", cache_dir, exc
             )
 
-    def get_installed_version(self, plugin_name: str) -> Optional[str]:
-        """Get the installed version of a plugin (by package name or entry point name)."""
-        manifest = self.get_manifest(plugin_name)
+    def get_installed_version(
+        self, plugin_name: str, *, by_catalog_reference: bool = False
+    ) -> Optional[str]:
+        """Get the installed version of a plugin (by package name or entry point name).
+
+        With ``by_catalog_reference``, ``plugin_name`` is the platform catalog
+        reference, also matched against the one a platform install records.
+        """
+        manifest = self.get_manifest(
+            plugin_name, by_catalog_reference=by_catalog_reference
+        )
         if not manifest:
             return None
         return manifest.get("version")
@@ -914,7 +923,9 @@ class PluginDownloader:
         """Check if a plugin is installed (by package name or entry point name)."""
         return self.get_installed_version(plugin_name) is not None
 
-    def _resolve_plugin_dir(self, plugin_name: str) -> Optional[Path]:
+    def _resolve_plugin_dir(
+        self, plugin_name: str, *, by_catalog_reference: bool = False
+    ) -> Optional[Path]:
         """Resolve a plugin directory from a package or entry point name.
 
         Searches ``_read_dirs`` in priority order and fully resolves each
@@ -930,6 +941,12 @@ class PluginDownloader:
         dir from an aborted install or hand-created — and falls through to
         the entry-point scan so the real install (which may live under the
         wheel's distribution-name directory) still resolves.
+
+        With ``by_catalog_reference``, a platform install is last matched by
+        the catalog reference recorded in its manifest: the catalog can name a
+        plugin differently from both its distribution name and its entry-point
+        name. Opt-in, because the commands that take a user-given name derive
+        the config key from it.
         """
         for base in self._read_dirs:
             plugin_dir = base / plugin_name
@@ -938,15 +955,46 @@ class PluginDownloader:
             found = self._find_entry_point_dir_in(base, plugin_name)
             if found is not None:
                 return found
+            if by_catalog_reference:
+                found = self._find_catalog_reference_dir_in(base, plugin_name)
+                if found is not None:
+                    return found
         return None
 
-    def _get_manifest_path(self, plugin_name: str) -> Optional[Path]:
+    @staticmethod
+    def _find_catalog_reference_dir_in(
+        base: Path, catalog_reference: str
+    ) -> Optional[Path]:
+        """Find a plugin dir under ``base`` whose manifest records this catalog
+        reference."""
+        if not base.exists():
+            return None
+        for plugin_dir in base.iterdir():
+            manifest_path = plugin_dir / "manifest.json"
+            if not plugin_dir.is_dir() or not manifest_path.exists():
+                continue
+            try:
+                manifest = json.loads(manifest_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if (
+                isinstance(manifest, dict)
+                and manifest.get("catalog_reference") == catalog_reference
+            ):
+                return plugin_dir
+        return None
+
+    def _get_manifest_path(
+        self, plugin_name: str, *, by_catalog_reference: bool = False
+    ) -> Optional[Path]:
         """Return the manifest path for a plugin installed by package or entry point."""
         if not self._is_valid_plugin_name(plugin_name):
             logger.warning("Invalid plugin name: %s", plugin_name)
             return None
 
-        plugin_dir = self._resolve_plugin_dir(plugin_name)
+        plugin_dir = self._resolve_plugin_dir(
+            plugin_name, by_catalog_reference=by_catalog_reference
+        )
         if plugin_dir is None:
             return None
 
@@ -1004,9 +1052,13 @@ class PluginDownloader:
         result = read_entry_point_from_wheel(wheel_path)
         return result[0] if result else None
 
-    def get_wheel_path(self, plugin_name: str) -> Optional[Path]:
+    def get_wheel_path(
+        self, plugin_name: str, *, by_catalog_reference: bool = False
+    ) -> Optional[Path]:
         """Get the path to an installed plugin's wheel file."""
-        manifest_path = self._get_manifest_path(plugin_name)
+        manifest_path = self._get_manifest_path(
+            plugin_name, by_catalog_reference=by_catalog_reference
+        )
         if manifest_path is None:
             return None
 
@@ -1022,9 +1074,13 @@ class PluginDownloader:
 
         return None
 
-    def get_manifest(self, plugin_name: str) -> Optional[Dict[str, Any]]:
+    def get_manifest(
+        self, plugin_name: str, *, by_catalog_reference: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """Get the full manifest for an installed plugin."""
-        manifest_path = self._get_manifest_path(plugin_name)
+        manifest_path = self._get_manifest_path(
+            plugin_name, by_catalog_reference=by_catalog_reference
+        )
         if manifest_path is None:
             return None
 
@@ -1113,8 +1169,15 @@ class PluginDownloader:
         sha256: str,
         source: PluginSource,
         signature_info: Optional[SignatureInfo] = None,
+        catalog_reference: Optional[str] = None,
     ) -> None:
-        """Write the plugin manifest file."""
+        """Write the plugin manifest file.
+
+        ``catalog_reference`` is the platform's name for the plugin, recorded
+        for a platform install so a later lookup by that name still finds the
+        plugin when it differs from both the wheel's distribution name (the
+        directory name) and its entry-point name.
+        """
         manifest: Dict[str, Any] = {
             "plugin_name": plugin_name,
             "version": version,
@@ -1123,6 +1186,8 @@ class PluginDownloader:
             "source": source.to_dict(),
             "installed_at": datetime.now(timezone.utc).isoformat(),
         }
+        if catalog_reference is not None:
+            manifest["catalog_reference"] = catalog_reference
         if signature_info is not None:
             sig_data: Dict[str, Any] = {"status": signature_info.status.value}
             if signature_info.identity:
