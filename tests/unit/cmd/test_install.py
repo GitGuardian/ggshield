@@ -1137,6 +1137,9 @@ class TestInstallWithoutGit:
         assert Path(".claude/settings.json").is_file()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="the global hook is a POSIX /bin/sh script"
+)
 class TestGlobalPrePushStdinReplay:
     """Behavior of ``LOCAL_HOOK_PUSH_SNIPPET``, the pre-push variant of the global
     hook body.
