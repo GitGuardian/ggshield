@@ -1608,7 +1608,7 @@ tests = [
 requires-dist = [
     { name = "charset-normalizer", specifier = "~=3.1.0" },
     { name = "click", specifier = ">=8.1.0,<9" },
-    { name = "configupdater", specifier = ">=3.2,<4" },
+    { name = "configupdater", specifier = ">=3.2,<5" },
     { name = "cryptography", specifier = ">=43.0.1,<51" },
     { name = "filelock", specifier = ">=3.19.1" },
     { name = "keyring", specifier = ">=25.0.0,<26" },

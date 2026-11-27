@@ -38,7 +38,7 @@ dependencies = [
     # degrade secret scanning (see _decode_bytes in core/scan/scannable.py).
     "charset-normalizer~=3.1.0",
     "click>=8.1.0,<9",
-    "configupdater>=3.2,<4",
+    "configupdater>=3.2,<5",
     # The floor stays below the CVE-2026-69247 fix (50.0.0) because sigstore
     # 4.1.0, the last release supporting Python 3.9, caps cryptography at < 47.
     "cryptography>=43.0.1,<51",
