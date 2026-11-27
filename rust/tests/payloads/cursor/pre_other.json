@@ -1,0 +1,14 @@
+{
+  "conversation_id": "75fed8a8-2078-4e49-80d2-776b20d441c3",
+  "generation_id": "1501ede6-b8ac-43f4-9943-0e218610c5c6",
+  "model": "default",
+  "cursor_version": "2.5.25",
+  "workspace_roots": ["/home/user1/foo"],
+  "transcript_path": "/home/user1/.cursor/projects/foo/agent-transcripts/75fed8a8/75fed8a8.jsonl",
+  "hook_event_name": "preToolUse",
+  "tool_name": "WebFetch",
+  "tool_input": {
+    "url": "https://example.com",
+    "token": "{{CLIENT_ID}}"
+  }
+}

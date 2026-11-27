@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-02-26T11:28:53.112Z",
+  "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+  "transcript_path": "/home/user1/.config/Code/User/workspaceStorage/abc123/GitHub.copilot-chat/transcripts/69cc6a03.jsonl",
+  "cwd": "/home/user1/foo",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "run_in_terminal",
+  "tool_input": {
+    "command": "printenv"
+  },
+  "tool_response": {
+    "output": "{{CLIENT_ID}}"
+  }
+}

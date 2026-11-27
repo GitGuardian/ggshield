@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-02-26T11:28:53.112Z",
+  "session_id": "69cc6a03-7034-4c49-8cf9-3805c292a15c",
+  "cwd": "/home/user1/foo",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "view",
+  "tool_input": {
+    "file_path": "{{READ_FILE}}"
+  },
+  "tool_use_id": "toolu_01"
+}

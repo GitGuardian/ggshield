@@ -39,8 +39,9 @@ Thirteen matrices:
   junie    Junie CLI, likewise Rust-only: Claude Code's verdict schema, its
            own `project_path`, and no PostToolUse event at all
 
-Every payload fixture is copied from tests/unit/verticals/ai/test_hooks.py, so
-the shapes are the ones ggshield's own tests consider realistic.
+Agent payloads live in tests/payloads/<agent>/<shape>.json (see the README
+there). Their shapes are copied from tests/unit/verticals/ai/test_hooks.py, so
+they are the ones ggshield's own tests consider realistic.
 
 Both sides get a *fresh* cache dir per run, otherwise the payload debounce
 answers a repeated payload from what the previous run left behind (silently in
@@ -177,255 +178,23 @@ def agent_bases():
 
 
 def agent_payloads():
-    """6 agents x 6 payload shapes, each in that agent's own dialect.
+    """Every agent's payload shapes, read from tests/payloads/<agent>/<shape>.json.
 
-    Vibe differs: no prompt event, plus four shapes of its own.
-
-    Shapes are copied from tests/unit/verticals/ai/test_hooks.py.
+    The files hold {{CLIENT_ID}}, {{CLIENT_SECRET}} and {{READ_FILE}} where the
+    fake credentials and the read target go; they are filled in here.
     """
-    bases = agent_bases()
-    claude, codex = bases["claude"], bases["codex"]
-    copilot, cursor, vscode = bases["copilot"], bases["cursor"], bases["vscode"]
-    vibe = bases["vibe"]
-
-    command = (
-        f"aws configure set aws_access_key_id {CLIENT_ID} --secret {CLIENT_SECRET}"
-    )
-    prompt = f"deploy with key {CLIENT_ID} please"
-
-    def shapes(
-        base,
-        *,
-        prompt_event,
-        pre,
-        post,
-        bash,
-        read,
-        output_key,
-        output_value,
-        read_key="file_path",
-    ):
-        built = {
-            "user_prompt": {**base, "hook_event_name": prompt_event, "prompt": prompt},
-            "pre_bash": {
-                **base,
-                "hook_event_name": pre,
-                "tool_name": bash,
-                "tool_input": {"command": command},
-            },
-            "pre_read": {
-                **base,
-                "hook_event_name": pre,
-                "tool_name": read,
-                "tool_input": {read_key: READ_FILE},
-            },
-            "pre_other": {
-                **base,
-                "hook_event_name": pre,
-                "tool_name": "WebFetch",
-                "tool_input": {"url": "https://example.com", "token": CLIENT_ID},
-            },
-            "post_bash": {
-                **base,
-                "hook_event_name": post,
-                "tool_name": bash,
-                "tool_input": {"command": "printenv"},
-                output_key: output_value,
-            },
-            # Regression: a heredoc is parsed as a file read whose
-            # "path" is the entire command, which used to make Path.is_file()
-            # raise ENAMETOOLONG and abandon the scan. The secret is in the
-            # command, so this must still block.
-            "pre_heredoc": {
-                **base,
-                "hook_event_name": pre,
-                "tool_name": bash,
-                "tool_input": {
-                    "command": f"cat > /tmp/out.env <<'EOF'\nAWS_KEY={CLIENT_ID}\nEOF",
-                },
-            },
-        }
-        # Vibe hooks tools only: no prompt event, so there is no shape to send.
-        if prompt_event is None:
-            del built["user_prompt"]
-        return built
-
-    return {
-        "claude": {
-            **shapes(
-                claude,
-                prompt_event="UserPromptSubmit",
-                pre="PreToolUse",
-                post="PostToolUse",
-                bash="Bash",
-                read="Read",
-                output_key="tool_response",
-                output_value={"stdout": CLIENT_ID, "stderr": "", "interrupted": False},
-            ),
-            # The model only gets "updated successfully" for an Edit, so both
-            # sides redact the stored output instead of blocking.
-            "post_edit": {
-                **claude,
-                "hook_event_name": "PostToolUse",
-                "tool_name": "Edit",
-                "tool_input": {"file_path": "/repo/creds.py", "old_string": "a"},
-                "tool_response": {
-                    "filePath": "/repo/creds.py",
-                    "originalFile": f"KEY = '{CLIENT_ID}'\na = 1\n",
-                    "structuredPatch": [
-                        {"lines": [f" KEY = '{CLIENT_ID}'", "-a = 1", "+b = 1"]}
-                    ],
-                },
-            },
-        },
-        "codex": {
-            **shapes(
-                codex,
-                prompt_event="UserPromptSubmit",
-                pre="PreToolUse",
-                post="PostToolUse",
-                bash="Bash",
-                read="Read",
-                output_key="tool_output",
-                output_value={"output": CLIENT_ID, "exit_code": 0},
-            ),
-            # Codex 0.170 hands the hook the status line the model gets, so a
-            # secret in the patched file is not scanned again after the edit.
-            "post_edit": {
-                **codex,
-                "hook_event_name": "PostToolUse",
-                "tool_name": "apply_patch",
-                "tool_input": {
-                    "command": "*** Begin Patch\n*** Update File: /repo/creds.py\n"
-                    f"@@\n KEY = '{CLIENT_ID}'\n-a = 1\n+b = 1\n*** End Patch"
-                },
-                "tool_response": "Exit code: 0\nOutput:\nSuccess. Updated the following files:\nM /repo/creds.py\n",
-            },
-        },
-        "copilot": {
-            **shapes(
-                copilot,
-                prompt_event="userPromptSubmitted",
-                pre="PreToolUse",
-                post="PostToolUse",
-                bash="bash",
-                read="view",
-                output_key="tool_result",
-                output_value={"output": CLIENT_ID},
-            ),
-            # Copilot CLI 1.0.104: the status line the model gets, as for Codex.
-            "post_edit": {
-                **copilot,
-                "hook_event_name": "PostToolUse",
-                "tool_name": "Edit",
-                "tool_input": "*** Begin Patch\n*** Update File: creds.py\n"
-                f"@@\n KEY = '{CLIENT_ID}'\n-a = 1\n+b = 1\n*** End Patch\n",
-                "tool_result": {
-                    "result_type": "success",
-                    "text_result_for_llm": "Modified 1 file(s): /repo/creds.py",
-                },
-            },
-        },
-        "cursor": shapes(
-            cursor,
-            prompt_event="beforeSubmitPrompt",
-            pre="preToolUse",
-            post="postToolUse",
-            bash="Shell",
-            read="Read",
-            output_key="tool_output",
-            # Cursor sends the tool output as an already-serialised string.
-            output_value=json.dumps({"output": CLIENT_ID, "exitCode": 0}),
-        ),
-        "vibe": {
-            **shapes(
-                vibe,
-                prompt_event=None,
-                pre="pre_tool",
-                post="post_tool",
-                bash="bash",
-                read="read_file",
-                read_key="path",
-                output_key="tool_output",
-                output_value={"content": CLIENT_ID},
-            ),
-            # A failed tool call: Vibe nulls the structured output and leaves the
-            # text the model sees in tool_output_text. Scanning the literal "null"
-            # instead would miss this secret.
-            "post_bash_failed": {
-                **vibe,
-                "hook_event_name": "post_tool",
-                "tool_name": "bash",
-                "tool_input": {"command": "printenv"},
-                "tool_status": "failure",
-                "tool_output": None,
-                "tool_output_text": f"AWS_SECRET_ACCESS_KEY={CLIENT_SECRET}",
-                "tool_error": "failed",
-            },
-            # git_bash and powershell are Vibe's other two shells, so the `cat`
-            # must be parsed as a file read.
-            "pre_git_bash_cat": {
-                **vibe,
-                "hook_event_name": "pre_tool",
-                "tool_name": "git_bash",
-                "tool_input": {"command": f"cat {READ_FILE}"},
-            },
-            "pre_powershell_cat": {
-                **vibe,
-                "hook_event_name": "pre_tool",
-                "tool_name": "powershell",
-                "tool_input": {"command": f"Get-Content {READ_FILE}"},
-            },
-            # post_agent is recognised as Vibe but maps to no event type, so it
-            # must parse and pass through rather than being refused.
-            "post_agent": {**vibe, "hook_event_name": "post_agent"},
-            # Vibe 2.25.1: the edit output is metadata, as for Codex.
-            "post_edit": {
-                **vibe,
-                "hook_event_name": "post_tool",
-                "tool_name": "file_system.search_replace",
-                "tool_input": {
-                    "content": [
-                        {"new_str": "b = 1", "old_str": f"KEY = '{CLIENT_ID}'\na = 1"}
-                    ],
-                    "file_path": "./creds.py",
-                },
-                "tool_status": "success",
-                "tool_output": {"file": "/repo/creds.py", "lines_changed": 1},
-                "tool_output_text": "file: /repo/creds.py\nlines_changed: 1",
-                "tool_error": None,
-            },
-        },
-        # The Copilot desktop app: PascalCase events, and a `tool_use_id` on
-        # tool events that an exact key set once refused.
-        "copilot_desktop": {
-            shape: (
-                payload
-                if shape == "user_prompt"
-                else {**payload, "tool_use_id": "toolu_01"}
-            )
-            for shape, payload in shapes(
-                copilot,
-                prompt_event="UserPromptSubmit",
-                pre="PreToolUse",
-                post="PostToolUse",
-                bash="bash",
-                read="view",
-                output_key="tool_result",
-                output_value={"output": CLIENT_ID},
-            ).items()
-        },
-        "vscode": shapes(
-            vscode,
-            prompt_event="UserPromptSubmit",
-            pre="PreToolUse",
-            post="PostToolUse",
-            bash="run_in_terminal",
-            read="read_file",
-            output_key="tool_response",
-            output_value={"output": CLIENT_ID},
-        ),
+    fill = {
+        "{{CLIENT_ID}}": CLIENT_ID,
+        "{{CLIENT_SECRET}}": CLIENT_SECRET,
+        "{{READ_FILE}}": READ_FILE,
     }
+    payloads = {}
+    for path in sorted((ROOT / "tests" / "payloads").glob("*/*.json")):
+        text = path.read_text()
+        for token, value in fill.items():
+            text = text.replace(token, value)
+        payloads.setdefault(path.parent.name, {})[path.stem] = json.loads(text)
+    return payloads
 
 
 def config_cases(ignore_sha):

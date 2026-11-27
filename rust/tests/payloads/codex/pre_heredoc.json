@@ -1,0 +1,12 @@
+{
+  "session_id": "273ad859-3608-4799-9971-fa15ecb1a65c",
+  "transcript_path": "/home/user/.codex/sessions/2026/04/30/session.jsonl",
+  "cwd": "/home/user/project",
+  "turn_id": "turn_123",
+  "model": "gpt-5.4",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "cat > /tmp/out.env <<'EOF'\nAWS_KEY={{CLIENT_ID}}\nEOF"
+  }
+}

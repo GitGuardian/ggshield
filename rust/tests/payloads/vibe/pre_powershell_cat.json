@@ -1,0 +1,11 @@
+{
+  "session_id": "session-123",
+  "parent_session_id": null,
+  "transcript_path": "/home/claude/.vibe/logs/session-123.jsonl",
+  "cwd": "/home/user1/foo",
+  "hook_event_name": "pre_tool",
+  "tool_name": "powershell",
+  "tool_input": {
+    "command": "Get-Content {{READ_FILE}}"
+  }
+}
