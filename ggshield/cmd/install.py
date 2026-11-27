@@ -36,13 +36,30 @@ if [ -f "$_ggshield_local_hook" ]; then
 fi
 """
 
+# Pre-push variant: git passes the pushed refs on stdin, so buffer them and replay
+# them to both the repository's own hook and ggshield.
+LOCAL_HOOK_PUSH_SNIPPET = """
+_ggshield_local_hook=$(git rev-parse --git-common-dir)/hooks/{hook_type}
+if [ -f "$_ggshield_local_hook" ]; then
+    _ggshield_stdin=$(cat; printf x)
+    _ggshield_stdin=${{_ggshield_stdin%x}}
+    if ! printf '%s' "$_ggshield_stdin" | "$_ggshield_local_hook" "$@"; then
+        echo 'Local {hook_type} hook failed, please see output above'
+        exit 1
+    fi
+    printf '%s' "$_ggshield_stdin" | ggshield secret scan {hook_type} "$@"
+else
+    ggshield secret scan {hook_type} "$@"
+fi
+"""
+
 # The line `create_hook` writes into every ggshield-managed hook script; its presence
 # is how we recognize a hook (or hooks dir) as ggshield's own.
 GGSHIELD_HOOK_MARKER = "ggshield secret scan"
 
 # Bumped whenever the generated hook body changes, so an already-installed hook can be
 # told apart from one rendered by an older ggshield. An unstamped hook is version 0.
-GGSHIELD_HOOK_VERSION = 1
+GGSHIELD_HOOK_VERSION = 2
 _HOOK_STAMP_RE = re.compile(r"^# ggshield-hook-version: *(\d+)", re.MULTILINE)
 
 # Local-hook snippets shipped by earlier ggshield versions, kept byte-exact so a stale
@@ -248,33 +265,42 @@ def _hook_body(hook_type: str, local_hook_support: bool) -> str:
     every legacy body this one replaces started with the same newline, so the
     separator survives a repair.
     """
+    stamp = f"\n# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}\n"
+    if local_hook_support and hook_type == "pre-push":
+        # The push snippet pipes the buffered refs into ggshield itself, so it ends
+        # with the scan command instead of being followed by it.
+        return stamp + LOCAL_HOOK_PUSH_SNIPPET.format(hook_type=hook_type)
     snippet = (
         LOCAL_HOOK_SNIPPET.format(hook_type=hook_type) + "\n"
         if local_hook_support
         else ""
     )
-    return (
-        f"\n# ggshield-hook-version: {GGSHIELD_HOOK_VERSION}\n"
-        f"{snippet}"
-        f'ggshield secret scan {hook_type} "$@"\n'
-    )
+    return stamp + snippet + f'ggshield secret scan {hook_type} "$@"\n'
+
+
+# The stamp line a hook carries, whatever version it names. Repairing a hook matches
+# it as optional context, so the stamp it replaces disappears with the body instead of
+# being left above the new one.
+_HOOK_STAMP_LINE = r"\n# ggshield-hook-version: *\d+\n"
 
 
 def _legacy_hook_bodies(hook_type: str) -> List[str]:
-    return [
+    """Bodies earlier ggshield versions wrote into a hook script, stamp excluded."""
+    bodies = [
         snippet.format(hook_type=hook_type)
         + "\n"
         + f'ggshield secret scan {hook_type} "$@"\n'
         for snippet in _LEGACY_LOCAL_HOOK_SNIPPETS
     ]
+    if hook_type == "pre-push":
+        # Shipped once the replay snippet existed. It ends with the scan itself, so
+        # it never carried the separate scan line the bodies above end with.
+        bodies.append(LOCAL_HOOK_PUSH_SNIPPET.format(hook_type=hook_type))
+    return bodies
 
 
 def hook_is_outdated(hook_path: Path) -> bool:
-    """Whether ``hook_path`` is ggshield's own hook, rendered by an older template.
-
-    Presence of the marker is not currency: a hook installed before the stamp existed
-    carries a template that skips the repository's own hook in linked worktrees.
-    """
+    """Whether ``hook_path`` is ggshield's own hook, rendered by an older template."""
     if not hook_invokes_ggshield(hook_path):
         return False
     try:
@@ -297,9 +323,14 @@ def upgrade_hook(hook_path: Path, hook_type: str) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     for legacy in _legacy_hook_bodies(hook_type):
-        if legacy in text:
+        pattern = re.compile(f"(?:{_HOOK_STAMP_LINE})?{re.escape(legacy)}")
+        if pattern.search(text):
             hook_path.write_text(
-                text.replace(legacy, _hook_body(hook_type, local_hook_support=True), 1)
+                pattern.sub(
+                    lambda _: _hook_body(hook_type, local_hook_support=True),
+                    text,
+                    count=1,
+                )
             )
             return True
     return False
