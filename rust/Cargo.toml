@@ -69,7 +69,8 @@ secret-service = { version = "5", default-features = false, features = ["rt-asyn
 # the read entry point. `LockFileEx` (Storage_FileSystem + System_IO for
 # OVERLAPPED) is the byte-range lock `filelock` takes via `msvcrt.locking`, so
 # the credential read serialises against `ggshield`'s. Ctrl-C has to be handed
-# to the child, which needs SetConsoleCtrlHandler.
+# to the child, which needs SetConsoleCtrlHandler. The machine identity reads
+# the hostname and username as Python does (SystemInformation, WindowsProgramming).
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
@@ -77,6 +78,8 @@ windows-sys = { version = "0.61", features = [
   "Win32_Storage_FileSystem",
   "Win32_System_Console",
   "Win32_System_IO",
+  "Win32_System_SystemInformation",
+  "Win32_System_WindowsProgramming",
 ] }
 
 [dev-dependencies]

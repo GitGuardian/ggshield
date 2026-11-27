@@ -169,6 +169,12 @@ class Handler(BaseHTTPRequestHandler):
                             # Which token got here, so a case can assert *whose*
                             # credentials were used and not just that a scan ran.
                             "token": self.headers.get("Authorization", ""),
+                            # Decoded as latin-1 by http.server, as the server does.
+                            "machine": {
+                                name.lower(): value
+                                for name, value in self.headers.items()
+                                if name.lower().startswith("ggshield-machine-")
+                            },
                             "body": raw.decode("utf-8", "replace"),
                         }
                     )
