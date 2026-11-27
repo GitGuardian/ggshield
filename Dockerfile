@@ -1,7 +1,7 @@
 # Four stages:
 # - `uv` is just a pinned image to copy the binary out of (it builds nothing)
-# - `builder-py` installs the dependencies
-# - `builder-rust` builds the rust project
+# - `rust` is just a pinned image to copy the Rust toolchain out of
+# - `builder-py` builds ggshield, Rust included, and installs the dependencies
 # - `build` is the image we publish.
 # The split exists because uv is a 44MB binary: copying only
 # the resulting virtualenv into a clean image keeps uv and the sources out of
@@ -15,7 +15,9 @@
 # Pinned by digest as well as by tag, since a tag can be moved to a different commit.
 FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
 
-# Debian version explicitly specified: should remain the same for the builder-rust
+FROM rust:1.96.0-slim-trixie@sha256:c37af730be4fd8104cbf9aedbd6ab259e51ca2d5437817a0f8680edf66ac6c28 AS rust
+
+# Debian version explicitly specified: should remain the same for the rust
 # and the build layers, to avoid compatibility issues with glibc.
 # Pinned by digest, not just by tag: a tag is a mutable pointer that can be
 # repushed to different content, so the digest is what makes a rebuild resolve
@@ -26,6 +28,17 @@ FROM python:3.10.22-slim-trixie@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983
 
 COPY --from=uv /uv /usr/local/bin/uv
 
+RUN \
+    apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=rust /usr/local/rustup /usr/local/rustup
+COPY --from=rust /usr/local/cargo /usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+
 # Use the base image's interpreter rather than one uv downloads: the venv
 # records an absolute interpreter path in pyvenv.cfg, so `builder` and `build`
 # have to agree on it.
@@ -33,6 +46,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 # Ship .pyc files: without them every `ggshield` invocation in a fresh
 # container recompiles, which measured ~0.2s slower on `--version` alone.
 ENV UV_COMPILE_BYTECODE=1
+ENV GGSHIELD_BUILD_RUST=1
 
 # Must match the runtime path exactly -- console scripts get an absolute
 # shebang (`#!/app/.venv/bin/python3`), so a venv built elsewhere and copied
@@ -47,19 +61,6 @@ COPY . .
 # --no-editable so the venv holds a real copy rather than pointing back at
 # /app, which does not exist in the runtime stage.
 RUN uv sync --locked --no-dev --no-editable
-
-# Pinned by digest as well as by tag, since a tag can be moved to a different commit.
-FROM rust:1.96.0-slim-trixie@sha256:c37af730be4fd8104cbf9aedbd6ab259e51ca2d5437817a0f8680edf66ac6c28 AS builder-rust
-
-WORKDIR /app
-
-COPY rust ./rust
-COPY ggshield ./ggshield
-
-# No toolchain download here: rust/rust-toolchain.toml pins the same version as
-# this image's tag. Bump both together, or rustup fetches the pinned one at build
-# time (and needs network to do so).
-RUN cd rust && cargo build --release --locked
 
 FROM python:3.10.22-slim-trixie@sha256:6ff506466f8b1e981719b468cc0023b8ef000b983cdec0eafe119d01f379e31d AS build
 
@@ -86,12 +87,6 @@ RUN python -m compileall -q -j0 "$(python -c 'import sysconfig; print(sysconfig.
 # The environment only. ggshield is installed inside it, so the sources are
 # not needed at runtime.
 COPY --from=builder-py /app/.venv /app/.venv
-# Same layout as the OS packages (see scripts/build-os-packages): the Rust
-# dispatcher takes the `ggshield` name and execs its sibling `ggshield-py` for
-# anything it does not handle natively. Both must stay in the same directory.
-RUN mv /app/.venv/bin/ggshield /app/.venv/bin/ggshield-py
-
-COPY --from=builder-rust /app/rust/target/release/ggshield /app/.venv/bin/
 
 # actions/secret/action.yml runs /app/docker/actions-secret-entrypoint.sh, so
 # the image must carry it.

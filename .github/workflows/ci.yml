@@ -127,6 +127,8 @@ jobs:
           echo "GGTEST_DOCKER_IMAGE=mcr.microsoft.com/windows/nanoserver:ltsc2022" >> $GITHUB_ENV
 
       - name: Ensure a clean package installation
+        env:
+          GGSHIELD_BUILD_RUST: '1'
         run: |
           uv build --wheel
           # The created wheel (.whl) file will be found and analyzed within the `dist/` folder
