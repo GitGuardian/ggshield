@@ -5,10 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 # Builds the platform wheels carrying the Rust `ggshield` binary, and nothing
-# else: the sdist and the pure-Python `py3-none-any` fallback come from
-# build_release_assets.yml's `build_wheel_sdist` job. Both would otherwise emit
-# the same `ggshield-<version>-py3-none-any.whl`, and PyPI rejects a duplicate
-# file. The two sets meet again in tag.yml's `push_to_pypi`, under artifact names
+# else to publish: the sdist comes from build_release_assets.yml's `build_sdist`
+# job. The two sets meet again in tag.yml's `push_to_pypi`, under artifact names
 # `dist` and `wheel-*`.
 #
 # Each platform wheel is tagged py3-none-<platform>: a native binary but no
@@ -16,7 +14,7 @@ concurrency:
 
 on:
   # Called by tag.yml, so a release actually publishes these. Same run as
-  # `build_wheel_sdist`, which is what lets `push_to_pypi` download both.
+  # `build_sdist`, which is what lets `push_to_pypi` download both.
   workflow_call:
     inputs:
       skip_macos_windows:
